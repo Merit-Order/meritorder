@@ -1,0 +1,55 @@
+id: tier-matched-judges
+task: coding
+level: 4
+kind: agent
+commit: e31afd4
+summary: "A panel of three judges from three model families, two per answer and none from the answer's own family, at high effort; the cost estimate follows"
+env: meritorder.evals.envs.codebase:CodebaseEnv
+env_args: {task: tier-matched-judges}
+max_turns: 80
+est_turns: 30
+est_tool_tokens: 5000    # new tokens per turn (tool results and the reply), from runs of this suite
+est_output_tokens: 1200
+preamble_file: ../PREAMBLE.md
+prompt: |
+  ## Issue: eval judges grade their own family, and one judge is a tier below the other
+
+  Open-ended eval tasks (`kind: judged`) are graded by every judge model in the run, and the default judges are
+  `claude-opus` and `gpt-terra`. GPT-6.1 Terra is a tier below Opus (OpenAI's tiers are Astra > Sol > Terra >
+  Luna; Claude's Fable > Opus > Sonnet > Haiku; Gemini 4's Carbon > Argon), and a weaker judge misses what a
+  stronger one catches. Opus also grades Claude's answers, and a model tends to rate answers like its own higher.
+  Judges also run at whatever effort is their default, and some defaults skim.
+
+  Wanted:
+
+  - The default judge panel (`DEFAULT_JUDGES`, also the default of `meritorder eval --judges`) becomes one judge
+    per family at the same tier, in this order: `claude-opus`, `gpt-sol`, `gemini-carbon`.
+  - Each answer is graded by two judges, not the whole panel: the first two in the panel's order whose family
+    differs from the answered model's. With fewer than two from other families, the rest come from the panel in
+    order, so a panel of one still gives one judge. Both must agree for a pass, as today. Examples with the
+    default panel: `claude-haiku` gets `gpt-sol, gemini-carbon`; `gpt-luna` gets `claude-opus, gemini-carbon`;
+    `gemini-flash` and `deepseek-v4-pro` get `claude-opus, gpt-sol`. With the panel `claude-opus, gpt-sol`,
+    `claude-sonnet` gets `gpt-sol, claude-opus` (in that order). With the panel `claude-opus`, any model gets
+    `claude-opus`.
+  - A model's family is read from its name: the part before the first `-`, after any `vendor/` prefix,
+    lowercased. `claude-haiku` is `claude`, `openai/gpt-6` is `gpt`, `gemini-flash-lite` is `gemini`.
+  - When a judged task runs, the requests go out in order: the answering model's, then each chosen judge's in
+    the order above, and the result's `judging` list holds the judges' verdicts in that same order.
+  - Judges run at `high` reasoning effort whatever effort the run sets for the models under evaluation (so a
+    judge's Chat Completions request carries `reasoning_effort: high`): grading against a rubric is careful
+    reading.
+  - The cost estimate (`jobs.estimate`) counts the judges each answer actually gets, so with one model and one
+    judged task a panel of three costs the same to judge as a panel of two (`judging_usd` equal, and above zero
+    when the judges have prices).
+  - `meritorder eval`'s console output and the `--judges` help should say that each answer is graded by the two
+    judges from other families.
+
+  **Interface**
+
+  - `meritorder.evals.runner.family(model: str) -> str`.
+  - `meritorder.evals.runner.judges_for(model: str, judges: list[str]) -> list[str]`: the judges for one
+    model's answer, in the order they're used.
+  - `meritorder.evals.runner.run_task(..., ctx=RunContext(judges=[...]))` as today: `RunContext.judges` is the
+    panel, and the chosen judges are taken from it per model.
+  - `meritorder.evals.jobs.DEFAULT_JUDGES` and `meritorder.evals.jobs.estimate(models, suite, names, repeat, judges)`
+    as today, with the new default and the per-answer count.

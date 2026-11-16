@@ -1,0 +1,68 @@
+id: openrouter-billed-cost
+task: coding
+level: 5
+kind: agent
+commit: c4661c1
+summary: "Record what OpenRouter billed instead of a catalog estimate, through usage parsing, stream merging, cost attribution and the gateway, with savings that still add up"
+env: meritorder.evals.envs.codebase:CodebaseEnv
+env_args: {task: openrouter-billed-cost}
+max_turns: 80
+est_turns: 30
+est_tool_tokens: 5000    # new tokens per turn (tool results and the reply), from runs of this suite
+est_output_tokens: 1500
+preamble_file: ../PREAMBLE.md
+prompt: |
+  ## Issue: the ledger prices OpenRouter requests from the catalog, and some are far off
+
+  OpenRouter sends each request to one of several providers whose prices differ, and charges what that provider
+  charges. We price its requests from the model's catalog price, so the ledger is wrong where it matters most.
+  Checked against a live key: DeepSeek V4.1 Flash came out 18% low and GLM 5.3 Flash 56% low.
+
+  OpenRouter's replies say what it charged: `usage.cost`, in dollars, on a reply and, for streams, in the final
+  usage chunk (the one with an empty `choices` list). With your own provider key (`usage.is_byok` true) `cost` is
+  only OpenRouter's fee; the provider's charge to your key is in `usage.cost_details.upstream_inference_cost`.
+  The ledger should record what was billed, for OpenRouter only (other backends also put things in `usage` that
+  we must not mistake for a bill), and the savings columns must stay consistent with it.
+
+  ### Behaviour wanted
+
+  **Which backends.** A backend config gets `billed_cost: "auto" | "reported" | "catalog"`, default `"auto"`,
+  and `meritorder.config` gets `uses_reported_cost(backend_config) -> bool`. `reported` is True and `catalog` is
+  False. `auto` is True for a backend of kind `api` whose base URL host contains `openrouter.ai` (any case), and
+  False for anything else, including a self-hosted backend whatever its URL looks like.
+
+  **Reading it.** `Usage` gets `billed_usd: float | None = None`. `usage_from_openai` fills it from `usage.cost`
+  when that is an int or float (not a bool) of at least 0; a missing, null, negative, string, boolean or object
+  value leaves it None. When `is_byok` is true and `cost_details.upstream_inference_cost` is a positive number, it is
+  added to the cost. Merging usages (a stream's chunks repeat cumulative counts) keeps the largest billed amount
+  seen; merging a usage that has none leaves the current one as it is.
+
+  **Attributing it.** `attribute(...)` takes a new keyword argument `billed: float | None = None`. When it is given
+  (0.0 counts: free models bill 0) and the request was not self-hosted:
+  - `actual` and `served_api` are the billed amount.
+  - The served model's other figures scale by the same factor, billed over the served model's catalog cost: its
+    `list_price`, and its cost without the gateway's caching. So caching savings scale with what was billed, and a
+    provider that charged more or less than the catalog does not appear as routing savings or losses. When the
+    catalog prices what was served at 0, those figures are simply the billed amount.
+  - The baseline model's cost is still its catalog cost. With no baseline model, the baseline is the served model's
+    scaled cost without caching, as it is the served model's unscaled one today, so routing savings are 0.
+  - The identity still holds: `baseline - actual == savings_routing + savings_caching + savings_self_hosting`.
+  - When a self-hosted chargeback is given, the billed amount is ignored entirely: `actual` is the chargeback and
+    `served_api` the catalog cost, as now.
+
+  For example: 1000 input and 500 output tokens at $1/$2 per million is $0.002 in the catalog. Billed $0.003 with a
+  $10/$20 baseline model: `actual`, `served_api` and `list_price` are 0.003, `baseline` 0.02, `savings_routing`
+  0.017, `savings_caching` 0. The same request with no baseline model: `baseline` 0.003, `savings_routing` 0.
+
+  **Using it.** For a backend that uses the reported cost, the `x-meritorder-cost-usd` header and the ledger row
+  (`actual_cost`, `served_api_cost`, `baseline_cost`, `savings_routing`) come from what was billed, attributed as
+  above. This holds for streamed replies, whose cost arrives in the last usage chunk, and for Anthropic-format
+  clients served through an OpenAI-format backend. Any other backend is priced from the catalog, whatever its
+  replies put in `usage.cost`.
+
+  **Interface**
+  - `BackendConfig.billed_cost: Literal["auto", "reported", "catalog"] = "auto"`
+  - `meritorder.config.uses_reported_cost(b: BackendConfig) -> bool`
+  - `meritorder.pricing.Usage.billed_usd: float | None = None`, kept by `Usage.merge`
+  - `meritorder.formats.translate.usage_from_openai(u) -> Usage` fills `billed_usd`
+  - `meritorder.pricing.attribute(usage, served_price, baseline_price, proxy_cache, self_hosted_cost=None, billed=None) -> Costs`

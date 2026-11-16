@@ -1,0 +1,22 @@
+id: a5-checkout-incident
+task: general
+level: 5
+kind: agent
+prompt: |
+  Yesterday, 2026-11-03, checkout had an incident: the alert "checkout-api error_rate_pct > 1 for 5m" paged at
+  13:47 UTC. It's over now, and you're preparing the postmortem with the observability tools (logs, metrics,
+  deploys and alerts for that day).
+
+  Find:
+  - the production change (its deploy id) that caused the incident, and the service it was made to;
+  - the configuration key whose change caused it;
+  - the impact window: impact_start is the first minute at which checkout-api's error rate was above 1%, and
+    impact_end is the first minute after that at which it was back at or below 1% (UTC, HH:MM).
+
+  Several things changed that day and more than one service misbehaved: base your conclusion on evidence in the
+  logs and metrics, not on timing alone. End your reply with one line holding only this JSON object:
+  {"deploy_id": "...", "service": "...", "config_key": "...", "impact_start": "HH:MM", "impact_end": "HH:MM"}
+env: meritorder.evals.envs.incident:IncidentEnv
+env_args: {scenario: pricing_pool}
+max_turns: 40
+summary: "Root cause is a pool-size change 50 minutes before the errors, triggered by a traffic surge; the nearest deploys (checkout banner, pricing logging bump, inventory migration with a real latency bump), a search spike, and a partial recovery at 14:05 are red herrings"

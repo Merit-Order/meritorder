@@ -1,0 +1,10 @@
+apiVersion: v2
+name: meritorder
+description: Merit Order LLM gateway (gateway, worker, optional GPU capacity controller and compressor)
+type: application
+version: 0.0.1
+appVersion: "0.0.1"
+home: https://github.com/Merit-Order/meritorder
+sources: [https://github.com/Merit-Order/meritorder]
+annotations:
+  artifacthub.io/license: AGPL-3.0-only

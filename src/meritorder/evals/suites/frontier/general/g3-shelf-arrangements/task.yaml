@@ -1,0 +1,20 @@
+id: g3-shelf-arrangements
+task: general
+level: 3
+kind: answer
+prompt: |
+  A library display shelf has nine slots in a row. A volunteer fills every slot with one book: four red books, three
+  blue books and two green books. Books of the same colour are indistinguishable, so an arrangement is just the
+  sequence of colours along the shelf.
+
+  The arrangement must satisfy all of these rules:
+  - No two red books are next to each other.
+  - No two blue books are next to each other.
+  - Neither end slot (the leftmost or the rightmost) holds a green book.
+
+  Green books may be next to each other. How many different arrangements are possible?
+
+  Reason it through, then end your reply with a line `Final answer: <number>`.
+checks:
+  - {final_number: 66}
+summary: "Count colour sequences under adjacency and end-slot rules (66 of 1,260); easy to double-count without careful casework"

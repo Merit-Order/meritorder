@@ -1,0 +1,138 @@
+id: live-prices
+task: coding
+level: 5
+kind: agent
+commit: 60990d9
+summary: "Live prices from two lists (OpenRouter and LiteLLM) with per-backend source rules, long-prompt price tiers wired through costing, routing and the request cap, a worker refresher with change, disagreement and outage alerts, and admin API changes; touches config, catalog, pricing, router, proxy, admin and worker"
+env: meritorder.evals.envs.codebase:CodebaseEnv
+env_args: {task: live-prices}
+max_turns: 120
+est_turns: 75
+est_tool_tokens: 5000    # new tokens per turn (tool results and the reply), from runs of this suite
+est_output_tokens: 2500
+preamble_file: ../PREAMBLE.md
+prompt: |
+  ## Issue: prices are typed in once and go stale; long prompts are costed at the short-prompt rate
+
+  Routing compares prices on every request, so they have to be current. Today only OpenRouter routes get live
+  prices (`meritorder prices refresh` reads OpenRouter's catalog into prices.json); every direct provider route
+  (Anthropic, OpenAI, Bedrock, Vertex, Azure, Foundry, Mistral) carries a price typed into the config, right on
+  the day it was typed. Nothing refreshes any of it while the gateway runs. And several models charge more above a
+  prompt length (Claude Haiku 5.5 costs 5x above 100K prompt tokens; GPT-6.x more above 272K), which nothing models:
+  costing, routing, the per-request cost check and the output allowance all use the base price.
+
+  **Where a backend's prices come from** (`meritorder.catalog`)
+
+  `price_source(backend_config) -> (source, prefix)`: `source` is `openrouter` (OpenRouter's catalog), `litellm`
+  (the price list LiteLLM maintains, fetched as data from
+  `https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json`) or `none`
+  (priced some other way); `prefix` is the provider prefix of the model's key in LiteLLM's list. `BackendConfig`
+  gains `price_source` (`auto` by default, or one of the three) and `price_prefix` (str or None). An explicit
+  `price_source` wins, with `price_prefix or ""`. Under `auto`: a host that is `openrouter.ai` (or under it) is
+  `("openrouter", "")` whatever the backend's kind; any other non-`api` kind (`self_hosted`, `mock`) is
+  `("none", "")`; a `price_prefix` set means `("litellm", <prefix>)`; `flavor` `vertex` is
+  `("litellm", "vertex_ai/")`; a URL containing `azure` is `("litellm", "azure_ai/")` for the anthropic format
+  and `("litellm", "azure/")` otherwise; hosts containing `anthropic.com`, `bedrock` or `api.openai.com` are
+  `("litellm", "")`; `mistral.ai` is `("litellm", "mistral/")` (likewise `deepseek.com` `deepseek/`, `moonshot`
+  `moonshot/`, `z.ai` `zai/`, `minimax` `minimax/`, `x.ai` `xai/`, `groq.com` `groq/`); anything else is
+  `("none", "")`.
+
+  **Long-prompt tiers** (`meritorder.config`, `meritorder.pricing`)
+
+  - `PriceTier(above: int, input: float, output: float, cache_read: float | None = None, cache_write: float |
+    None = None)`: prices (dollars per million) for requests whose prompt is longer than `above` tokens.
+  - `Price` gains `tiers: list[PriceTier] = []` and `source: str | None = None` (`openrouter`, `litellm`, or
+    `config` for a price written into the configuration). `build_config` marks every route price that comes from
+    the config file as `source` `config`: an override, which the live lists leave alone.
+  - `Price.at(prompt_tokens) -> Price`: the price for a prompt of that many tokens (cached tokens included). When
+    no tier applies (`prompt_tokens` must exceed `above`), it returns the same object. Otherwise a copy with the
+    highest applicable tier's `input` and `output`, `tiers` empty, and its cache prices: the tier's where it has
+    them, else the base cache price scaled by `tier.input / input` (a base price with no `cache_read` keeps
+    none, so `read()` stays input x 0.1 at the tier's input).
+  - `cost(price, usage)` and `uncached_cost(price, usage)` price at `usage.prompt_tokens`; the router's cost
+    estimate, the per-request cost check and the output allowance use the price at the request's prompt tokens.
+
+  **LiteLLM entries** (`catalog`)
+
+  `litellm_price(entry) -> dict | None`: one entry of LiteLLM's list as a price in dollars per million (x 1e6, 6
+  decimals, as OpenRouter's are converted today): `input` from `input_cost_per_token`, `output` from
+  `output_cost_per_token` (0.0 when one is missing), `cache_read` from `cache_read_input_token_cost`, `cache_write`
+  from `cache_creation_input_token_cost` (left out when absent); `tiers` from keys of the form
+  `<one of those four>_above_<N>k_tokens` (`above` = N x 1000), ascending, keeping a tier only when it has both
+  `input` and `output` (a `_batches` variant is not a tier); no `tiers` key when none. None when the entry has
+  neither an input nor an output cost. `fetch_litellm() -> dict` GETs the list (60 s timeout) and raises on an
+  HTTP error or when the body isn't a JSON object. It must be replaceable at runtime: a refresh picks up whatever
+  `meritorder.catalog.fetch_litellm` is at the time (as it already does for `httpx.get`).
+
+  **Refreshing** (`catalog.refresh_prices`)
+
+  `refresh_prices(cfg, catalog=None, write=True, litellm=None)` prices every route from its backend's source.
+  OpenRouter routes as today (plus `"source": "openrouter"` in each price). LiteLLM routes: the key is
+  `prefix + (route.price_key or route.model)`, where `Route` gains `price_key: str | None` (the model's name in
+  the list when the route's model id isn't it, such as an Azure deployment name); the price is
+  `litellm_price(entry)` plus `"source": "litellm"`; the entry's `max_output_tokens` fills `max_output` and its
+  `max_input_tokens` fills `context` for models that don't have them yet. The LiteLLM list is fetched only when
+  some route not overridden needs it (`litellm` passed in replaces the fetch; a config with only mock and
+  OpenRouter backends fetches OpenRouter's two URLs and nothing else). A route whose price is written in the
+  config (`source` `config`) needs no list price: it isn't counted as missing. `missing` keeps its format,
+  `<model>@<backend> (<key looked up>)`. A list that can't be fetched (`httpx` error, bad JSON) doesn't raise:
+  its routes are left out and `data["sources"][<list>]` says so. `data` gains `sources`
+  (`{"openrouter": {"ok": bool, "fetched_at", "error"?}, "litellm": {...}}`, each present when that list was
+  used) and `disagreements` (below). The CLI's prices.json output changes only by the `source` field in each
+  price.
+
+  `disagreements(cfg, prices) -> list[dict]`: for each model that has both an OpenRouter-priced route and a
+  LiteLLM-priced route on the maker's own API (a backend whose source is `("litellm", "")`: Azure, Vertex and
+  Foundry may charge premiums and aren't compared), the fields among `input` and `output` whose prices differ by
+  more than 2% of the larger: `{"model", "backend", "field", "listed": <LiteLLM's>, "openrouter": <OpenRouter's>}`.
+
+  **Keeping prices live** (new module `meritorder.live_prices`)
+
+  - `changes(old, new) -> list[str]`: the differences between two `prices` maps, one line per route key in sorted
+    order: `<key>: $<input>/$<output> -> $<input>/$<output>` with numbers in `%g` form (`$1/$5 -> $2/$10`),
+    `none` for a side that doesn't exist, and ` (long-prompt prices changed)` appended when the tiers differ. A
+    route counts as changed when `input`, `output`, `cache_read`, `cache_write` or `tiers` differ.
+  - `async refresh_once(cfg, store, state, fetch=refresh_prices) -> dict`: one refresh. `fetch` is a plain
+    function with `refresh_prices`'s calling convention, called as `fetch(cfg, None, False)` and returning
+    `(path, priced_routes, missing, data)`. Then: a list that wasn't fetched (`sources[...]["ok"]` false) keeps
+    its routes' previous prices from the stored `prices` setting (a stored price's `source`, or failing that the
+    backend's source, says which list it came from; stored `context` and `max_output` entries are kept too). The
+    `prices` setting is written when nothing was stored before or when anything changed (so gateways, which
+    reload on a new `updated`, don't reload for nothing). Alerts, which must appear in `state.recent_alerts()`
+    with these titles: when prices changed and something was stored before, one with title
+    `Prices changed` listing the changes; for each disagreement, one titled `Prices disagree for <model>`,
+    level warning, at most once a day for the same model, backend, field and pair of prices; for each list that
+    couldn't be fetched, one titled `Price list unavailable: <list>`, level warning, at most once every six
+    hours, saying routing keeps the last prices. The first refresh ever, and a refresh that finds nothing new,
+    raise no alert. The result, also stored as the `prices_status` setting, is `{"checked_at", "sources",
+    "disagreements", "missing", "priced_routes", "changed"}` (`changed` the list from `changes`, empty when
+    nothing changed or nothing was stored before).
+  - `PriceRefresher` with `async maybe(cfg, store, state, now, fetch=refresh_prices) -> dict | None`: runs
+    `refresh_once` on its first call and whenever at least `cfg.prices_refresh_minutes` minutes have passed since
+    the last run (`now` is a monotonic clock in seconds; exactly 15 minutes later is due, 1 minute later is not),
+    else returns None. A failure in the refresh is logged and gives
+    None; prices stay as they were. `Config` gains `prices_refresh_minutes: float = 15.0` (greater than 0). The
+    worker must refresh prices automatically at that interval.
+
+  **Admin API**
+
+  - `POST /v1/admin/prices/refresh` performs one refresh with the same behaviour as above (fetch, store the
+    `prices` and `prices_status` settings, alerts), then reloads the active config as today, and returns
+    `{"priced_routes", "missing", "updated": <checked_at>, "by": <admin>, "changed", "sources", "disagreements"}`.
+    The `prices` setting still ends up as the fetched data (its `updated` is the fetch's).
+  - `GET /v1/admin/config` gains `prices`: the `prices_status` setting plus `refresh_minutes`
+    (`cfg.prices_refresh_minutes`).
+
+  **Interface**
+
+  - `meritorder.config`: `PriceTier`; `Price.tiers`, `Price.source`, `Price.at(prompt_tokens)`;
+    `BackendConfig.price_source`, `BackendConfig.price_prefix`; `Route.price_key`;
+    `Config.prices_refresh_minutes`.
+  - `meritorder.pricing`: `cost` and `uncached_cost` apply tiers.
+  - `meritorder.catalog`: `price_source(backend)`, `litellm_price(entry)`, `fetch_litellm()`,
+    `refresh_prices(cfg, catalog=None, write=True, litellm=None)` with `sources` and `disagreements` in its data
+    and `source` in each price; `disagreements(cfg, prices)`.
+  - `meritorder.live_prices`: `changes(old, new)`, `refresh_once(cfg, store, state, fetch)`, `PriceRefresher`
+    with `maybe(cfg, store, state, now, fetch)`.
+  - Store settings `prices` (the fetched data) and `prices_status`; alert titles as above.
+  - `POST /v1/admin/prices/refresh` and `GET /v1/admin/config` as above.

@@ -1,0 +1,20 @@
+id: a5-oncall-handoff
+task: coding
+level: 5
+kind: agent
+prompt: |
+  You're working in a Python repository, an on-call scheduling library, that you can only reach through the
+  tools: list_files, read_file, search, write_file (creates a file or replaces its whole content) and run_tests
+  (runs the tests in tests/).
+
+  Resolve ISSUE.md completely: fix the bugs it describes at their root cause, and implement the handoff_hour
+  feature exactly as specified there. After you finish, hidden tests that are stricter than the ones in tests/
+  check the documented behaviour (the docstrings and ISSUE.md) of every public function and class, so check
+  every module that could be affected, keep the public API backwards compatible, and run the tests before you
+  finish.
+
+  When you're done, reply with a short summary of what you changed.
+env: meritorder.evals.envs.repo:RepoEnv
+env_args: {project: oncall}
+max_turns: 50
+summary: "10-file project: a week_start bug that a report module compensates for (fixing either alone breaks things; the issue suggests a wrong patch), plus a handoff_hour feature that must reach rotation, config, report and pager"

@@ -1,0 +1,7 @@
+# Question task: the final answer must give these key=value pairs (the last value given for each key counts).
+# attempts: the production "bankfeed" entry sets max_retries 4 -> 5 attempts.
+# final_wait: that entry has no factor/max_delay, so RetryPolicy's defaults apply (factor 3.0, max_delay 60.0), not the
+# "default" entry's (factor 2.0, max_delay 30.0): waits 1.5, 4.5, 13.5, 40.5.
+answer:
+  attempts: 5
+  final_wait: 40.5

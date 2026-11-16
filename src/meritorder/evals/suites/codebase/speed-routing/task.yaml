@@ -1,0 +1,132 @@
+id: speed-routing
+task: coding
+level: 5
+kind: agent
+commit: 4576b10
+summary: "A speed model learned from the gateway's own replies (moving averages, staleness), a priority setting at org, team and request level that decides how much more a faster route may cost, periodic re-measuring, and a console view; touches config, router, proxy and console"
+env: meritorder.evals.envs.codebase:CodebaseEnv
+env_args: {task: speed-routing}
+max_turns: 80
+est_turns: 40
+est_tool_tokens: 5000    # new tokens per turn (tool results and the reply), from runs of this suite
+est_output_tokens: 1500
+preamble_file: ../PREAMBLE.md
+prompt: |
+  ## Issue: routes that cost the same are picked by config order, never by speed
+
+  The same model often costs exactly the same on several routes (Claude on Anthropic, Bedrock, Foundry and
+  OpenRouter). The router sorts candidates by cost, so between equal-cost routes the one listed first in the
+  config always wins, however slow it is. Nothing measures how fast each route answers, and nobody can say "for
+  this team, pay a bit more to get answers faster".
+
+  **Measuring speed** (new module `meritorder.speed`)
+
+  Each route (a backend plus the upstream model id of its route) keeps a running picture of its speed, learned
+  from this gateway process's own successful replies:
+
+  - `Speeds()` holds them. `record(backend, model, seconds, first_token_seconds, output_tokens, now)` adds one
+    reply: `seconds` from calling the route to its last byte, `first_token_seconds` to its first content (None
+    when the reply wasn't streamed), the output tokens, and the wall-clock time. `get(backend, model)` returns
+    the route's record (the same object each time, updated in place as replies arrive), or None when nothing was
+    recorded. `expected(backend, model, output_tokens)` returns the expected seconds for a reply of that length,
+    or None until the route is measured.
+  - A record has `first_token` (seconds to the first token), `per_token` (seconds per output token after the
+    first; None until a streamed reply long enough to time has been seen), `samples` (replies recorded),
+    `measured` (True once there are at least 2 samples; one reply isn't enough to trust), `stale(now)` (True
+    when not measured, or when the last sample is more than `STALE_SECONDS` = 600 seconds old), and
+    `tokens_per_second()` (1 / `per_token`, None when `per_token` is unknown).
+  - Both figures are moving averages that move 20% of the way toward each new sample (the first sample is
+    taken as is): after 0.5 s then 1.5 s to the first token, `first_token` is 0.7.
+  - A streamed reply gives a first-token sample of `first_token_seconds` (floored at 0), and, when
+    `output_tokens` is at least 16 and `seconds` exceeds the first-token time, a per-token sample of
+    `(seconds - first_token_seconds) / (output_tokens - 1)`. So 3.0 s with the first token at 0.5 s and 601
+    tokens means 2.5 / 600 s per token; a 5-token reply is too short to time the writing and leaves `per_token`
+    alone.
+  - A reply that wasn't streamed arrived whole, so the writing time is taken out to estimate the wait: the
+    first-token sample is `seconds - output_tokens x per-token` (the route's `per_token` when known, else
+    `DEFAULT_SECONDS_PER_TOKEN` = 0.01, that is 100 tokens/s), floored at 0; `per_token` is left alone.
+  - A reply with `seconds` of 0 or less is ignored entirely (no record is created for a route that has seen
+    nothing else).
+  - `expected` is `first_token + output_tokens x per_token`, with `DEFAULT_SECONDS_PER_TOKEN` standing in for an
+    unknown `per_token`.
+  - `DEFAULT_SECONDS_PER_TOKEN` and `STALE_SECONDS` are module constants.
+
+  **The gateway feeds it**
+
+  Every successful reply (status below 400, no error, at least one output token) is recorded against the route
+  that served it, timed from the moment that route was called, not from when the gateway received the request:
+  a route that took over after another failed must not be charged for the failed attempt before it. Failed
+  attempts are never recorded. For streams the first-token time is measured the same way; for whole replies it
+  is None. The router exposes its `speeds`; a configuration reload (`apply_config`) builds a new router but must
+  keep the speeds measured so far.
+
+  **Priorities**
+
+  How much more a faster route may cost is a priority with three values: `cost` (the default: only routes that
+  cost about the same compete on speed), `balanced` and `speed`.
+
+  - `routing.priority` sets it for the organization (default `cost`). `routing.priority_premium_pct` maps each
+    priority to the percentage a route may cost above the cheapest and still win by being faster; the default is
+    `{"cost": 2.0, "balanced": 20.0, "speed": 100.0}`. A partial map keeps the other defaults
+    (`{"balanced": 30}` gives `{"cost": 2.0, "balanced": 30, "speed": 100.0}`); an unknown priority name or a
+    negative percentage is a config validation error. `routing.speed_check_every` (int, at least 0, default 10)
+    is explained below.
+  - A team may set `priority` (same three values; anything else is a validation error); a request may set the
+    header `X-MeritOrder-Priority`. The header's value is matched ignoring case and surrounding whitespace
+    (`"Cost "` is `cost`). Request beats team beats organization. An unknown header value is a `RoutingError`
+    with status 400 whose message is `X-MeritOrder-Priority must be one of cost, balanced, speed, not '<value>'`
+    (the gateway turns it into a 400 whose body carries that message).
+  - `Decision` gains `priority`, the one that applied.
+
+  **Ranking**
+
+  Candidates are still sorted by cost. Then the routes whose cost is at most the cheapest's x (1 + premium / 100)
+  compete; a route exactly at the limit is in (a route at twice the price is within `speed`'s 100%; allow for
+  floating-point noise). The rest keep their cost order behind them.
+
+  - Under `cost`, the existing near-tie rule stays: within the range, higher quality first (this is how `auto`
+    picks the better model among near-equal prices today); among equal quality, the faster route first. Under
+    `balanced` and `speed`, the fastest first. "Faster" means the smaller `expected` time for
+    `routing.est_output_tokens` output tokens; a route that isn't measured counts as slower than any measured
+    one, so a measured route beats an unknown one and two unknown routes keep config order.
+  - When the winner isn't the cheapest, has the same quality, and is faster, the decision's reason gets
+    `; <priority> priority: <winner backend> (~<seconds>s) over <cheapest backend> (~<seconds>s)`, seconds with
+    one decimal (`~3.0s`), `not measured yet` in place of `~Ns` for an unmeasured route, and ` for <N>% more`
+    appended (N a whole number, `15`) when the winner costs more than the cheapest.
+  - Session stickiness still applies afterwards: a session whose cache is warm on its current route stays there
+    unless moving is clearly cheaper, whatever the priority.
+
+  Example: routes r0..r3 at 1x, 1.15x, 1.9x and 2.5x the price, taking about 10, 5, 3 and 1 seconds. `cost`
+  gives r0 r1 r2 r3; `balanced` gives r1 r0 r2 r3 with the reason containing
+  `balanced priority: r1 (~5.0s) over r0 (~10.0s) for 15% more`; `speed` gives r2 r1 r0 r3.
+
+  **Keep measuring the alternatives**
+
+  Otherwise the first route measured wins forever. Count the decisions made for a new session (no session, or a
+  session with no backend yet) in which at least two routes compete. Every `speed_check_every`-th such decision
+  (the 10th, 20th, ... by default), if a competing route is unmeasured or stale, that route goes first instead:
+  the never-measured one first, else the one measured longest ago; the counter starts again after a check.
+  Under `cost`, only routes of the leader's quality are checked. The reason gets
+  `; checking <backend>'s speed (not measured yet)` or `; checking <backend>'s speed (~9.0s)`. Never in the middle
+  of a session (its cache is on its current route), and never when `speed_check_every` is 0. The counter must
+  survive a configuration reload, as the measured speeds do.
+
+  **The console**
+
+  `GET /v1/console/backends` adds `speeds` to each backend: a map from upstream model id to
+  `{"first_token_ms": <first_token x 1000, rounded>, "tokens_per_second": <rounded to 1 decimal, or null>,
+  "samples": <n>, "seconds_ago": <seconds since the last sample, rounded>}` for every route on that backend that
+  has samples; `{}` when none has. One reply of 2.0 s, first token at 0.25 s, 401 tokens shows
+  `{"first_token_ms": 250, "tokens_per_second": 228.6, "samples": 1, "seconds_ago": 0}`.
+
+  **Interface**
+
+  - `meritorder.speed`: `Speeds` with `record(backend, model, seconds, first_token_seconds, output_tokens, now)`,
+    `get(backend, model)`, `expected(backend, model, output_tokens)`; the record's `first_token`, `per_token`,
+    `samples`, `measured`, `stale(now)`, `tokens_per_second()`; constants `DEFAULT_SECONDS_PER_TOKEN` (0.01)
+    and `STALE_SECONDS` (600).
+  - `Router.speeds`; `Router(cfg, backends)` still works with two arguments; `Decision.priority`.
+  - `RoutingConfig.priority`, `RoutingConfig.priority_premium_pct`, `RoutingConfig.speed_check_every`;
+    `TeamConfig.priority`; header `X-MeritOrder-Priority`.
+  - `RoutingError(400, ...)` message as above; the decision reason notes as above.
+  - `GET /v1/console/backends`: `speeds` per backend as above.

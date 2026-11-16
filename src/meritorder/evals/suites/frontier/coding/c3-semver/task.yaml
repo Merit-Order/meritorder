@@ -1,0 +1,11 @@
+id: c3-semver
+task: coding
+level: 3
+kind: code
+prompt_file: prompt.md
+code:
+  tests: tests.py
+  timeout: 30
+reference: reference.py
+wrong: wrong.py
+summary: "SemVer 2.0.0 parse/precedence/sort plus ^ ~ || range matching; strict grammar traps (leading zeros, ASCII-only digits, trailing newline) and stable sort"

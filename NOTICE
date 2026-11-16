@@ -1,0 +1,26 @@
+Merit Order
+Copyright (C) 2026 The Merit Order Authors
+
+This program is free software: you can redistribute it and/or modify it under the terms of the GNU Affero
+General Public License as published by the Free Software Foundation, version 3 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the
+implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public
+License for more details. The full text is in the LICENSE file.
+
+If you modify Merit Order and let people use it over a network, section 13 of the license asks you to offer
+those users the source code of your modified version. The console's "Source" link points at it: set
+console.source_url to your own repository.
+
+Third-party components keep their own licenses. Python packages installed in the container images carry their
+license files in each package's .dist-info directory under /app/.venv (and /opt/skypilot in the -gpu image).
+
+The console bundles React, Mantine and other packages, mostly MIT-licensed. The build writes their licenses and
+notices to third-party-notices.txt next to the bundle, and the gateway serves it at /ui/third-party-notices.txt
+(linked from the console's footer).
+
+The -compressor image installs PyTorch from PyPI, which on Linux brings NVIDIA's CUDA libraries as Python wheels
+(nvidia-cublas, nvidia-cudnn-cu13, nvidia-nccl-cu13 and others, under /app/.venv). Those are NVIDIA's software,
+under NVIDIA's own license terms (the NVIDIA CUDA Toolkit End User License Agreement and the cuDNN Software
+License Agreement, among others), not the AGPL; each wheel's license is in its .dist-info directory. The other
+images don't include them.

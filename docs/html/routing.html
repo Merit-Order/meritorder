@@ -1,0 +1,2354 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Routing · Merit Order docs</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Source+Sans+3:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a design-notes reader. Sticky chapter rail on the left, one long readable column on the right; rail folds into a scrolling chip row on phones. */
+:root {
+  --bg: #f4f7f6;
+  --surface: #ffffff;
+  --fg: #142120;
+  --muted: #566866;
+  --line: #d6e0de;
+  --accent: #0b7566;
+  --accent-soft: #e0f0ec;
+  --code-bg: #ecf2f1;
+  --z1: #e3f3ea; --i1: #1d6a3a;
+  --z2: #fcf1d8; --i2: #865600;
+  --z3: #fbe4e3; --i3: #9a1f1c;
+  --curve: #2556c4; --over: #c0392b;
+  --font-display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Source Sans 3", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d1413; --surface: #141d1c; --fg: #e2ebe9; --muted: #92a6a2; --line: #253331;
+    --accent: #4fcab4; --accent-soft: #15302b; --code-bg: #17221f;
+    --z1: #132c1d; --i1: #82d6a0; --z2: #2f260e; --i2: #f0c566; --z3: #351817; --i3: #f39b95;
+    --curve: #7da4ff; --over: #ff7d6e;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0d1413; --surface: #141d1c; --fg: #e2ebe9; --muted: #92a6a2; --line: #253331;
+  --accent: #4fcab4; --accent-soft: #15302b; --code-bg: #17221f;
+  --z1: #132c1d; --i1: #82d6a0; --z2: #2f260e; --i2: #f0c566; --z3: #351817; --i3: #f39b95;
+  --curve: #7da4ff; --over: #ff7d6e;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 24px; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body {
+  background: var(--bg); color: var(--fg);
+  font-family: var(--font-body); font-size: 17px; line-height: 1.6;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+
+.hero { max-width: 1180px; margin: 0 auto; padding-block: 56px 36px; display: grid; gap: 14px; border-bottom: 1px solid var(--line); }
+.eyebrow { font-family: var(--font-mono); font-size: 12.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+.hero h1 { font-family: var(--font-display); font-weight: 700; font-size: clamp(2.1rem, 5vw, 3.4rem); line-height: 1.05; letter-spacing: -.02em; margin: 0; text-wrap: balance; }
+.hero .lede { max-width: 68ch; color: var(--fg); }
+.hero .lede p { margin: 0 0 .7em; }
+.hero .lede ol { margin: 0 0 .7em; padding-left: 1.3em; display: grid; gap: 4px; }
+.hero .lede strong { color: var(--accent); }
+.also { color: var(--muted); font-size: 15.5px; }
+.contents { margin-top: 6px; max-width: 68ch; }
+.contents summary { cursor: pointer; font-family: var(--font-mono); font-size: 12.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+.contents ol { margin: 10px 0 0; padding-left: 1.3em; columns: 2 260px; column-gap: 32px; }
+.contents li { break-inside: avoid; margin: 0 0 4px; }
+h2[id], h3[id], h4[id] { scroll-margin-top: 72px; }
+
+.layout { max-width: 1180px; margin: 0 auto; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 56px; padding-block: 36px 96px; }
+.rail { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 24px); align-self: start; }
+.rail p { font-family: var(--font-mono); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0 0 10px; }
+.rail ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.rail a { display: flex; gap: 10px; align-items: baseline; padding: 6px 10px; border-radius: 6px; color: var(--fg); text-decoration: none; font-size: 15.5px; line-height: 1.3; }
+.rail a:hover { background: var(--accent-soft); }
+.rail a.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.rail a:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.n { font-family: var(--font-mono); font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.rail a.active .n { color: var(--accent); }
+
+main { min-width: 0; max-width: 860px; }
+section { padding-bottom: 56px; margin-bottom: 56px; border-bottom: 1px solid var(--line); }
+section:last-child { border-bottom: 0; }
+.sec-head { display: flex; align-items: baseline; gap: 14px; margin-bottom: 18px; }
+.sec-head .n { font-size: 14px; color: var(--accent); }
+h2 { font-family: var(--font-display); font-weight: 700; font-size: clamp(1.7rem, 3.4vw, 2.3rem); letter-spacing: -.015em; line-height: 1.1; margin: 0; text-wrap: balance; }
+h3 { font-family: var(--font-display); font-weight: 600; font-size: 1.3rem; letter-spacing: -.01em; margin: 2.2em 0 .5em; text-wrap: balance; }
+h4 { font-family: var(--font-body); font-weight: 600; font-size: 1.05rem; margin: 1.6em 0 .4em; }
+p, ul, ol { max-width: 68ch; }
+ul, ol { padding-left: 1.3em; }
+li { margin: .25em 0; }
+a { color: var(--accent); text-underline-offset: 3px; }
+strong { font-weight: 600; }
+
+code { font-family: var(--font-mono); font-size: .84em; background: var(--code-bg); padding: .1em .35em; border-radius: 4px; }
+pre:not(.mermaid) { background: var(--code-bg); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; overflow-x: auto; font-size: 14px; line-height: 1.5; }
+pre:not(.mermaid) code { background: none; padding: 0; font-size: inherit; }
+
+.table-wrap { overflow-x: auto; margin: 1em 0 1.4em; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 15.5px; }
+th, td { text-align: left; vertical-align: top; padding: 9px 14px; border-bottom: 1px solid var(--line); }
+tr:last-child td { border-bottom: 0; }
+th { font-family: var(--font-mono); font-size: 12px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); background: var(--code-bg); }
+td { font-variant-numeric: tabular-nums; }
+
+figure { margin: 1.4em 0 1.8em; }
+.diagram { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px; overflow-x: auto; }
+.diagram pre.mermaid { margin: 0; display: flex; justify-content: center; background: none; }
+
+.chart { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px; overflow-x: auto; }
+.chart svg { display: block; width: 100%; min-width: 520px; max-width: 720px; height: auto; margin: 0 auto; font-family: var(--font-body); }
+.chart figcaption { color: var(--muted); font-size: 15px; margin-top: 10px; max-width: 68ch; }
+.chart .z1 { fill: var(--z1); } .chart .z2 { fill: var(--z2); } .chart .z3 { fill: var(--z3); }
+.chart .t { font-size: 13px; font-weight: 600; }
+.chart .i1 { fill: var(--i1); } .chart .i2 { fill: var(--i2); } .chart .i3 { fill: var(--i3); }
+.chart .lbl { font-size: 13px; fill: var(--fg); }
+.chart .tick { font-size: 12px; fill: var(--muted); }
+.chart .tick.i3 { fill: var(--i3); }
+.chart .axis { stroke: var(--fg); stroke-width: 1.5; fill: none; }
+.chart .ref { stroke: var(--muted); stroke-width: 1.5; stroke-dasharray: 6 5; fill: none; }
+.chart .curve { stroke: var(--curve); stroke-width: 3.5; fill: none; }
+.chart .over { stroke: var(--over); stroke-width: 3.5; fill: none; }
+.chart .dot { fill: var(--over); }
+
+@media (max-width: 860px) {
+  .layout { grid-template-columns: minmax(0, 1fr); gap: 20px; padding-top: 20px; }
+  .rail { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); margin-inline: calc(-1 * max(16px, env(safe-area-inset-left, 0px))); padding: 10px max(16px, env(safe-area-inset-left, 0px)); border-bottom: 1px solid var(--line); }
+  .rail p { display: none; }
+  .rail ol { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; }
+  .rail a { white-space: nowrap; border: 1px solid var(--line); background: var(--surface); }
+  body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+  .hero { padding-block: 36px 24px; }
+  body { font-size: 16px; }
+}
+</style>
+</head>
+<body>
+
+
+<header class="hero">
+  <div class="eyebrow">Merit Order docs · 03</div>
+  <h1>Routing</h1>
+  <div class="lede"><p class="also"><a href="index.html">All docs on one page</a> · <a href="how-it-all-works.html">How it all works</a></p><details class="contents"><summary>On this page</summary><ol><li><a href="#decision-flow">Decision flow</a></li><li><a href="#the-quality-floor">The quality floor</a></li><li><a href="#the-cost-function">The cost function</a></li><li><a href="#cost-per-solved-task-opt-in">Cost per solved task (opt-in)</a></li><li><a href="#expected-total-cost-to-finish-the-task">Expected total cost to finish the task</a></li><li><a href="#the-learned-router">The learned router</a></li><li><a href="#your-own-traffic-as-the-benchmark">Your own traffic as the benchmark</a></li><li><a href="#how-we-measure-routing">How we measure routing</a></li><li><a href="#shadow-price">Shadow price</a></li><li><a href="#which-replica-of-a-gpu-deployment">Which replica of a GPU deployment</a></li><li><a href="#free-upgrades-and-why-theyre-safe">Free upgrades (and why they&#x27;re safe)</a></li><li><a href="#free-moments-to-re-route">Free moments to re-route</a></li><li><a href="#context-windows">Context windows</a></li><li><a href="#counting-tokens">Counting tokens</a></li><li><a href="#batches">Batches</a></li><li><a href="#when-a-model-refuses">When a model refuses</a></li><li><a href="#where-quality-scores-come-from">Where quality scores come from</a></li><li><a href="#harness-overrides">Harness overrides</a></li><li><a href="#when-a-models-gpus-are-stopped">When a model&#x27;s GPUs are stopped</a></li></ol></details></div>
+</header>
+
+<div class="layout">
+  <nav class="rail" aria-label="Chapters">
+    <p>Docs</p>
+    <ol><li><a href="overview.html"><span class="n">&nbsp;&nbsp;</span>Overview</a></li><li><a href="how-it-all-works.html"><span class="n">00</span>How it all works (start here)</a></li><li><a href="architecture.html"><span class="n">01</span>Architecture</a></li><li><a href="request-flow.html"><span class="n">02</span>Request flow</a></li><li><a href="routing.html" class="active" aria-current="page"><span class="n">03</span>Routing</a></li><li><a href="caching-and-sessions.html"><span class="n">04</span>Caching &amp; sessions</a></li><li><a href="gpu-autoscaling.html"><span class="n">05</span>GPU autoscaling</a></li><li><a href="auth-and-spend.html"><span class="n">06</span>Auth &amp; spend</a></li><li><a href="deployment.html"><span class="n">07</span>Deployment</a></li><li><a href="reporting.html"><span class="n">08</span>Reporting</a></li><li><a href="decisions.html"><span class="n">09</span>Decisions</a></li><li><a href="how-it-decides.html"><span class="n">10</span>How it decides</a></li><li><a href="evals.html"><span class="n">11</span>Evals: measuring model quality</a></li><li><a href="feature-sheet.html"><span class="n"></span>Merit Order feature sheet</a></li></ol>
+  </nav>
+  <main>
+    
+    <section id="doc"><p>The router (<code>src/meritorder/router.py</code>) answers: <strong>which model, on which backend, for this request?</strong> (Every rule
+and default, as diagrams: <a href="how-it-decides.html">10, How it decides</a>.)
+What it minimizes is a choice (<code>routing.model_choice</code>, per team too):</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Choice</th>
+<th>Minimizes</th>
+<th>Counts a failure as</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>threshold</code></td>
+<td><strong>Marginal cost</strong>: what this request and the rest of its session add to the bill now, among models whose score meets the task's level</td>
+<td>nothing: every model at the level is taken as good enough</td>
+</tr>
+<tr>
+<td><code>cost_per_success</code></td>
+<td>The expected cost per solved task</td>
+<td>its tokens, then the work redone on the threshold's pick (<a href="#cost-per-solved-task-opt-in">below</a>)</td>
+</tr>
+<tr>
+<td><code>expected_cost</code> (the default)</td>
+<td><strong>The expected total cost to finish the task</strong></td>
+<td>the person's time the request puts at stake (<code>human_cost_usd</code> for level-5 work, a third as much for each level below, less for small requests), and the next attempt: the same model again or a stronger one from a cold cache, its chance lower after a failure; inside a task, opt-in, escalation when the evidence says so (<a href="#expected-total-cost-to-finish-the-task">below</a>)</td>
+</tr>
+</tbody>
+</table></div>
+<p>All three keep the same floors, team policy, budgets and a client's <code>X-Route-Floor</code>, and the same marginal cost of each
+route (cache rebuild included) is what a try costs.</p>
+<h2 id="decision-flow">Decision flow</h2>
+<figure class="diagram"><pre class="mermaid">flowchart TD
+    A[&quot;Request arrives&quot;] --&gt; B{&quot;Harness pinned&lt;br/&gt;a model?&quot;}
+    B -- &quot;yes&quot; --&gt; FIX[&quot;Model is fixed&lt;br/&gt;(only the backend can vary)&quot;]
+    B -- &quot;no, model=auto&quot; --&gt; C{&quot;Existing session, mid-task,&lt;br/&gt;and it still fits the model?&quot;}
+    C -- &quot;yes&quot; --&gt; KEEP[&quot;Keep session&#x27;s model&quot;]
+    C -- &quot;no&quot; --&gt; D[&quot;Classifier → quality floor from the work&lt;br/&gt;e.g. coding:3, never from length (Claude Code&lt;br/&gt;side jobs capped; an outgrown session keeps its floor;&lt;br/&gt;learned router, opt-in: its level when sure;&lt;br/&gt;routing.level_map; exploration, opt-in: a few&lt;br/&gt;task starts a level down or up)&quot;]
+    D --&gt; E[&quot;Candidates = models allowed for team&lt;br/&gt;with quality ≥ floor and room for the&lt;br/&gt;conversation plus the reply&lt;br/&gt;(cost per success, expected cost: or a chance&lt;br/&gt;at the floor ≥ the minimum)&quot;]
+    KEEP -. &quot;expected_cost: failures in a row,&lt;br/&gt;or a correction at the next human message&quot; .-&gt; ESC{&quot;Continuing costs more&lt;br/&gt;than escalating?&quot;}
+    ESC -- &quot;yes, escalations left&quot; --&gt; UPM[&quot;A stronger model&lt;br/&gt;(cache rebuilt there; tagged escalation)&quot;]
+    ESC -- &quot;no&quot; --&gt; KEEP2[&quot;Keep the task&#x27;s model&quot;]
+
+    FIX --&gt; S
+    KEEP --&gt; S
+    KEEP2 --&gt; S
+    UPM --&gt; S
+    E --&gt; S[&quot;Score every backend of every candidate&lt;br/&gt;cost = rebuild + turns × per-turn&lt;br/&gt;(cost per success: + failures redone;&lt;br/&gt;expected cost: + chance of failing × (person&#x27;s time + next attempt))&quot;]
+
+    S --&gt; T{&quot;Cheapest beats current&lt;br/&gt;by more than hysteresis margin?&quot;}
+    T -- &quot;yes&quot; --&gt; MOVE[&quot;Route to cheapest&lt;br/&gt;(close on price → quality, then speed)&quot;]
+    T -- &quot;no&quot; --&gt; STAY[&quot;Stay on current backend&quot;]
+
+    MOVE --&gt; PRI{&quot;Running above floor&lt;br/&gt;only because it&#x27;s free?&quot;}
+    STAY --&gt; PRI
+    PRI -- &quot;yes&quot; --&gt; LOW[&quot;Send with low priority&lt;br/&gt;(paid traffic preempts it)&quot;]
+    PRI -- &quot;no&quot; --&gt; NORM[&quot;Send with normal priority&quot;]</pre></figure>
+<h2 id="the-quality-floor">The quality floor</h2>
+<p>The classifier (<code>classifier.py</code>) gives each <code>auto</code> request a floor, a task type and a level from 1 to 5,
+from the work it asks for: the wording of the last two messages from the person (a user message made only of tool
+results, as in an Anthropic-format agent loop, is passed over), the tools it sends, and
+the client's <code>X-Route-Floor</code> or <code>X-Route-Hint</code>. The rules are <code>routing.levels</code> (defaults below), shown to
+everyone under Reports → Levels and edited under Config → Routing → How requests get a level.</p>
+<p><strong>Tools say the work is coding; the task's wording sets the level</strong> (decision 61). Claude Code and Codex send
+dozens of tools on every request, whether the task is a typo or a redesign, so a tool count says which client sent it,
+not how hard the task is. Until decision 61, five tools or more made a request level 4; every coding agent's task
+landed at 4 or 5, and the cheaper models never got the tests, renames and docstrings that make up much of an agent's
+day. <code>agent_by_tools: true</code> brings that rule back for a team that wants it.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Rule</th>
+<th>Setting (default)</th>
+<th>Floor</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Plain text</td>
+<td><code>general</code> (2)</td>
+<td><code>general:2</code></td>
+</tr>
+<tr>
+<td>…and the whole request under <code>short_tokens</code> (400), no tools</td>
+<td><code>short</code> (1)</td>
+<td><code>general:1</code></td>
+</tr>
+<tr>
+<td>…with analysis wording</td>
+<td><code>analysis</code> (3), <code>analysis_words</code></td>
+<td><code>general:3</code></td>
+</tr>
+<tr>
+<td>Any tools, or code-like text</td>
+<td><code>coding</code> (3), <code>coding_words</code></td>
+<td><code>coding:3</code></td>
+</tr>
+<tr>
+<td>…and simple wording, nothing harder: tests, renames, typos, formatting and lint, docstrings and comments, "explain", version bumps</td>
+<td><code>simple</code> (2), <code>simple_words</code></td>
+<td><code>coding:2</code></td>
+</tr>
+<tr>
+<td>…and hard wording: race conditions, deadlocks, concurrency, security, migrations, performance, multi-file or cross-cutting changes ("every caller", "behind an interface"), and symptoms of a cause not yet found ("under load", "at random", "on retry", "when two requests…", flaky)</td>
+<td><code>hard_raise</code> (1) for each distinct pattern, up to <code>hard_signals</code> (2); <code>hard_words</code></td>
+<td>+1 or +2, at most 5</td>
+</tr>
+<tr>
+<td>…and the hardest wording: architecture, "design a/the", system design, proofs, large-scale or codebase-wide refactors</td>
+<td><code>hardest</code> (5), <code>hardest_words</code></td>
+<td><code>coding:5</code></td>
+</tr>
+<tr>
+<td>…and the newest prompt says the last answer was wrong ("that's wrong", "still not working", "revert", …)</td>
+<td><code>correction_raise</code> (1)</td>
+<td>+1, at most 5</td>
+</tr>
+<tr>
+<td>…with at least <code>agent_tools</code> (5) tools, only with <code>agent_by_tools: true</code></td>
+<td><code>agent</code> (4)</td>
+<td><code>coding:4</code>, and simple wording doesn't lower it</td>
+</tr>
+<tr>
+<td><code>X-Route-Hint: cheap</code> / <code>smart</code> from the client</td>
+<td></td>
+<td>−1 / +1, kept within 1–5</td>
+</tr>
+<tr>
+<td><code>X-Route-Floor: coding:4</code> from the client</td>
+<td></td>
+<td>that floor, used as is</td>
+</tr>
+</tbody>
+</table></div>
+<p>When the wording matches more than one list, the hardest wins: "write tests for the deadlock fix" is hard wording
+(level 4), not simple. Each sign of hard work counts: "the importer deadlocks under load" is two (level 5). Words for
+how big a person thinks a task is ("quick fix", "small change", "one-liner") aren't on the simple list: on the routing
+simulator (<a href="#how-we-measure-routing">How we measure routing</a>), hard work described that way failed at level 2. The correction words are the coding outcomes' own list (<code>outcomes.CORRECTIONS</code>,
+<a href="#coding-outcomes">Coding outcomes</a>), read only in the newest message: a new prompt is a task boundary, so that's the
+only time the level is set again. An empty word list switches its rule off, as does <code>hard_raise: 0</code> or
+<code>correction_raise: 0</code>.</p>
+<figure class="diagram"><pre class="mermaid">flowchart TD
+    A[&quot;auto request&quot;] --&gt; F{&quot;X-Route-Floor&lt;br/&gt;header?&quot;}
+    F -- &quot;yes&quot; --&gt; FX[&quot;That floor, as is&lt;br/&gt;(never capped, never second-guessed)&quot;]
+    F -- &quot;no&quot; --&gt; T{&quot;Any tools, or code-like text&lt;br/&gt;(coding_words)?&quot;}
+    T -- &quot;yes&quot; --&gt; C[&quot;coding:3&quot;]
+    C --&gt; AG{&quot;agent_by_tools on and at&lt;br/&gt;least agent_tools (5) tools?&quot;}
+    AG -- &quot;yes (off by default)&quot; --&gt; C4[&quot;coding:4&quot;]
+    AG -- &quot;no&quot; --&gt; W
+    C4 --&gt; W{&quot;The task&#x27;s wording&lt;br/&gt;(the hardest list that matches)&quot;}
+    W -- &quot;hardest_words&quot; --&gt; W5[&quot;coding:5 (hardest)&quot;]
+    W -- &quot;hard_words&quot; --&gt; HR[&quot;+ hard_raise (1),&lt;br/&gt;at most 5&quot;]
+    W -- &quot;simple_words, and&lt;br/&gt;not coding:4 by tools&quot; --&gt; W2[&quot;coding:2 (simple)&quot;]
+    W -- &quot;none&quot; --&gt; CR
+    W5 --&gt; CR
+    HR --&gt; CR
+    W2 --&gt; CR{&quot;Newest prompt corrects&lt;br/&gt;the last answer?&quot;}
+    CR -- &quot;yes&quot; --&gt; CR1[&quot;+ correction_raise (1),&lt;br/&gt;at most 5&quot;]
+    T -- &quot;no&quot; --&gt; G[&quot;general:2&quot;]
+    G --&gt; S{&quot;Whole request under&lt;br/&gt;short_tokens (400)?&quot;}
+    S -- &quot;yes&quot; --&gt; G1[&quot;general:1&quot;]
+    S -- &quot;no&quot; --&gt; AW
+    G1 --&gt; AW{&quot;analysis_words&lt;br/&gt;match?&quot;}
+    AW -- &quot;yes&quot; --&gt; G3[&quot;general:3&quot;]
+    CR -- &quot;no&quot; --&gt; HI
+    CR1 --&gt; HI
+    AW -- &quot;no&quot; --&gt; HI
+    G3 --&gt; HI[&quot;X-Route-Hint: cheap −1, smart +1&lt;br/&gt;(kept within 1–5)&quot;]
+    HI --&gt; CAP[&quot;Claude Code side requests capped&lt;br/&gt;(request_class_levels: auxiliary 1, compaction 3)&quot;]</pre></figure>
+<p>The word lists are Python regular expressions matched ignoring case, against the last two messages from the person
+(their first 20,000 characters). What the harness adds to those messages is left out: Claude Code's system reminders
+(<code>&lt;system-reminder&gt;</code>, which carry CLAUDE.md, todo lists and notices) and local command output, and Codex CLI's
+<code>&lt;environment_context&gt;</code> and AGENTS.md instructions (<code>translate.HARNESS_TEXT</code>). They're the same on every task, and a
+CLAUDE.md that says "run the tests" or "read the architecture doc" would otherwise set every task's level. A message
+that's only that text is passed over, like one of only tool results. A level outside 1–5, a pattern that
+doesn't compile or matches empty text (it would match every request), or a misspelt key is refused when
+the configuration is loaded or saved.</p>
+<p>What that gives a Claude Code or Codex session (dozens of tools on every request):</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Prompt</th>
+<th>Level</th>
+<th>Reason</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>"write unit tests for the date parser"</td>
+<td><code>coding:2</code></td>
+<td><code>coding: 32 tools; simple task wording (write (unit )?tests): level 2</code></td>
+</tr>
+<tr>
+<td>"fix the typo in the README"</td>
+<td><code>coding:2</code></td>
+<td><code>coding: 32 tools; simple task wording (typo): level 2</code></td>
+</tr>
+<tr>
+<td>"add a --dry-run flag to the deploy command"</td>
+<td><code>coding:3</code></td>
+<td><code>coding: 32 tools</code></td>
+</tr>
+<tr>
+<td>"fix the race condition in the job scheduler"</td>
+<td><code>coding:4</code></td>
+<td><code>coding: 32 tools; hard wording (race condition): +1</code></td>
+</tr>
+<tr>
+<td>"the importer deadlocks under load, fix it"</td>
+<td><code>coding:5</code></td>
+<td><code>coding: 32 tools; hard wording (deadlock, under load): +2</code></td>
+</tr>
+<tr>
+<td>"write tests for the deadlock fix"</td>
+<td><code>coding:4</code></td>
+<td><code>coding: 32 tools; hard wording (deadlock): +1</code></td>
+</tr>
+<tr>
+<td>"design a plugin system for the importers"</td>
+<td><code>coding:5</code></td>
+<td><code>coding: 32 tools; hardest wording (design (a|the)): level 5</code></td>
+</tr>
+<tr>
+<td>"that's wrong, the tests still fail", after "write unit tests…"</td>
+<td><code>coding:3</code></td>
+<td><code>…; simple task wording (…): level 2; the new prompt corrects the last answer (wrong): +1</code></td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>The level holds for the task.</strong> The rules give a level only at a task boundary: a new session, a new human prompt,
+or a history the harness compacted. Every request in between (tool results going back) keeps the session's model and
+level outright (<a href="#free-upgrades-and-why-theyre-safe">Free upgrades</a>), so a level never changes mid-task and the cache
+stays where it is. A task that turns out harder than its wording is raised at the next boundary, never mid-task, and
+never by its length: by the person's next prompt (a correction is +1; a new prompt with harder wording gets its own
+level, and the two-prompt window carries a short follow-up such as "go on" at the level of the prompt before it), by
+the learned router (<a href="#the-learned-router">below</a>), whose labels include fix loops, failing tests and corrections, and by
+the outcome report and exploration (<a href="#exploration">Exploration</a>), which move a level whose work fails more than it
+should.</p>
+<p>With the learned router on (<a href="#the-learned-router">below</a>), it predicts its own level next to the rules': in shadow mode
+that's recorded and changes nothing; in route mode it's used when the model is sure, and the rules decide otherwise.</p>
+<p><strong>Length never raises the floor.</strong> A long conversation isn't harder work; it needs a model with room for
+it, so length only rules out the models whose window is too small (see Context windows). A Claude Code
+session on <code>auto</code> keeps its task's level (<code>coding:2</code> to write tests, <code>coding:4</code> to fix a race) however long it grows. Length counts in one place, and only to lower
+a level: a request under 400 tokens in all is a question on its own, level 1 (decision 38 in
+<a href="decisions.html">09</a>).</p>
+<p><strong>Every request says why.</strong> The routing reason starts with the floor and the rules that set it, naming
+the listed word that matched but never the text around it:
+<code>classified coding:4 (coding: 32 tools; hard wording (race condition): +1)</code>. Mid-task
+turns repeat the task's reason (<code>mid-task: keeping session model gpt-terra at coding:4 (coding: 32 tools; hard wording …)</code>).
+A team routing by cost per success gets what was compared at the end: <code>…; cost per success: deepseek-v4.1-flash,
+expected $0.0051 per success (62% at coding:3) vs $0.0086 (70%) on claude-haiku, the cheapest at the level</code>. A task start a
+team explores says so: <code>…; exploring: one level down from coding:3 (2.0% of task starts)</code> (<a href="#exploration">Exploration</a>).
+The ledger keeps it (<code>route_reason</code>), and the console shows it under Reports → Requests and on the
+Dispatch feed. A team routing by expected total cost gets both models' chances and costs, and an escalation what it
+compared (<a href="#expected-total-cost-to-finish-the-task">Expected total cost</a>).</p>
+<h2 id="the-cost-function">The cost function</h2>
+<p>For each candidate backend <code>b</code>, over the session's expected remaining turns:</p>
+<pre><code>cost(b) = rebuild(b) + expected_remaining_turns × per_turn(b)
+</code></pre>
+<p><strong>Per-turn cost by backend type</strong></p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Backend state</th>
+<th><code>per_turn(b)</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>API</td>
+<td>cached tokens × cache-read price + new tokens × write price + output × output price</td>
+</tr>
+<tr>
+<td>Self-hosted, plenty of headroom</td>
+<td>≈ 0 (2% of the route's API-equivalent price below 60% utilization: <code>shadow_floor</code>, <code>shadow_knee</code>)</td>
+</tr>
+<tr>
+<td>Self-hosted, filling up</td>
+<td>shadow price rises toward the route's API-equivalent price</td>
+</tr>
+<tr>
+<td>Self-hosted, full</td>
+<td>skipped while another route can take the request; otherwise it waits in vLLM's queue there (up to <code>max_waiting</code> per replica)</td>
+</tr>
+</tbody>
+</table></div>
+<p>Per turn, the router assumes the conversation grew by what it grew since the session's last turn (at least 200
+tokens; <code>est_new_tokens_per_turn</code>, 2,000, for a new session) and that the reply is <code>est_output_tokens</code> (600) long.
+The rest of the prompt is read from cache. The expected remaining turns are the session's turns so far, kept between
+<code>min_expected_turns</code> (3) and <code>max_expected_turns</code> (30).</p>
+<p>The write price is the cache-write price only where caching is explicit: Anthropic-format backends
+(Anthropic, Bedrock, Vertex, Foundry) and Claude through OpenRouter, which gets a cache marker. Other
+providers cache automatically and bill new tokens at the input price. A backend set to an hour
+(<code>cache_ttl_seconds</code> 3600 or more, as the shipped Anthropic, Bedrock, Foundry and Vertex backends are) is priced at
+Claude's 1-hour write price (<code>cache_write_1h</code>, default twice the input price) from a session's second turn on, which
+is what the gateway asks for there (<a href="caching-and-sessions.html#how-long-claude-keeps-a-cache">04</a>). A session's first
+turn, and the rebuild that comes with it, is priced at the 5-minute write price, as the gateway sends it: a session
+counts as new until it has had a turn (<code>turns</code> is 0). One that has come back and moves to such a backend rebuilds at
+the 1-hour price. So a new Claude session costs the same to start on the direct backends as on OpenRouter, and the
+hour's premium on the later turns (about 5% over three turns for Claude Haiku 5.5) is set against what the hour saves.</p>
+<p><strong>Pauses (decision 60).</strong> A later turn that comes 5 to 60 minutes after the one before finds a 5-minute cache gone,
+and the conversation is written again; an hour's cache is still there. So each later turn on a route whose cache lasts
+under an hour (<code>cache_ttl_seconds</code> below 3600: OpenRouter, every provider that caches on its own) also carries</p>
+<pre><code>pause share × cached tokens × (write price − cache-read price)
+</code></pre>
+<p>the rebuild such a pause costs, times how often one comes. Pauses over an hour rebuild everywhere, so they don't
+change the comparison, and GPU deployments evict by pressure, not time, so they get none. The pause share is measured
+(<code>pauses.py</code>): every gateway counts its sessions' later turns, and those that came 5 to 60 minutes after the last,
+by team, halving the counts every 7 days, and saves them every minute in the store (<code>session_pauses</code>, one entry per
+gateway, summed by all). A team's share leans on the organization's, and the organization's on a prior of one turn in
+ten, each by 100 turns' worth:</p>
+<pre><code>organization = (paused + 100 × 0.10) ÷ (turns + 100)
+team         = (team's paused + 100 × organization) ÷ (team's turns + 100)
+</code></pre>
+<p>At one turn in ten, a new Claude Haiku session at 30,000 tokens costs $0.0060 over three turns on the direct backends
+and $0.0064 on OpenRouter, so it starts there at the default <code>cost</code> priority. A team whose sessions rarely pause (under
+about one turn in twenty, at that size) goes back to OpenRouter, where the hour would cost more for nothing. The share
+in use is the session's team's; batch requests have no session and count none.</p>
+<p><strong>Rebuild cost</strong></p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Situation</th>
+<th><code>rebuild(b)</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>b</code> already holds a warm cache for this session</td>
+<td>0</td>
+</tr>
+<tr>
+<td>API, cold</td>
+<td>prefix tokens × (write price − cache-read price)</td>
+</tr>
+<tr>
+<td>Self-hosted, cold</td>
+<td>the same, at the shadow price</td>
+</tr>
+<tr>
+<td>Self-hosted, part of the prefix probably evicted</td>
+<td>the same for the part that's gone: × (1 − share still cached)</td>
+</tr>
+</tbody>
+</table></div>
+<p>On a GPU deployment the cache belongs to one replica, so the share still cached is per replica; how it's
+known (vLLM's KV events, an estimate from its KV-cache metrics, or the cache TTL) is in
+<a href="caching-and-sessions.html#gpu-replicas-which-one-holds-the-cache">04</a>.</p>
+<p>A session only moves off its current backend when the cheapest route beats staying by more than the switch margin:
+<code>switch_margin_pct</code> (10%) of what staying costs, plus <code>switch_margin_usd</code> ($0.01). Otherwise the reason says
+<code>staying on &lt;backend&gt; (move would not pay for cache rebuild)</code>.</p>
+<p>Illustrative, at Claude Sonnet 5.5's list prices in <code>config/prices.json</code> (12 November 2026: $2 input, $0.10 cache
+read, $2.50 5-minute cache write, $4 1-hour cache write per million tokens): a 120k-token session costs about $0.012 a
+turn in cache reads to stay. Moving it to another Claude backend set to an hour costs about $0.46 to rewrite the cache
+(118k tokens × ($4 − $0.10)); to OpenRouter, which writes at the 5-minute price, about $0.28. A move has to save more
+than that, plus the switch margin, over the rest of the session to be worth it.</p>
+<h2 id="cost-per-solved-task-opt-in">Cost per solved task (opt-in)</h2>
+<p>The threshold treats every model at or above the floor as equally good and every model below it as useless.
+Quality data says more: each model's chance of solving work at each level. With <code>routing.model_choice:
+cost_per_success</code> (or a team's <code>model_choice</code>), the router ranks routes by what a solved task is expected to
+cost:</p>
+<pre><code>expected(b) = cost(b) + (1 − chance) × redo
+redo        = cost(t) ÷ chance(t)
+</code></pre>
+<p><code>cost(b)</code> is the cost function above, cache rebuild included. <code>chance</code> is the model's chance of solving work at
+the request's level. A failed try is still paid for, and the work is then done again on <code>t</code>, the route the
+threshold would pick (the cheapest that meets the floor), until it succeeds. For <code>t</code> itself that's <code>cost ÷
+chance</code>. So a cheaper model below the floor wins when its saving on the try outweighs redoing its extra
+failures, and a dearer, better model can win when it fails much less.</p>
+<ul>
+<li><strong>Chances</strong> come from each model's score in use: the scale says what a score means on the reference task
+  (FrontierSWE by default), and a model exactly at a level solves that level's work as often as a 5 solves the
+  reference (the anchor: 69.9% for coding). Published scores, overrides, and measured scores applied
+  from evals (with <code>quality.source: config</code>) all get chances; a model without one is judged by the threshold.</li>
+<li><strong>A minimum</strong> (<code>min_success_chance</code>, default 0.6) keeps out any model whose chance at the level is lower, so a
+  nearly free model that usually fails can't look cheap per success. If nothing reaches it, the threshold decides.</li>
+<li><strong>A client's <code>X-Route-Floor</code></strong> is a minimum it asked for: the threshold decides.</li>
+<li><strong>Levels don't change.</strong> The level still comes from <code>routing.levels</code>; cost per success only changes which
+  models can take a level's work. Reports → Levels lists, under each level, the models below it that are in
+  reach for your team, with their chance.</li>
+<li><strong>Everything after works on expected cost</strong>: the speed premium of the priority, stickiness, the speed checks.
+  A warm cache still counts through <code>cost(b)</code>: a session warm on one model doesn't move to a cheaper one that would
+  first pay to rebuild the cache, unless it's still cheaper per success after that.</li>
+</ul>
+<p>Example, coding:3 with 30,000 tokens: Claude Haiku 5.5 meets the floor at $0.0060 a try and a 70% chance, so $0.0086
+per success. DeepSeek V4.1 Flash scores 2.4, below the floor, but costs $0.0018 a try with a 62% chance:
+$0.0018 + 38% × $0.0086 = $0.0051 per success, and it wins. Every rule, and more examples:
+<a href="how-it-decides.html#threshold-or-cost-per-success">10, How it decides</a>.</p>
+<h2 id="expected-total-cost-to-finish-the-task">Expected total cost to finish the task</h2>
+<p>Cheap routing that has to be redone saves nothing, and a redo costs more than tokens: someone notices the answer was
+wrong, says so and waits. With <code>routing.model_choice: expected_cost</code> (or a team's <code>model_choice</code>), each <code>auto</code> task
+goes to the model with the lowest expected cost to finish it (decisions 62 and 67, <code>success.py</code>). It's the default since
+the <a href="#how-we-measure-routing">routing simulator</a> scored it against the threshold (<a href="#is-it-the-right-default">below</a>):</p>
+<pre><code>E(m)            = try(m) + (1 − P(m)) × (H × stakes + next attempt)
+stakes          = (1/3)^(5 − level) × min(1, prompt tokens / 8,000); level 5 after a correction
+next attempt    = min over e of E(e | m failed), from a cold cache, while escalations are planned; else 0
+</code></pre>
+<ul>
+<li><strong>try(m)</strong> is the cost function above: the rest of the session on that route, cache rebuild, the 1-hour cache and
+  pauses included.</li>
+<li><strong>H</strong> is what a failed attempt at the top of the scale (a level-5 task, a full agent request) costs a person:
+  <code>routing.human_cost_usd</code>, per team <code>teams.&lt;name&gt;.human_cost_usd</code> (Config → Routing → Expected total cost, and
+  Controls). Minutes of their time times their rate; the default, $1, is one minute at $60 an hour. 0 counts only tokens.</li>
+<li><strong>The stakes</strong> (<code>success.stakes</code>, decision 67) are the share of H a failure of this request puts at risk. Each level
+  below 5 puts a third as much at stake (level 4 a third, level 3 a ninth, level 1 1/81): a re-asked question costs a
+  person seconds, a failed agent task minutes of review and a redo, and the benchmark prior, measured at level 5 and
+  read down to level 1 at the same gaps between models, overstates how often a cheap model fails easy work. A request
+  under 8,000 tokens puts proportionally less at stake (coding agents send more than that from their first turn, so this
+  scales questions and short chats). After a correction (the person's newest prompt says the last answer was wrong) the
+  request counts as level 5. So a one-line question puts 1/400 of 1/81 of H at stake, and goes to the cheapest model that
+  meets its level, as the threshold sends it.</li>
+<li><strong>The next attempt</strong> after a failure is the same model again (the person resends, the agent carries on) or a
+  stronger one (a different model with a higher chance) from a cold cache, whichever finishes for less. A task one model
+  failed is harder for the next attempt too: every model's chance on a task moves with a hidden difficulty of the task's
+  own, 1 log-odds wide (<code>SPREAD</code>), so the chance after a failure is conditioned on it. As many more attempts are
+  planned as <code>routing.cascade.max_escalations</code> allows (0 by default: then a failure costs H and nothing more).</li>
+</ul>
+<figure class="diagram"><pre class="mermaid">flowchart TD
+    T[&quot;auto, a new task: floor from the rules&lt;br/&gt;(learned router, level map, exploration)&quot;] --&gt; R{&quot;Chances known for the task type,&lt;br/&gt;and no X-Route-Floor?&quot;}
+    R -- &quot;no&quot; --&gt; TH[&quot;The threshold decides&lt;br/&gt;(the reason says why)&quot;]
+    R -- &quot;yes&quot; --&gt; IN[&quot;In reach: models the team may use whose chance&lt;br/&gt;at the floor ≥ min_success_chance (0.6)&quot;]
+    IN --&gt; P[&quot;P(m) for each: the success predictor (below)&quot;]
+    P --&gt; V[&quot;E(m) = try(m) + (1 − P(m)) × (H × stakes + the best next attempt:&lt;br/&gt;m again, or a stronger model from a cold cache,&lt;br/&gt;its chance conditioned on m failing)&quot;]
+    V --&gt; RK[&quot;Lowest E first; then the priority&#x27;s premium&lt;br/&gt;and stickiness on E, their margins&lt;br/&gt;a share of its money (not the person&#x27;s time)&quot;]
+    RK --&gt; REC[&quot;Reason and route_features: both models&#x27; chances,&lt;br/&gt;what they&#x27;re made of, E and its token part&quot;]</pre></figure>
+<h3 id="the-success-predictor">The success predictor</h3>
+<p><code>P(m)</code> is the chance that m's answer to the task needs no redo. It's built in layers, each used when it's there:</p>
+<figure class="diagram"><pre class="mermaid">flowchart LR
+    A[&quot;Benchmark prior:&lt;br/&gt;the model&#x27;s chance at the&lt;br/&gt;task&#x27;s difficulty (decision 58),&lt;br/&gt;read between levels&quot;] --&gt; B[&quot;Difficulty: the rules&#x27; level,&lt;br/&gt;or the learned router&#x27;s difficulty&lt;br/&gt;and spread (route mode),&lt;br/&gt;which widens the prior&quot;]
+    B --&gt; C{&quot;routing.success.mode&quot;}
+    C -- &quot;off&quot; --&gt; P0[&quot;P = the prior&quot;]
+    C -- &quot;shadow&quot; --&gt; P1[&quot;P = the prior; the fitted&lt;br/&gt;layer&#x27;s chance recorded next to it&quot;]
+    C -- &quot;route, and it beat the prior&quot; --&gt; P2[&quot;P = the fitted layer:&lt;br/&gt;calibration + model ability&lt;br/&gt;+ team, repository, project&lt;br/&gt;+ the opening prompt&#x27;s triage features&quot;]</pre></figure>
+<ol>
+<li><strong>The benchmark prior.</strong> Each model's chance at each level (<code>config.apply_chances</code>, the fixed bar of decision 58),
+   read between whole levels in log-odds, at the task's difficulty.</li>
+<li><strong>The difficulty.</strong> The level the task is routed at. With the learned router in route mode, its difficulty
+   (<code>learned.Prediction.difficulty</code>, moved as the level was by Claude Code's caps, the level map and exploration) and its
+   spread: the chance is averaged over the spread, which pulls it towards a coin toss where the difficulty is unsure.</li>
+<li><strong>The fitted layer</strong> (<code>routing.success.mode</code>, off by default; Config → Routing → Expected total cost). A logistic model
+   on the learned router's rows, trained with it (<code>meritorder router train</code>, the worker, or <em>Train now</em>):</li>
+</ol>
+<p><code>logit P = prior logit + a + (b − 1) × prior logit + ability(model) + team + repository + project + opening prompt</code></p>
+<p><code>a</code> and <code>b</code> calibrate the prior to what your outcomes count as success (most answers get no failure signal, so it's
+   usually above the benchmark's chance). <code>ability</code> is each model's own record on your work: exploration's task starts a
+   level down or up (decision 59) are what show a model off its level. The repository is the working directory Claude
+   Code names in its system prompt or Codex in its <code>&lt;cwd&gt;</code>, and the project the client's <code>project</code> tag
+   (<code>X-MeritOrder-Tags</code>), both kept only as keyed hashes of 8 hex characters. The opening prompt's triage features are
+   its word triples (the learned router has the words and pairs) and the paths it mentions (their kind: test, docs,
+   config or core; extension; directories), hashed into 16,384 buckets. Every part has a normal prior at zero, so a model,
+   team or repository with few outcomes keeps the prior. It's fitted by coordinate-wise Newton steps (about 1 second per
+   10,000 task starts on a laptop), compared with the prior alone on the newest fifth by paired Brier score, and used in
+   route mode only if it was better by more than twice the standard error. In shadow mode its chance is recorded next to
+   the prior, so Reports → Learned router can compare them before it routes anything.</p>
+<p>Cold start, with nothing fitted, is the rules' level and the benchmark prior. The benchmark's chances are FrontierSWE's
+(a model exactly at a level solves 70%), so until the fitted layer calibrates them, failures look likelier than your
+traffic will show. The stakes keep that from buying strong models for easy work; at levels 4 and 5, where the prior is
+closest to what it measured, a failure still costs most of H. Hence the recommendation below.</p>
+<h3 id="escalation-inside-a-task">Escalation inside a task</h3>
+<p>Off by default (<code>routing.cascade.max_escalations: 0</code>): on the simulator it finished 0.1 points more at the same total, counting failed attempts,
+and a third more model spend (<a href="#is-it-the-right-default">below</a>). Turned on (1 or 2), a task still keeps its model mid-task, and what its tool results show (coding outcomes, below)
+moves the task model's chance, and the task moves up when continuing costs more than escalating:</p>
+<figure class="diagram"><pre class="mermaid">flowchart TD
+    M[&quot;A later turn of a task&lt;br/&gt;(team routes by expected_cost)&quot;] --&gt; W{&quot;Where is it?&quot;}
+    W -- &quot;mid-task (tool results)&quot; --&gt; F{&quot;Failures in a row ≥&lt;br/&gt;cascade.failures_now (3)?&quot;}
+    W -- &quot;a human message that carries&lt;br/&gt;on the task: a correction, or the&lt;br/&gt;code left failing and a prompt no&lt;br/&gt;harder than the task (classified first)&quot; --&gt; CHK
+    W -- &quot;a new human prompt&lt;br/&gt;(anything else)&quot; --&gt; NEW[&quot;A new task: chosen afresh&lt;br/&gt;(the only way down)&quot;]
+    F -- &quot;no&quot; --&gt; KEEP[&quot;Keep the model&quot;]
+    F -- &quot;yes&quot; --&gt; CHK{&quot;Escalations left, a budget&lt;br/&gt;under 90%, auto, a stronger&lt;br/&gt;model the team may use?&quot;}
+    CHK -- &quot;no&quot; --&gt; KEEP
+    CHK -- &quot;yes&quot; --&gt; CMP[&quot;P now = P at the task&#x27;s start, moved by the evidence.&lt;br/&gt;Continue: rest of the task here, a failure escalating later.&lt;br/&gt;Escalate: rest of the task on the stronger model, cold cache,&lt;br/&gt;one escalation fewer.&quot;]
+    CMP -- &quot;escalating cheaper by more&lt;br/&gt;than switch_margin_usd&quot; --&gt; UP[&quot;Escalate; tag escalation, escalated_from;&lt;br/&gt;charge the failed attempt against routing savings&quot;]
+    CMP -- &quot;otherwise&quot; --&gt; KEEP</pre></figure>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Evidence (outcomes.py)</th>
+<th>Log-odds on the task model's chance</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Tests failing after the last edit</td>
+<td>−0.6</td>
+</tr>
+<tr>
+<td>Build or type check broken after it (and no test passed)</td>
+<td>−0.4</td>
+</tr>
+<tr>
+<td>Each failed run in a row after the first (at most 6)</td>
+<td>−0.3</td>
+</tr>
+<tr>
+<td>A fix loop: three edits to one file, each right after a failed run</td>
+<td>−0.8</td>
+</tr>
+<tr>
+<td>Each error tool result in a row after the first (at most 6)</td>
+<td>−0.15</td>
+</tr>
+<tr>
+<td>A correction in the person's next prompt ("that's wrong", "revert", ...)</td>
+<td>−1.4</td>
+</tr>
+<tr>
+<td>Each file touched beyond 5 (at most 8), each core file edited beyond 5</td>
+<td>−0.08, −0.05</td>
+</tr>
+<tr>
+<td>Tests passing after the last edit</td>
+<td>+0.5</td>
+</tr>
+</tbody>
+</table></div>
+<p>The gateway reads a team's tool results for this whether or not the learned router is on (only recording them needs it).
+These are priors set from the outcome labels' weights; Reports → Learned router shows whether the chances they give
+hold. The bounds: at most <code>cascade.max_escalations</code> (0 by default, at most 2) per task; never down inside a task; never for a named
+model (decision 23); never past the team's allowed models; never once any budget that applies is 90% spent; never into a
+refusal by <code>max_request_usd</code> (the request is routed as it would have been). The cache rebuild on the stronger model is in
+the comparison, at Claude's 1-hour price where that applies (decision 53). An escalated model's chance is its own from
+then on, and its failures in a row start again.</p>
+<p>A human message after a failing run carries the task on only when it's a correction, or when the new prompt, classified
+first, is the same kind of work at no higher a level than the task's (<code>Router.carries_on</code>): "keep going" does, "now
+design the multi-region architecture" (coding:5) after a coding:3 task is a new task at its own level.</p>
+<p>The routing reason says what was compared, either way. On the shipped price list, a $1 person's cost and the cascade on,
+a 30,000-token coding:3 task on Claude Haiku: after three failed runs, <code>mid-task: keeping session model claude-haiku at
+coding:3 (coding: 1 tool); claude-haiku's chance now 41% (was 70%: tests failing after the last edit -0.6, 3 failed runs
+in a row -0.6); continuing ~$0.10 vs escalating to gpt-terra ~$0.12 (82%, cache rebuild included): continuing</code> (a ninth of
+H is at stake at level 3); and when the person then says "that's wrong", the request counts as level 5:
+<code>escalated at the next human message (1 of 1): claude-haiku's chance now 24% (was 70%: tests failing after the last edit
+-0.6, corrected (wrong) -1.4); continuing ~$1.00 vs escalating to gpt-terra ~$0.28 (82%, cache rebuild included); at
+coding:3 (coding: 1 tool)</code>. A task start's reason ends with both models' chances and costs and what's at stake:
+<code>classified coding:3 (coding: 1 tool); expected total cost: claude-haiku ~$0.055 to finish: try $0.0060, chance 70%
+(benchmark), difficulty 3.0 (level 3), a failure costs $0.11 of a person's time (of $1.00: 1/9 at level 3), then
+claude-haiku again; deepseek-v4.1-flash ~$0.063, chance 62% (benchmark)</code>. With the fitted layer routing, each chance also
+says what moved it: <code>86% (benchmark 82%; calibration +0.4, model ability +0.1)</code>.</p>
+<h3 id="whats-recorded-and-savings">What's recorded, and savings</h3>
+<ul>
+<li>The task's <code>route_features</code> row (the learned router has to be on) gets <code>predicted</code>: the chosen model's and the
+  runner-up's chance, the benchmark's, the fitted layer's, the expected total and token costs, the person's cost at stake
+  (<code>human_cost</code>) and its share of H (<code>stakes</code>), and the difficulty; <code>context</code>: the repository and project hashes; and <code>triage_features</code>. At the task's end (the next human
+  prompt that isn't a continuation) its <code>coding</code> column gets what the task cost, its escalations and why.</li>
+<li>Every request of an escalated task carries the ledger tags <code>escalation</code> (<code>1</code> or <code>2</code>) and <code>escalated_from</code> (the model
+  it left), which a client can't set; Reports → Breakdown → Tag → <code>escalation</code> shows what escalating cost.</li>
+<li><strong>Savings stay honest.</strong> The failed attempt wouldn't have been made without Merit Order, so the escalation's first
+  request takes that attempt's baseline cost off its own baseline and its routing savings (a negative routing saving on
+  that row, once: on the answer's row, never a refused attempt's). The gateway knows it from
+  two counters per conversation in Redis (<code>task:</code> for what it cost, <code>task-base:</code> for
+  what it would have cost on the baseline model), read with the budgets in the same round trip.</li>
+</ul>
+<p>Reports → Learned router → <em>Expected total cost</em> shows predicted against seen success (a reliability table, the Brier
+score, by model, and the fitted layer's own), escalations (how often, whether the task then ended without a failure
+signal, and what was charged), and expected against actual cost per finished task.</p>
+<h3 id="is-it-the-right-default">Is it the right default?</h3>
+<p>On the <a href="#how-we-measure-routing">routing simulator</a> (2,000 standard tasks, seed 1, a price of $15 per failed
+attempt, the level rules of decision 61, <code>docs/routing-eval/scorecard.md</code>), against today's other choices.
+A failed attempt costs someone time: noticing it, asking again, waiting, cleaning up; here that time has a price per
+failed attempt, an assumption you can change. The total counts model spend plus failed attempts times that price: it's what the work costs, not time saved.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Strategy</th>
+<th>Success</th>
+<th>Model spend per finished task</th>
+<th>Time lost to failed attempts</th>
+<th>Total, counting failed attempts (90% interval)</th>
+<th>Analysis finished</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Always Claude Opus</td>
+<td>97.7%</td>
+<td>$1.43</td>
+<td>$2.53</td>
+<td>$3.95 ($3.57 to $4.35)</td>
+<td>89.7%</td>
+</tr>
+<tr>
+<td>Always Claude Sonnet</td>
+<td>97.4%</td>
+<td>$0.73</td>
+<td>$2.66</td>
+<td>$3.40 ($3.08 to $3.76)</td>
+<td>87.3%</td>
+</tr>
+<tr>
+<td><code>auto</code>, threshold (the default before decision 62)</td>
+<td>97.5%</td>
+<td>$1.01</td>
+<td>$2.62</td>
+<td>$3.63 ($3.20 to $4.07)</td>
+<td>82.5%</td>
+</tr>
+<tr>
+<td><code>auto</code>, cost per success</td>
+<td>96.8%</td>
+<td>$0.40</td>
+<td>$3.07</td>
+<td>$3.47 ($3.12 to $3.86)</td>
+<td>72.2%</td>
+</tr>
+<tr>
+<td><code>auto</code>, expected total cost, the full person's cost on every request (decision 62)</td>
+<td>97.9%</td>
+<td>$0.51</td>
+<td>$2.37</td>
+<td>$2.88 ($2.56 to $3.21)</td>
+<td>89.7%</td>
+</tr>
+<tr>
+<td><code>auto</code>, expected total cost, the person's cost at stake (the default, decision 67)</td>
+<td>97.7%</td>
+<td>$0.40</td>
+<td>$2.67</td>
+<td>$3.08 ($2.77 to $3.43)</td>
+<td>86.5%</td>
+</tr>
+<tr>
+<td>…with its cascade (one escalation)</td>
+<td>97.8%</td>
+<td>$0.54</td>
+<td>$2.54</td>
+<td>$3.08 ($2.77 to $3.45)</td>
+<td>86.5%</td>
+</tr>
+<tr>
+<td>Oracle (lower bound)</td>
+<td>98.7%</td>
+<td>$0.17</td>
+<td>$1.85</td>
+<td>$2.03</td>
+<td>93.7%</td>
+</tr>
+</tbody>
+</table></div>
+<p>And what it spends per finished task, class by class, against the threshold (success in brackets):</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Class (tasks)</th>
+<th>Threshold</th>
+<th>Decision 62</th>
+<th>The default (decision 67)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Easy coding (559)</td>
+<td>$0.053 (100%)</td>
+<td>$0.094 (100%)</td>
+<td>$0.027 (100%)</td>
+</tr>
+<tr>
+<td>Ordinary coding (740)</td>
+<td>$0.30 (100%)</td>
+<td>$0.41 (100%)</td>
+<td>$0.22 (100%)</td>
+</tr>
+<tr>
+<td>Hard coding (128)</td>
+<td>$13.29 (81.2%)</td>
+<td>$5.03 (79.7%)</td>
+<td>$4.90 (80.5%)</td>
+</tr>
+<tr>
+<td>Very hard coding (10)</td>
+<td>$54.12 (60%)</td>
+<td>$17.77 (60%)</td>
+<td>$17.55 (60%)</td>
+</tr>
+<tr>
+<td>Short questions (159)</td>
+<td>$0.000026 (100%)</td>
+<td>$0.0014 (100%)</td>
+<td>$0.000026 (100%)</td>
+</tr>
+<tr>
+<td>Chat (278)</td>
+<td>$0.0027 (100%)</td>
+<td>$0.025 (100%)</td>
+<td>$0.0022 (100%)</td>
+</tr>
+<tr>
+<td>Analysis (126)</td>
+<td>$0.043 (82.5%)</td>
+<td>$0.095 (89.7%)</td>
+<td>$0.033 (86.5%)</td>
+</tr>
+</tbody>
+</table></div>
+<p>The default spends 60% less per finished task than the threshold, and no more on any class: the cheapest model that meets
+the bar on easy work, and less than it on hard work, where at level 5 it picks Gemini 4 Carbon over Claude Fable when
+Carbon is cheaper to finish with, as cost per success does. It finishes 0.2 points more than the threshold, and in
+total it costs 15% less than the threshold and 9% less than always using Sonnet (paired, $0.13 to $0.51 less per
+finished task). Against decision 62, which charged every failure the full person's cost, it spends 20% less but costs
+$0.20 more per finished task in total (paired, $0.09 to $0.32) and finishes 0.15 points fewer: decision 62 bought
+analysis's 89.7% by sending every general request to stronger models (chat at 9 times the threshold's spend), since the
+rules give an analysis and an email the same levels. No setting tried has both (decision 67). It costs least in total at a
+price of $5 per failed attempt and ties the cascade at $15; at $50 the cascade costs less ($9.00 against $9.31), at $0 cost per
+success (by 1%). On the sensitivity runs (400 tasks each) it's lowest in total on every mix, at no pause and
+one turn in ten, within 1% of cost per success when 30% of turns pause, and level with always-Sonnet when the published
+abilities are off by 3 points.</p>
+<p>The cascade escalates 12% of tasks, 62% of them then finish, and it finishes 0.1 points more, at the same total, counting
+failed attempts, and a third more model spend, so it's off by default. The CI check's baseline now runs 1,000 tasks (seed 7,
+frozen prices) and the threshold beside the default, and fails if a class spends more than 10% over the threshold
+(decision 67): decision 62 had $0.457 per finished task and $2.63 in total, counting failed attempts, at 98.0%; the default has
+$0.358 and $2.86 at 97.7%.</p>
+<p>The person's cost the router uses ($1 for level-5 work) is far below the simulator's $15, on purpose: the benchmark's
+chances are FrontierSWE's (a model exactly at a level solves 70%), more pessimistic than the simulator's work and most
+traffic, and a new session's try is priced for 3 turns, a tenth of what an agent attempt costs. With the stakes, $2 costs
+2% less in total, counting failed attempts, on the simulator but spends 43% more than the threshold on analysis and 30% more on chat;
+$3 and $5 spend more than the threshold on ordinary coding too; $0.50 costs 3% more. The fitted layer calibrates the
+chances to your outcomes; raise the person's cost once it routes.</p>
+<p><strong>The recommendation:</strong> keep the default; turn the learned router and <code>routing.success.mode</code> to shadow, and set
+<code>success.mode: route</code> once Reports → Learned router shows the fitted layer beat the benchmark prior; try the cascade on
+one team (<code>cascade.max_escalations: 1</code>) and compare its escalations there.</p>
+<p><strong>What only real traffic can tell:</strong> how often the in-task evidence means the task will fail, client by client; whether a
+stronger model finishes what a weaker one couldn't (the hidden difficulty's width); what a person's failed attempt really
+costs a team; and how much the fitted layer's repository and opening-prompt parts add over the calibration. Request
+overhead, measured with <code>scripts/bench_load.py</code> (<code>expected-cost</code> against <code>exploration</code>, both with the learned router in
+shadow mode, on a laptop): a chat request (a new task each time) 0.72 → 0.82 ms of CPU, an agent turn that grows an
+edit and a test run each request 3.50 → 3.55 ms.</p>
+<h2 id="the-learned-router">The learned router</h2>
+<p>The level rules are word lists: a listed word raises a task whatever it's about, and hard work described in other
+words isn't recognized. The learned router (<code>learned.py</code>, <code>learned_jobs.py</code>, decision 44) learns from this
+organization's own traffic which requests are harder or easier than the rules say. It's off by default
+(<code>routing.learned.mode</code>, Config → Routing → Learned router), and the rules stay the default and the fallback.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Mode</th>
+<th>What happens</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>off</code> (default)</td>
+<td>Nothing is recorded or predicted</td>
+</tr>
+<tr>
+<td><code>shadow</code></td>
+<td>Gateways record each request's features and what followed its answer, predict a level next to the rules', and change nothing. Reports → Learned router compares the two</td>
+</tr>
+<tr>
+<td><code>route</code></td>
+<td>The same, and the learned level is used when the model is at least <code>min_confidence</code> (0.8) sure. Otherwise the rules decide</td>
+</tr>
+</tbody>
+</table></div>
+<p>For one request whose level comes from the rules (a new task without <code>X-Route-Floor</code>):</p>
+<figure class="diagram"><pre class="mermaid">flowchart TD
+    R[&quot;The rules give a level&quot;] --&gt; M{&quot;routing.learned.mode&quot;}
+    M -- &quot;off&quot; --&gt; USE_R[&quot;The rules&#x27; level&quot;]
+    M -- &quot;shadow or route&quot; --&gt; K{&quot;A model is trained, loads,&lt;br/&gt;and isn&#x27;t stale?&quot;}
+    K -- &quot;no&quot; --&gt; R1[&quot;The rules&#x27; level&lt;br/&gt;(the reason says why)&quot;]
+    K -- &quot;yes&quot; --&gt; P[&quot;Predict: the rules&#x27; level + the features&#x27; weights;&lt;br/&gt;confidence from how far the six fits spread&quot;]
+    P --&gt; AG{&quot;Same level&lt;br/&gt;as the rules?&quot;}
+    AG -- &quot;yes&quot; --&gt; R2[&quot;The rules&#x27; level (agrees)&quot;]
+    AG -- &quot;no&quot; --&gt; C{&quot;At least min_confidence&lt;br/&gt;(0.8) sure?&quot;}
+    C -- &quot;no&quot; --&gt; R3[&quot;The rules&#x27; level (unsure)&quot;]
+    C -- &quot;yes&quot; --&gt; MD{&quot;Mode&quot;}
+    MD -- &quot;shadow&quot; --&gt; R4[&quot;The rules&#x27; level; the reason says what&lt;br/&gt;the learned level would have picked and cost&quot;]
+    MD -- &quot;route&quot; --&gt; L[&quot;The learned level; the reason says what&lt;br/&gt;the rules&#x27; level would have picked and cost&quot;]
+    USE_R &amp; R1 &amp; R2 &amp; R3 &amp; R4 &amp; L --&gt; CAP[&quot;Claude Code&#x27;s request-class caps apply&lt;br/&gt;to whichever level is used&quot;]</pre></figure>
+<p><strong>What it predicts.</strong> It corrects the rules' level rather than replacing it:</p>
+<pre><code>difficulty    = the rules' level + the weights of the request's features
+learned level = difficulty rounded, 1 to 5
+</code></pre>
+<p>It's trained as an item response model, as Epoch places models and tasks on one scale: work of difficulty <code>d</code> sent to
+a model scoring <code>q</code> (its score for the task type, the one routing uses) shows a failure signal with probability
+<code>sigmoid(slope × (d − q) + intercept)</code>. The slope starts from what Epoch's ability scale implies (about 0.4 a level
+for failures) and is fitted. The model then needs no traffic on a model to judge it: the scores say how good each model
+is, the traffic says how hard each kind of request is.</p>
+<p>Two things are fixed by construction, because the labels can't tell them apart from how often failures get noticed:</p>
+<ul>
+<li><strong>The rules stay right on average.</strong> Over the training requests of each task type the corrections average to zero,
+  so the model moves requests up or down relative to others the rules put at the same level. It can't raise every
+  level at once, and it can't tell that every level is too low; the scores, cost per success and
+  <a href="#exploration">exploration</a> are for that.</li>
+<li><strong>The client isn't difficulty.</strong> Tags about the client (<code>client:…</code>, <code>format:…</code>) only change how often a failure is
+  noticed (a chat app has a regenerate button, an agent rarely resends), never a request's difficulty.</li>
+</ul>
+<p><strong>Where it applies.</strong> Only where the rules give a level: a new task (a new session or a new human prompt), or one the
+harness compacted. Mid-task turns keep the session's model; a session that outgrows its model keeps its level; a
+client's <code>X-Route-Floor</code> is never second-guessed; Claude Code's caps (<code>request_class_levels</code>) apply to whichever level is
+used. Requests that name a model are recorded too, for training (a named model shows how a model scoring other than the
+level does on such work), and never rerouted. A request of a batch is leveled like a new task, so route mode applies to
+it, but it's never recorded: none of the signals below can follow it (<a href="#batches">Batches</a>).</p>
+<h3 id="what-it-learns-from">What it learns from</h3>
+<p>Training data is this organization's own traffic. The ledger keeps no prompt text, and neither does this: each task
+start gets a row in <code>route_features</code> with</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Field</th>
+<th>What it is</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Words</td>
+<td>The words and word pairs of the text the rules read (the last two messages from the person), from its first and last 2,000 characters, hashed into 65,536 buckets with a key. Only bucket numbers are stored</td>
+</tr>
+<tr>
+<td>Tags</td>
+<td>Named facts: the rules' level and which rules fired (<code>rule:simple</code>, <code>rule:hard</code>, <code>rule:hardest</code>, <code>rule:correction</code>, …), the tool count (a band, and <code>rule:agent</code> at <code>agent_tools</code> or more, whatever set the level), the size band, the conversation's length, Claude Code's request class and subagent flag, a client-set effort, structured output, the API format and the client's product name from its User-Agent</td>
+</tr>
+<tr>
+<td>Outcome</td>
+<td>The model that answered and its score, the scores of models that refused, the status, and what followed</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>The key.</strong> <code>MERITORDER_FEATURE_KEY</code> if it's set, else one generated once and kept in the store (<code>learned_router_key</code>).
+Words are hashed with keyed BLAKE2b (a 128-bit key derived from it). A hash isn't encryption: whoever has the rows and the
+key can check whether a word they guess was in a request (not read a request back). Set the variable to keep the key out
+of the database. Changing it makes stored rows and models unusable (they're hashed differently), and the model is
+reported stale. So are rows and models from before feature version 2 (13 November 2026), whose CRC32 hashing the key
+didn't hide, and from before version 3 (15 November 2026), whose words came from user messages that were only tool
+results (so mid-task they often had none), and from before version 4 (decision 61), whose words included Claude Code's
+system reminders and Codex's AGENTS.md, and whose rules' level for a coding agent came from its tool count. Train again
+after upgrading.</p>
+<p><strong>The labels, and how weak each is:</strong></p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Signal</th>
+<th>Seen when</th>
+<th>Weight</th>
+<th>How weak</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A raised floor</td>
+<td>The next request of the conversation sends a higher <code>X-Route-Floor</code> (or <code>X-Route-Hint: smart</code>)</td>
+<td>1.0</td>
+<td>The client said the level was too low. Few clients send it</td>
+</tr>
+<tr>
+<td>Sent again</td>
+<td>The next request has every message unchanged after a successful answer: a regenerated answer</td>
+<td>0.6</td>
+<td>Some clients resend after a timeout of their own; a retry after an error doesn't count</td>
+</tr>
+<tr>
+<td>Stopped</td>
+<td>The client disconnected while the answer streamed (Esc in Claude Code)</td>
+<td>0.4</td>
+<td>Often a wrong direction, sometimes the person had read enough</td>
+</tr>
+<tr>
+<td>Asked again elsewhere</td>
+<td>The conversation's last answer, then the same person's first request in a new session within 15 minutes shares at least half its hashed words</td>
+<td>0.3</td>
+<td>Inferred, not seen; subagents and side requests are left out (their conversations end by design)</td>
+</tr>
+<tr>
+<td>Corrected</td>
+<td>The person's next prompt says the answer was wrong: "that's wrong", "undo", "revert", "you broke", "still failing", "not what I asked" (<a href="#coding-outcomes">coding outcomes</a>)</td>
+<td>0.7</td>
+<td>A rule list over the prompt's first 1,000 characters: "revert the migration" as a new request matches too, and a polite "could you try another way" doesn't</td>
+</tr>
+<tr>
+<td>Tests failing at the end</td>
+<td>The last test run after the task's last edit failed (pytest, jest, vitest, go test, cargo test, npm test, ...)</td>
+<td>0.5</td>
+<td>Often the agent gave up; sometimes the person took over, or the test was already failing</td>
+</tr>
+<tr>
+<td>Build broken at the end</td>
+<td>The last build or type check after the last edit failed (tsc, mypy, cargo build, go build, make, ...), and no test passed after it</td>
+<td>0.4</td>
+<td>Agents usually fix their own build errors; one left at the end is the weaker sign</td>
+</tr>
+<tr>
+<td>A fix loop</td>
+<td>Three or more edits to one file, each right after a failed run, and no test passed after them</td>
+<td>0.3</td>
+<td>Hard work loops too; it says the model struggled, not that it failed</td>
+</tr>
+<tr>
+<td>Tests passing at the end</td>
+<td>The last test run after the last edit passed</td>
+<td>cancels a broken build and a fix loop</td>
+<td>The one sign an answer worked; it isn't a label of its own (no signal already counts as no failure)</td>
+</tr>
+<tr>
+<td>Turns and tokens to the end of the task</td>
+<td>Counted per task</td>
+<td>not a label</td>
+<td>Shown on the <a href="#the-outcome-report">outcome report</a>: what finishing cost</td>
+</tr>
+<tr>
+<td>A refusal</td>
+<td>A model refused and <code>auto</code> moved on</td>
+<td>0.2</td>
+<td>A policy decision more than a sign the work was too hard</td>
+</tr>
+<tr>
+<td>A judged label (opt-in per team)</td>
+<td>A judge, reading the answer next to a stronger model's, says whether it was good enough: a failure or a success</td>
+<td>from how well verdicts agree with the signals above</td>
+<td>A judge's view, not a person's: <a href="#judged-labels">judged labels</a></td>
+</tr>
+<tr>
+<td>Errors, capacity failovers</td>
+<td></td>
+<td>not a label</td>
+<td>They say nothing about the work</td>
+</tr>
+<tr>
+<td>Epoch scores, eval results</td>
+<td></td>
+<td>the model's side</td>
+<td>Each served model's score (Epoch's, an override, or eval scores applied as scores) is what a request's difficulty is compared with; the slope starts from Epoch's scale. They aren't per-request labels</td>
+</tr>
+</tbody>
+</table></div>
+<p>Most answers get no signal at all, and a missing signal isn't a success: the labels are rare and noisy, which is why
+the model is checked against the rules before it's used and shadowed before it routes. A team can add a stronger
+label, at a price and by sending a sample of its prompts to two more models: <a href="#judged-labels">judged labels</a>.</p>
+<h3 id="judged-labels">Judged labels</h3>
+<p>Off by default, per team (<code>teams.&lt;name&gt;.judged_labels</code>, Config → Routing → Judged labels; decision 52 in
+<a href="decisions.html">09</a>). A small sample of the team's task starts is replayed on a stronger model, and a judge model reads
+the conversation and both answers and says whether each was good enough. The label is whether the answer the request got
+was good enough, given the stronger one. Unlike the outcome signals, it says so either way.</p>
+<p><strong>Sampled prompts and answers are sent to two more models</strong>: the stronger model and the judge, which the request's own
+routing didn't choose (always within the team's allowed models and backends). Turn it on only for teams where that's
+acceptable.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Default</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>enabled</code></td>
+<td>false</td>
+<td></td>
+</tr>
+<tr>
+<td><code>sample_rate</code></td>
+<td>0.01</td>
+<td>The share of eligible task starts sampled. Small, so the cap is reached rarely, and it shows when it is</td>
+</tr>
+<tr>
+<td><code>stronger</code>, <code>stronger_level</code></td>
+<td><code>auto</code>, 5</td>
+<td>A model's name, or <code>auto</code> at a level: what <code>auto</code> picks at that level for the request's task type</td>
+</tr>
+<tr>
+<td><code>judges</code></td>
+<td><code>claude-opus</code>, <code>gpt-sol</code>, <code>gemini-carbon</code></td>
+<td>The evals' judges (<a href="evals.html#four-kinds-of-task">11</a>): one per family, at the same tier</td>
+</tr>
+<tr>
+<td><code>max_usd_month</code></td>
+<td>none: required</td>
+<td>The most the replays and judging may spend a month. The configuration refuses <code>enabled</code> without it</td>
+</tr>
+<tr>
+<td><code>window_seconds</code></td>
+<td>60</td>
+<td>A replay that can't start this soon after its answer is dropped, prompt and all</td>
+</tr>
+<tr>
+<td><code>skip_classes</code></td>
+<td><code>auxiliary</code>, <code>compaction</code></td>
+<td>Claude Code requests never sampled: side requests (titles, summaries) and compaction summaries</td>
+</tr>
+<tr>
+<td><code>min_level</code></td>
+<td>2</td>
+<td>Requests the rules put lower aren't sampled: a short question on its own is level 1</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Which requests.</strong> A task start the learned router records (so it's on, in shadow or route mode; eval traffic and
+Claude Code's level-1 side requests never are), of a Claude Code class not in <code>skip_classes</code>, that the rules put at
+<code>min_level</code> or above, without images or documents (the judge reads text), and whose answer came from a model scoring
+below the stronger side (under <code>stronger_level</code> for <code>auto</code>; under the named model's score otherwise), picked at the sample
+rate. A team without settings of its own uses the default team's, judged labels included, with a cap of its own.</p>
+<figure class="diagram"><pre class="mermaid">sequenceDiagram
+    participant C as Client
+    participant G as Gateway
+    participant A as Model the request got
+    participant S as Stronger model
+    participant J as Judge (another family)
+    participant DB as route_features row
+    C-&gt;&gt;G: Task start (sampled at sample_rate)
+    G-&gt;&gt;A: Request
+    A--&gt;&gt;G: Answer
+    G--&gt;&gt;C: Answer (the client never waits for what follows)
+    G-&gt;&gt;DB: The request&#x27;s row (hashed features)
+    Note over G: Prompt and answer held in memory only&lt;br/&gt;(at most 16 samples, 2 at a time)
+    G-&gt;&gt;S: Replay within window_seconds (60),&lt;br/&gt;as the client judged-labels:&lt;team&gt;
+    S--&gt;&gt;G: Stronger answer
+    G-&gt;&gt;J: Conversation and both answers,&lt;br/&gt;as A and B in random order
+    J--&gt;&gt;G: Was each good enough? Which is better?
+    G-&gt;&gt;DB: The verdict only (judged column)</pre></figure>
+<p><strong>What happens to the prompt.</strong> The gateway keeps no prompts (decision 5), so the sample is taken when the request
+arrives, while its prompt is in memory: the gateway holds a reference to it, and keeps the answer as text once it's
+complete (the response, or the stream put together). When the request's row is written, the replay is scheduled in the
+background; the client never waits for it. It has to start within <code>window_seconds</code> of the answer, or the sample is
+dropped. A gateway holds at most 16 samples at a time and runs 2 at once; past 16, requests aren't sampled. Nothing of
+the prompt or the answers is written anywhere: only the judge's verdict goes on the request's <code>route_features</code> row (the
+<code>judged</code> column), next to its hashed features. The judge's reasons aren't kept, since they can quote the prompt. A
+gateway that stops loses the samples it holds.</p>
+<p><strong>What they spend.</strong> The replay and the judging are ordinary requests through the gateway's own routing and metering, as
+an internal client of the team, <code>judged-labels:&lt;team&gt;</code>. They're tagged <code>judged_label=replay</code> and <code>judged_label=judge</code> in
+the ledger (Reports → Breakdown → Tag → <code>judged_label</code> splits them out; a client can't set the tag), counted against the
+team's budget and the organization's, which stop them as they stop anyone, and never counted as savings. That client's
+spend this month is the cap's: no sample starts once it's spent (its row says <code>capped</code>, and the report shows the team
+at its cap), and a sample that started finishes, so a month can go over by what the samples running at that moment cost.
+The worker alerts at 80% and 100% of the cap. Replays and judging are never recorded for training: the learned router
+doesn't learn from its own requests.</p>
+<p><strong>The replay</strong> is the request as the client sent it, in its own API format, not streamed, with the response cache off, in
+a session of its own. For <code>auto</code> it goes with <code>X-Route-Floor: &lt;task&gt;:&lt;stronger_level&gt;</code>, so the cheapest model at that
+level the team may use takes it; a named stronger model gets it on its cheapest route. No output limit is added.</p>
+<p><strong>The judge</strong> is chosen as the evals choose theirs: the first of <code>judges</code> the team may use (with a route that can run)
+whose family is neither answer's model's, else not the cheaper answer's, else the first; at high effort. It gets the
+conversation as text (system prompt, tools with their parameters, messages, tool calls and results; thinking left out)
+and the two answers as A and B in random order, so neither position is favoured, without saying which model wrote which.
+It says whether each was good enough, using each to check the other, and which is better, if either. What's kept: whether
+the cheaper answer was good enough, whether the stronger one was, which was better, which was shown first, the three
+models and what it all cost. A replay or a judgement that fails, a judge's reply that isn't a usable verdict, or a replay
+that went to the answer's own model drops the sample, and the row says why.</p>
+<p><strong>In training,</strong> each verdict is an observation of the model that answered: a failure (1) when the judge said its answer
+wasn't good enough, a success (0) when it was. Its weight comes from how well verdicts agree with the outcome signals on
+the same requests: of the judged answers with a failure signal, the share the judge also failed ("caught"), less the
+share of the rest it failed anyway ("false alarm"). That difference (Youden's J) doesn't depend on how rare signals are;
+since no signal isn't a success, it errs low. While few judged answers have a signal, it's shrunk towards 0.3, the
+weakest signal's weight:</p>
+<pre><code>weight = (judged answers with a signal × max(J, 0) + 10 × 0.3) ÷ (judged answers with a signal + 10)
+</code></pre>
+<p>A judge that only guesses ends up near 0. A judged observation carries the tag <code>judged:pair</code> in place of its client's
+tags: a judge looks at every answer, so how often it sees a failure isn't the client's. Like the client's tags, it moves
+only how often a failure is seen, never a request's difficulty. The check against the rules (Training, step 4) stays on
+outcome labels: judged labels count only if they help predict what people did. On synthetic traffic where a retry is
+seen for one failure in ten, the outcome signals alone can't tell renames from Kubernetes work; with judged labels on half
+the requests the model learns the known rule (<code>tests/test_judged_labels.py</code>).</p>
+<p><strong>Before turning it on.</strong> Config → Routing → Judged labels → <em>Turn on…</em> (or <code>POST /v1/admin/judged-labels/estimate</code>)
+shows the expected monthly cost from the team's recorded task starts of the last 14 days: each eligible one at the sample
+rate, as a replay at the stronger model's price for that request's size (long-context prices apply; the prompt written
+to a fresh cache, twice the answer's output) and a judgement at the judge's price (the conversation, both answers and the
+instructions read; 1,500 tokens written). It says real costs have run up to three times as much, as eval estimates do
+(<a href="evals.html#cost">11</a>), names the models prompts would be sent to, and warns when the organization's budget is nearly
+spent. The cap has no default, and above $1 a month the console wants an explicit "I understand". The estimate needs
+recorded traffic, so turn the learned router to shadow mode first.</p>
+<h3 id="training">Training</h3>
+<p><code>meritorder router train</code> (needs Postgres), or the worker every <code>retrain_hours</code> (unset by default), or Reports → Learned
+router → <em>Train now</em> (an admin asks; the worker trains within a minute). Training never runs in a gateway.</p>
+<figure class="diagram"><pre class="mermaid">flowchart LR
+    G[&quot;Gateways&lt;br/&gt;(shadow or route mode)&quot;] -- &quot;a row per task start,&lt;br/&gt;then what followed the answer&quot; --&gt; DB[(&quot;route_features&lt;br/&gt;(Postgres)&quot;)]
+    DB --&gt; T[&quot;Train&lt;br/&gt;(router train, the worker,&lt;br/&gt;or Train now)&quot;]
+    T --&gt; CMP{&quot;Beats the rules alone on&lt;br/&gt;the newest fifth, by more than&lt;br/&gt;2 standard errors?&quot;}
+    CMP -- &quot;yes&quot; --&gt; ACT[&quot;New version in router_models,&lt;br/&gt;active&quot;]
+    CMP -- &quot;no&quot; --&gt; KEPT[&quot;New version saved,&lt;br/&gt;not active&quot;]
+    ACT -- &quot;next configuration reload&quot; --&gt; G</pre></figure>
+<ol>
+<li>Read the last <code>train_days</code> (30) of rows hashed with the current key, at most the newest <code>train_requests</code> (20,000).</li>
+<li>Need at least 200 requests with an outcome, and at least one signal.</li>
+<li>Fit on the oldest four fifths, six times on different halves, and the rules alone (just the slope and intercept).
+   Judged labels from those requests join the six fits at their weight, worked out on those requests only; the rules
+   alone don't use them.</li>
+<li>Compare them on the newest fifth, held out: each model's cross-entropy after one shift per task type (so neither wins
+   by guessing how often failures would be noticed in the newest requests), paired request by request. The learned model
+   is <strong>used only if it's better by more than twice the standard error</strong>. It also counts how many of those requests it
+   would raise or lower at the confidence it needs.</li>
+<li>Fit the six on all of it and save them as a new version in <code>router_models</code>, active if step 4 passed. Gateways load
+   the active version on their next configuration reload (within seconds). <code>meritorder router use &lt;version|none&gt;</code> or the
+   console's <em>Use this one</em> goes back to another.</li>
+</ol>
+<p>The fit is pure Python: AdaGrad for the weights, Newton's method for each task type's slope and intercept, a normal
+prior at zero on every weight. On a laptop it trains 6,000 short synthetic requests in about 4 seconds, and requests
+with long prompts (1,000 hashed words each) at about 20 seconds per thousand, so 20,000 of them take about 7 minutes.
+<code>train_requests</code> bounds that; it's the newest requests, since work and clients drift.</p>
+<p>The worker also deletes rows older than <code>keep_days</code> (90), whatever the mode. Each row's words are stored as 2-byte
+bucket numbers, so a row with a long prompt takes about 2 KB. Claude Code's side requests that are capped at level 1 aren't recorded
+(nothing would change for them), nor is eval traffic (a run repeats the same prompts in new sessions).</p>
+<h3 id="confidence-and-fallbacks">Confidence and fallbacks</h3>
+<p>The prediction is the six fits' mean. Its confidence is the chance the rounded level is right, from how far they spread
+(their halves of the data disagree where evidence is thin) plus, for words and tags none of them saw, the spread a
+weight has before any evidence. A request unlike anything seen is unsure, and the rules decide.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>When</th>
+<th>What decides</th>
+<th>The routing reason says</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>No model trained yet</td>
+<td>The rules</td>
+<td><code>learned router: no model trained yet, so the rules decide</code></td>
+</tr>
+<tr>
+<td>The model is older than <code>max_age_days</code> (30; 0: never), the level rules changed since it was trained, or the feature key did</td>
+<td>The rules</td>
+<td><code>learned router v4 is stale (trained 41 days ago, more than the 30 allowed), so the rules decide</code></td>
+</tr>
+<tr>
+<td>It's under <code>min_confidence</code></td>
+<td>The rules</td>
+<td><code>learned router v4: coding:4, 62% sure (wording +0.6), under the 80% it needs, so the rules decide</code></td>
+</tr>
+<tr>
+<td>It fails, or the stored model can't be loaded</td>
+<td>The rules</td>
+<td><code>learned router v4 failed (ValueError), so the rules decide</code></td>
+</tr>
+<tr>
+<td>It agrees</td>
+<td>Either</td>
+<td><code>learned router v4 agrees (coding:3, 91% sure)</code></td>
+</tr>
+<tr>
+<td>Shadow mode, it disagrees</td>
+<td>The rules</td>
+<td><code>learned router v4 (shadow): coding:4, 86% sure (wording +0.7); not used in shadow mode; at coding:4 it would have picked gpt-terra (~$0.057 for the task) instead of claude-haiku (~$0.0057)</code></td>
+</tr>
+<tr>
+<td>Route mode, it's sure</td>
+<td>The learned router</td>
+<td><code>classified coding:4 (learned router v4: 88% sure (wording +0.7); the rules said coding:3 (coding: 1 tool)); the rules' coding:3 would have picked claude-haiku (…) instead of gpt-terra (…)</code></td>
+</tr>
+</tbody>
+</table></div>
+<p>The reason names the model version, the level, how sure it was, the biggest contributions (words count as "wording": a
+hashed word can't be named) and why it was or wasn't used. The ledger keeps it (<code>route_reason</code>).</p>
+<h3 id="the-shadow-report">The shadow report</h3>
+<p>Reports → Learned router (admins; team leads for their team), <code>GET /v1/reports/router?days=7</code>, and
+<code>meritorder router report</code>:</p>
+<ul>
+<li>How many requests it saw, how many it predicted for, how often it agreed with the rules, and each outcome as the API
+  and CLI name it: <code>agrees</code>, <code>shadow</code>, <code>used</code>, <code>unsure</code>, <code>stale</code>, <code>missing</code> (no model trained yet), <code>failed</code> and
+  <code>named</code>. The console spells them out ("agreed with the rules", "no model yet").</li>
+<li>Where it disagreed, by task type and rules level → learned level: requests, how many it decided, its mean confidence,
+  what each side's pick was estimated to cost for the task (the router's own estimate for the rest of the session, at
+  that request), the outcome signals seen on the side that acted, and the model's own expected failure rate for each
+  side's pick.</li>
+<li>The share of requests with a failure signal where it would have gone higher, lower, or agreed. If the rules' picks
+  fail more often where it would have gone higher, that's evidence for it; the expected rates are its own estimate and
+  can't confirm it.</li>
+<li>Judged labels: how many samples were taken and what came of each (judged, pending, dropped and why, skipped, not
+  taken because the cap was spent), the verdicts by task type and level, what they cost in the period (from the ledger:
+  replays and judging), each team's month so far against its cap, how far the verdicts agree with the outcome signals and
+  the weight that gives them, the weight the model in use gave them, and two checks on the judge: how often it preferred
+  the answer shown first (about half, if the order doesn't sway it) and how often the stronger one.</li>
+<li>The latest disagreements one by one, and (admins) the model versions, the last training, <em>Train now</em> and <em>Use this one</em>.</li>
+</ul>
+<h3 id="what-only-real-traffic-can-tell">What only real traffic can tell</h3>
+<p>The tests (<code>tests/test_learned_router.py</code>) show on synthetic traffic with mocked outcomes that training recovers a
+known rule (Kubernetes deployments need level 4, changing a default value level 2, though the rules give both 3), that shadow mode never
+changes a decision, and that every fallback works. What they can't show:</p>
+<ul>
+<li>how often each signal occurs, and how often it means the answer wasn't good enough, client by client;</li>
+<li>whether there's enough traffic on models above and below each level (named models, cost per success, free upgrades)
+  for the slope to be learned rather than taken from Epoch's scale;</li>
+<li>whether the rules are right on average, which the model assumes;</li>
+<li>whether "asked again elsewhere" (15 minutes, half the words) means giving up;</li>
+<li>how well judges' verdicts agree with what people did, what samples really cost against the estimate, and whether the
+  default stronger side (<code>auto</code> at level 5) is the right one to compare with (the tests mock every model call);</li>
+<li>training time and the size of <code>route_features</code> at real volume, and inference time on production machines (about
+  0.4 ms at the p99 on a long agent prompt on a laptop).</li>
+</ul>
+<h2 id="your-own-traffic-as-the-benchmark">Your own traffic as the benchmark</h2>
+<p>Published scores say how good each model is on someone else's tasks. Whether a level is right for <em>your</em> work, and
+whether a new model does as well on it, only your own traffic can say. Three parts make it measurable (decision 59):
+coding outcomes (stronger signals from what the gateway already sees), exploration (a small random share of task starts
+a level down or up, so the comparison is fair), and the outcome report, which compares them and recommends level changes.</p>
+<figure class="diagram"><pre class="mermaid">flowchart LR
+    REQ[&quot;Task start&lt;br/&gt;(auto, new task)&quot;] --&gt; LVL[&quot;Level from the rules&lt;br/&gt;(or the learned router;&lt;br/&gt;routing.level_map applied)&quot;]
+    LVL --&gt; X{&quot;Team explores?&lt;br/&gt;(random draw)&quot;}
+    X -- &quot;~96%&quot; --&gt; SERVED[&quot;Served at the level&quot;]
+    X -- &quot;~2%&quot; --&gt; DOWN[&quot;One level down&quot;]
+    X -- &quot;~2%&quot; --&gt; UP[&quot;One level up&quot;]
+    X -- &quot;a canary&#x27;s share&quot; --&gt; CAN[&quot;The canary&lt;br/&gt;at the level&quot;]
+    SERVED &amp; DOWN &amp; UP &amp; CAN --&gt; ROW[(&quot;route_features row:&lt;br/&gt;level, arm, its chance&quot;)]
+    NEXT[&quot;The next requests: tool results,&lt;br/&gt;a correction, a resend, a raised floor&quot;] -- &quot;counts and flags&quot; --&gt; ROW
+    ROW --&gt; REP[&quot;Outcome report:&lt;br/&gt;success by arm, weighted&lt;br/&gt;by 1 / the arm&#x27;s chance&quot;]
+    ROW --&gt; TRAIN[&quot;Learned router training&quot;]
+    REP -- &quot;clear and enough&quot; --&gt; REC[&quot;Recommendation&lt;br/&gt;(alert)&quot;]
+    REC -- &quot;admin applies,&lt;br/&gt;or auto_apply when the&lt;br/&gt;learned router agrees&quot; --&gt; MAP[&quot;routing.level_map&quot;]
+    MAP --&gt; LVL
+    CAT[&quot;Catalog and score changes&lt;br/&gt;(the worker)&quot;] -- &quot;newly cheapest or&lt;br/&gt;newly qualifies&quot; --&gt; CAN</pre></figure>
+<p>Everything here needs the learned router on (<code>routing.learned.mode</code> shadow or route): that's what records a row per task
+start and what followed it. In shadow mode it changes no routing.</p>
+<h3 id="coding-outcomes">Coding outcomes</h3>
+<p>An agent's next request carries the results of the tools its last answer called. The gateway already reads that request
+to route it, so <code>outcomes.py</code> reads what's new since the session's last turn (the answer's tool calls and their results;
+nothing older) and keeps, per task:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Fact</th>
+<th>How it's seen</th>
+<th>Kept as</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Edits</td>
+<td>Claude Code's Edit, MultiEdit and Write; Codex's <code>apply_patch</code> (the files from its <code>*** Update File:</code> lines); pi's <code>edit</code> and <code>write</code>; and similar names</td>
+<td>A count, and each file's path hashed to 8 hex characters (at most 20, in the session's routing state only)</td>
+</tr>
+<tr>
+<td>Test runs</td>
+<td>A shell call (Claude Code's Bash, Codex's <code>shell</code>/<code>exec_command</code>/<code>local_shell</code>, pi's <code>bash</code>) whose command runs pytest, jest, vitest, mocha, go test, cargo test, npm/pnpm/yarn/bun test, rspec, phpunit, tox, make test, mvn or gradle test, dotnet test or ctest</td>
+<td>Counts of runs and failures, and whether the last run after the last edit passed</td>
+</tr>
+<tr>
+<td>Builds and type checks</td>
+<td>The same, with tsc, mypy, pyright, cargo build/check/clippy, go build/vet, make, a build or lint script, gcc, clang, javac, ruff check, eslint</td>
+<td>The same</td>
+</tr>
+<tr>
+<td>Pass or fail</td>
+<td>The runner's summary in the last 4,000 characters of the output ("3 failed", "FAILED", "--- FAIL", "test result: FAILED", "Tests: 2 failed", a traceback; "5 passed", "ok", "PASS", "test result: ok."), else the exit code where the harness shows one ("Exit code 1", "exited with code 0", Codex's <code>metadata.exit_code</code>), else Claude Code's <code>is_error</code>. A build that prints compiler errors fails</td>
+<td></td>
+</tr>
+<tr>
+<td>Fix loops</td>
+<td>An edit to a file right after a failed run, counted per file</td>
+<td>The most on one file; three is a loop</td>
+</tr>
+<tr>
+<td>Turns and tokens</td>
+<td>Each request of the task, and its prompt size</td>
+<td>Two counts</td>
+</tr>
+<tr>
+<td>A correction</td>
+<td>The person's next prompt (a new task), matched against a short rule list</td>
+<td>The rule's name: <code>wrong</code>, <code>undo</code>, <code>revert</code>, <code>broke</code>, <code>not working</code>, <code>not asked</code></td>
+</tr>
+<tr>
+<td>Failures in a row, and the scope</td>
+<td>Failed test or build runs since the last pass; error tool results (Claude Code's <code>is_error</code>) since the last that wasn't one; files touched; characters the edits wrote; each edit's kind of file from its path's shape (test, docs, config or core)</td>
+<td>Counts, and the kinds' counts: what <a href="#escalation-inside-a-task">escalation inside a task</a> reads</td>
+</tr>
+</tbody>
+</table></div>
+<p>Nothing of a command, a path or an output is stored (a path's kind is worked out from it; only the kind is kept). The facts are written to the task's <code>route_features</code> row (the
+<code>coding</code> column) when a test or build result changes them, when a fix loop starts, and when the task ends (the next
+human prompt), with its turns, tokens and any correction. The signals they give, and their weights, are in
+<a href="#what-it-learns-from">the labels table</a>. Requests that are sent again unchanged, and compacted ones, aren't read.</p>
+<p><strong>Formats.</strong> Claude Code speaks Anthropic's Messages API (tool_use and tool_result blocks); pi and other agents on Chat
+Completions send tool_calls and tool messages; Codex CLI's Responses API items reach the router as Chat Completions
+(<code>formats/responses.py</code>), with <code>apply_patch</code> as a one-string custom tool and shell output as text with "Exit code: N" or
+as JSON with <code>metadata.exit_code</code>. All three are read the same way.</p>
+<p><strong>What it costs per request.</strong> Only the new turn is read, the last 4,000 characters of each result and the first 2,000
+of each command, with precompiled patterns: about 20 microseconds for an agent turn with an edit and a test log of
+5,000 lines (<code>tests/test_outcomes.py</code>). Measured with <code>scripts/bench_load.py</code> on 15 November 2026 on a laptop, one gateway
+process, in-memory state, the learned router in shadow mode, against the code before this change: a chat turn 0.44 →
+0.45 ms of CPU per request, and an agent turn that grows an edit and a test run each request (<code>agent-grow</code>, 28k tokens
+of history) 2.39 → 2.45 ms. With the team exploring too: 0.46 and 2.47 ms. The histogram
+<code>meritorder_outcome_seconds</code> on <code>/metrics</code> measures it in production.</p>
+<h3 id="exploration">Exploration</h3>
+<p>Off by default, per team (<code>teams.&lt;name&gt;.exploration</code>, Config → Teams → Exploration). Off, because it knowingly sends some
+work to a weaker model and some to a dearer one: a team should choose that. Turn it on for teams whose work is
+representative and who can tolerate an occasional weaker answer (a person can always resend or raise the floor).</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Default</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>enabled</code></td>
+<td>false</td>
+<td></td>
+</tr>
+<tr>
+<td><code>share</code></td>
+<td>0.04</td>
+<td>The share of eligible task starts explored: half one level down, half one level up. At level 1 or 5 all of it goes the one way</td>
+</tr>
+<tr>
+<td><code>canary_share</code></td>
+<td>0.2</td>
+<td>A <a href="#canaries">canary</a>'s share of its level's task starts</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>When.</strong> The arm is drawn once per task, where the router picks a model anyway: a new session, or a new task (a new
+human prompt, or a compaction) in a session with no cache still warm anywhere. A task in a session that's warm keeps
+its level as the rules give it, so no prompt cache is thrown away for an experiment. Mid-task turns keep the task's
+model, as always.</p>
+<p><strong>Never</strong> for a request that names a model; one with a client's <code>X-Route-Floor</code>; a Claude Code side request or
+compaction summary (the classes <code>request_class_levels</code> caps); a batch request, an eval run's, a pinned backend's, or the
+gateway's own (judged labels). Never outside the team's allowed models: when nothing the team may use is at the drawn
+level, the task isn't explored. Never up once any budget that applies (the organization's, the person's, the team's, the
+session's) is 90% spent: up's half is then served as usual. And never past the per-request cost limit: a task drawn up
+whose every route there would be refused is routed as it would have been.</p>
+<figure class="diagram"><pre class="mermaid">flowchart TD
+    T[&quot;auto, a new task: level L&quot;] --&gt; E{&quot;Team explores, learned&lt;br/&gt;router on, no X-Route-Floor,&lt;br/&gt;not a capped side request?&quot;}
+    E -- &quot;no&quot; --&gt; N[&quot;L, no arm&quot;]
+    E -- &quot;yes&quot; --&gt; W{&quot;A cache still warm&lt;br/&gt;for this session?&quot;}
+    W -- &quot;yes&quot; --&gt; N
+    W -- &quot;no&quot; --&gt; C{&quot;A canary at L the&lt;br/&gt;team may use?&quot;}
+    C -- &quot;yes, with its share&quot; --&gt; CA[&quot;The canary at L&lt;br/&gt;(arm canary)&quot;]
+    C -- &quot;no, or not drawn&quot; --&gt; D{&quot;Draw: share ÷ 2 each way&quot;}
+    D -- &quot;down (L &gt; 1)&quot; --&gt; DN[&quot;L − 1 (arm down)&quot;]
+    D -- &quot;up (L &lt; 5, budgets under 90%)&quot; --&gt; UP[&quot;L + 1 (arm up)&quot;]
+    D -- &quot;otherwise&quot; --&gt; S[&quot;L (arm served),&lt;br/&gt;a canary at L left out&quot;]
+    DN &amp; UP --&gt; OK{&quot;Something the team&lt;br/&gt;may use there?&quot;}
+    OK -- &quot;no&quot; --&gt; N</pre></figure>
+<p><strong>Recording.</strong> The draw's arm, the level the task would have had and the chance of that arm are kept on the task's
+<code>route_features</code> row (<code>arm</code>, <code>arm_from</code>, <code>propensity</code>, and <code>level</code>, the level it got), and every request of an explored
+task carries the ledger tags <code>explore</code> (<code>down</code>, <code>up</code> or <code>canary</code>) and <code>explore_from</code> (<code>coding:3</code>), which a client can't
+set. Reports → Breakdown → Tag → <code>explore</code> shows what exploring cost. Served task starts of an exploring team are
+recorded as arm <code>served</code> with their chance, so both sides of the comparison are known.</p>
+<h3 id="canaries">Canaries</h3>
+<p>A model that becomes the cheapest at a level, or newly qualifies for one (a new model, a price cut, a better score), would
+take that level's work at once. For teams that explore it's tried first: it serves only the canary share of the level's
+task starts (20% by default), and none of the rest, until it has <code>routing.benchmark.canary_outcomes</code> (30) recorded task
+starts there, or for <code>canary_days</code> (14). Then it takes the level as usual. Teams that don't explore aren't held back.</p>
+<p>The worker looks every 15 minutes (<code>benchmark.Watcher</code>): it lists, per task type and level, the cheapest model that
+qualifies (by its cheapest priced route's list price, input plus output, mocks left out) and every model that qualifies,
+compares that with its last look, and keeps the canaries in the live catalog's <code>exploration</code> section, which every
+gateway follows. A new cheapest model also raises an alert (the existing webhook alerts): "gpt-nova is now the cheapest at
+coding:3 (was claude-haiku)".</p>
+<h3 id="the-outcome-report">The outcome report</h3>
+<p>Reports → Levels → <em>Is each level right for the work?</em> (admins; team leads for their team), or
+<code>GET /v1/reports/levels/outcomes?days=30</code>. Per task type and level:</p>
+<ul>
+<li><strong>Traffic and spend share</strong>, from the ledger (requests by their level, and what they cost).</li>
+<li><strong>Success by arm</strong>: served at the level, explored one level down, explored one level up, a canary. A task start's
+  success is 1 minus the combined weight of its outcome signals (the labels table above, combined as for training); one
+  with no signal counts as a success. Each arm's rate is weighted by the inverse of the arm's chance (a Hájek estimate:
+  Σ success ÷ chance over Σ 1 ÷ chance), so teams exploring at different shares, and canaries, pool without bias; within
+  one team and level the weights are equal and it's the plain rate. Only task starts of exploring teams count: their arm
+  was drawn at random, so the arms differ only by the level.</li>
+<li><strong>Too high</strong>: how often the level below does as well, as the ratio of their rates.</li>
+<li><strong>Too low</strong>: how much more often the level above succeeds.</li>
+<li><strong>How sure</strong>: each arm's task starts, its effective size after weighting (Σw)² ÷ Σw², and a 90% interval.</li>
+<li><strong>A recommendation</strong> once each side has at least <code>routing.benchmark.min_outcomes</code> (200) task starts and the evidence
+  is clear: <em>lower</em> when the level below's rate, less 0.95 (<code>as_well</code>) of the served rate, is above zero at the low end of
+  its 90% interval; <em>raise</em> when the served rate, less 0.95 of the level above's, is below zero at the high end. It reads
+  "coding level 3: level 2 does as well in 98% (n=412 explored, 9,870 served); consider lowering".</li>
+<li><strong>The trend</strong>: spend per day, with the days the catalog or the scores changed marked (models added or removed, scores
+  that moved by 0.1 or more, a new cheapest model, a canary done, a level moved).</li>
+</ul>
+<p><strong>Applying one.</strong> An admin's <em>Apply</em> (or <code>POST /v1/admin/levels/apply</code> with <code>task</code>, <code>level</code> and <code>to</code>) writes
+<code>routing.level_map</code> (<code>{"coding:3": 2}</code>) as a new configuration version: the work the rules (or the learned router) put at
+that level is routed at the new one, after Claude Code's caps, never for a client's <code>X-Route-Floor</code>, and the routing
+reason says so (<code>coding:3 moved to 2 by routing.level_map (the outcome report)</code>). Levels already moved to it move with
+it. Applying <code>to</code> equal to <code>level</code> takes a move back. With <code>routing.benchmark.auto_apply</code> (off by default), the worker
+applies a recommendation itself when the learned router's model in use passed its held-out check (it predicted outcomes
+better than the rules), isn't stale, and leans the same way on that level's served task starts more often than not; it
+alerts either way, once per recommendation. It writes the change onto the newest configuration version, read just before
+saving, so it never undoes an admin's save; if someone saves in between, it skips the recommendation until its next pass.</p>
+<p><strong>Dismissing one.</strong> An admin's <em>Dismiss</em> (or <code>POST /v1/admin/levels/dismiss</code> with <code>task</code>, <code>level</code>, <code>to</code> and <code>direction</code>;
+<code>undo: true</code> takes it back) sets a recommendation aside. It's kept in its own setting (<code>routing_benchmark_dismissed</code>) and
+holds until the evidence changes: the recommendation points another way (another direction or target level), or
+<code>routing.benchmark.min_outcomes</code> more task starts have been explored on the level it compares with since it was
+dismissed. That's the evidence a recommendation needs in the first place, so a dismissal never hides a new finding for
+long. While it holds, the report shows the recommendation as dismissed under its level, leaves it out of the
+<code>recommendations</code> list, and the worker neither alerts on it nor applies it.</p>
+<p><strong>What only real traffic can tell.</strong> The tests (<code>tests/test_benchmark.py</code>, <code>tests/test_exploration.py</code>,
+<code>tests/test_outcomes.py</code>) use synthetic rows and mocked models: that the weighting pools teams fairly, that a level
+below that does as well is recommended and one that fails more isn't, that canaries come and go, and that every
+"never" holds. What they can't show: how often each coding signal occurs and means a failure on real agents; whether 4%
+gives 200 task starts per arm soon enough at your volume (at 1,000 task starts a day on a level, about 10 days for the
+down arm); and whether "success" (no failure signal) tracks what people would call good enough.</p>
+<h2 id="how-we-measure-routing">How we measure routing</h2>
+<p>Routing can fail two ways: a model too weak for the work (a wrong answer, and a person's time to notice and ask again),
+or one stronger than it needs (a right answer that cost more than it had to). The outcome report above measures both on
+your own traffic, after the fact. The <strong>routing simulator</strong> (<code>src/meritorder/routing_eval.py</code>,
+<code>scripts/routing_sim.py</code>) measures them before any traffic, for any strategy, without calling a model or spending
+anything: a population of tasks with a known difficulty runs through each strategy, and the scorecard says what each
+finished task cost, how often tasks failed, and the time lost to failed attempts, at a price per failed attempt. It's how a routing change
+(a new classifier, routing v2) is judged before it merges, and CI uses it to stop changes that make the default worse
+(<a href="evals.html#offline-vs-live">11</a>).</p>
+<figure class="diagram"><pre class="mermaid">flowchart LR
+    POP[&quot;Population&lt;br/&gt;(seeded): prompts, turns,&lt;br/&gt;tokens, tools, pauses,&lt;br/&gt;true difficulty&quot;] --&gt; REQ[&quot;Each turn as a request&lt;br/&gt;(Anthropic messages,&lt;br/&gt;tools, headers)&quot;]
+    REQ --&gt; RT[&quot;Router.decide&lt;br/&gt;(classifier, learned router,&lt;br/&gt;stickiness, compaction)&quot;]
+    RT --&gt; PICK[&quot;Model and route&quot;]
+    PICK --&gt; FATE[&quot;Success drawn from&lt;br/&gt;ability vs difficulty&lt;br/&gt;(same draw for every strategy)&quot;]
+    FATE --&gt; EV[&quot;Tool calls and results&lt;br/&gt;to match: tests, fix loops,&lt;br/&gt;a correction&quot;]
+    EV --&gt; OUT[&quot;outcomes.py reads them&quot;]
+    PICK --&gt; COST[&quot;pricing.cost per turn,&lt;br/&gt;with the provider&#x27;s cache&quot;]
+    OUT &amp; COST --&gt; CARD[&quot;Scorecard&quot;]
+    OUT --&gt; RT</pre></figure>
+<p><strong>What's real and what's simulated.</strong> The routing is the gateway's: each turn is built as a request (Anthropic-format
+messages with the client's tools and headers) and given to <code>Router.decide</code>, with the session kept as
+<code>Gateway.update_session</code> keeps it (model, backend, level, turns, size, how long the cache is warm), pause gaps counted by
+<code>pauses.py</code>, and a compaction starting a new task with every cache gone, as the gateway does. The tool calls and results
+are read by <code>outcomes.py</code>, and every turn is priced by <code>pricing.cost</code> at the route's price. The backends are the shipped
+configuration's direct APIs (Anthropic, OpenAI, Gemini, xAI) and OpenRouter, as base <code>Backend</code> objects that can't send
+anything. What's simulated is only the outcome: whether the chosen model finishes the task, and the session it leaves
+behind.</p>
+<h3 id="the-population">The population</h3>
+<p>Every task has a class, a difficulty on Epoch's ability scale (the scale prices.json's quality section puts each model
+on), an opening prompt, and a shape. Coding tasks come from Claude Code (16 tools, 75%), a lighter agent with 4 tools
+(15%) or a chat client with the code pasted in and no tools (10%). Each client calls its own API (Claude Code the
+Anthropic Messages API, the lighter agent, with Codex CLI's tools, the Responses API, chat clients Chat Completions: the
+learned router's <code>client</code> feature) and asks for its own reply length (<code>max_tokens</code>: Claude Code 32,000, the lighter agent
+none, chat 4,096, chat with code 8,192), so the router keeps that room in each model's window as it does for real
+requests.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Class</th>
+<th>Difficulty (mean, spread)</th>
+<th>Turns</th>
+<th>Prompt at the start</th>
+<th>Added per turn</th>
+<th>Calibrated to</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>coding-easy</code>: tests, renames, docs</td>
+<td>124, 8</td>
+<td>4–14</td>
+<td>16k–24k</td>
+<td>400–2,500</td>
+<td>SWE-bench Verified (below)</td>
+</tr>
+<tr>
+<td><code>coding-medium</code>: features, bugs</td>
+<td>136, 9</td>
+<td>12–40</td>
+<td>18k–30k</td>
+<td>600–3,000</td>
+<td>SWE-bench Verified</td>
+</tr>
+<tr>
+<td><code>coding-hard</code>: multi-file, concurrency, migrations</td>
+<td>165.5, 8.45</td>
+<td>30–90</td>
+<td>20k–40k</td>
+<td>800–3,500</td>
+<td>FrontierSWE</td>
+</tr>
+<tr>
+<td><code>coding-very-hard</code>: architecture</td>
+<td>173, 8</td>
+<td>60–160</td>
+<td>24k–45k</td>
+<td>900–4,000</td>
+<td>harder than FrontierSWE</td>
+</tr>
+<tr>
+<td><code>chat-short</code>: a question on its own</td>
+<td>100, 10</td>
+<td>1</td>
+<td>40–250</td>
+<td></td>
+<td>everyone solves it</td>
+</tr>
+<tr>
+<td><code>chat</code>: writing, explaining</td>
+<td>120, 10</td>
+<td>1–4</td>
+<td>600–4,000</td>
+<td>100–800</td>
+<td>MMLU-like</td>
+</tr>
+<tr>
+<td><code>analysis</code>: compare, plan, recommend</td>
+<td>154.8, 14.3</td>
+<td>1–4</td>
+<td>2k–20k</td>
+<td>200–1,500</td>
+<td>GDPval</td>
+</tr>
+</tbody>
+</table></div>
+<p>Prompts come from templates with varied wording, and some are worded so the rules read them wrong: 30% of hard and
+very hard tasks are sold as small ("quick fix: the job queue loses updates when two requests overlap"), 15% of easy ones
+name a hard topic ("add tests for the concurrency helpers"), a quarter of analyses lack the words that mark one. 8% of
+tasks are ambiguous: the first prompt doesn't say enough, the first attempt fails on any model, and the correction that
+follows says what was meant.</p>
+<p><strong>The standard mix</strong> is 70% coding and 30% chat. Coding follows SWE-bench Verified's annotated time to fix (OpenAI,
+August 2024: of 500 tasks, 196 under 15 minutes, 259 from 15 minutes to an hour, 42 from 1 to 4 hours, 3 over 4 hours),
+as easy, medium, hard and very hard. Chat follows what people ask chat assistants (Chatterji et al., <em>How People Use
+ChatGPT</em>, NBER working paper 34255, 2025): 30% short questions, 50% writing and explaining, 20% analysis. The 70/30
+split is an assumption: a gateway in front of coding agents. The <code>easier</code>, <code>harder</code>, <code>coding-only</code> and <code>chat-only</code>
+mixes, or any shares as JSON (<code>--mix '{"coding-hard": 0.5, "chat": 0.5}'</code>), change it.</p>
+<h3 id="success-and-the-evidence-for-it">Success, and the evidence for it</h3>
+<p>A model of ability <em>a</em> finishes a task of difficulty <em>d</em> with chance</p>
+<pre><code>chance = sigmoid(0.25 × (a − d) + noise)
+</code></pre>
+<p>Epoch's logistic link (a benchmark's slope is shallower than one task's, because its tasks spread in difficulty; 0.25 is
+one task's), with <em>a</em> the model's ability for the task type from prices.json (coding: from its FrontierSWE and
+FrontierCode results; general: the Epoch Capabilities Index) and a model's luck on the task (noise, standard deviation
+0.5 in log-odds) so models aren't ranked the same on every task. The draw is shared: on one attempt at one task, every
+model and every strategy gets the same random number, so a stronger model succeeds whenever a weaker one does (give or
+take that luck), and strategies are compared on the same luck.</p>
+<p><strong>Calibration.</strong> Epoch puts FrontierSWE at difficulty 165.48 with slope 0.1507 (<code>edi_scores.csv</code> in
+<code>benchmark_data.zip</code>, fetched 15 November 2026). The hard class's mean and spread reproduce that curve: for every
+model, the share of hard tasks it finishes on the first attempt is within 3 points of Epoch's FrontierSWE chance. For
+SWE-bench Verified, Epoch's own runs of 31 models (<code>swe_bench_verified.csv</code>) against their capabilities index fit a
+difficulty of 130.9 and a slope of 0.050, flat because some tasks fail for every model; the standard coding mix, with
+the 8% ambiguous tasks, is within 7 points of that fit for abilities from 150 to 171. <code>check_calibration</code> checks both
+(<code>tests/test_routing_eval.py</code>) and the scorecard prints them per model. The analysis class uses GDPval's difficulty and
+spread from the same table (154.79, slope 0.1019).</p>
+<p><strong>What a failure looks like.</strong> An attempt that will succeed runs its turns: reads, then edits and test runs, some
+failing early, the last passing. One that will fail runs half again as long, with tests failing more and more and edits
+to one file after each failed run (a fix loop), or, 40% of the time, ends with passing tests and a wrong answer the
+person finds later. The person's next prompt is a correction drawn from varied wording ("that's still not working",
+"revert that", "hmm, can you look at it again?"), some of which <code>outcomes.py</code>'s rules catch and some they don't. A person
+tries up to three times, coming back after 1 to 15 minutes when tests failed and 10 minutes to 2 hours when they passed
+(or there were none), then gives up.</p>
+<p><strong>Pauses.</strong> Between agent turns, the reply's writing time and 2 to 40 seconds of tool time; in chat, a person reading and
+typing. 10% of later turns come after a 5 to 60 minute pause (<code>pauses.py</code>'s prior) and 2% after more than an hour.</p>
+<p><strong>Caching.</strong> As the providers bill it, per turn. Claude (Anthropic's API, and Claude through OpenRouter with a cache
+marker) writes what's new at the 5-minute price on a session's first turn and, on a backend set to an hour, at the
+hour's price after (decision 53); everyone else bills what's new at the input price. A cache lasts its lifetime from its
+last use and belongs to one model on one backend: a pause longer than that, a move to another model or backend, or a
+compaction (at 160,000 tokens, to a 30,000-token summary, as Claude Code does on a 200K window) writes the whole prompt
+again.</p>
+<h3 id="strategies">Strategies</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Strategy</th>
+<th>How it chooses</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>always-opus</code>, <code>always-sonnet</code></td>
+<td>Names the model on every request; the router only picks its backend</td>
+</tr>
+<tr>
+<td><code>always-cheapest</code></td>
+<td>Names the model with the cheapest route for a typical agent turn among those with a known ability (DeepSeek V4.1 Flash with the November 2026 prices)</td>
+</tr>
+<tr>
+<td><code>auto-threshold</code>, <code>auto-cost-per-success</code></td>
+<td><code>auto</code>, with the team's <code>model_choice</code> set to each value the configuration accepts. A new value on main (routing v2's) becomes a strategy by itself</td>
+</tr>
+<tr>
+<td><code>auto-threshold-escalate</code></td>
+<td>An example of an in-task cascade: the threshold, and once the task shows a fix loop, the rest of the attempt one level up, paying the cache rebuild. It exercises the escalation accounting; it isn't a recommendation</td>
+</tr>
+<tr>
+<td><code>auto-expected-cost-cascade</code></td>
+<td>Expected total cost with the router's own cascade (one escalation), kept as the gateway keeps it: the session's tool-result state folded from each request, a correction read from the retry's words, a task carried on only where <code>Router.carries_on</code> says, and the task's chance and its reset after an escalation from the gateway's own <code>success.track</code></td>
+</tr>
+<tr>
+<td><code>oracle</code></td>
+<td>For each task, every model named for the whole task; the one with the lowest total, counting failed attempts. The lower bound</td>
+</tr>
+</tbody>
+</table></div>
+<p>A new classifier on main is picked up as it is: every <code>auto</code> strategy calls the real one. A strategy that isn't on main
+yet plugs in as a <code>routing_eval.Strategy</code> subclass, from <code>--plugin module:attribute</code> or the
+<code>meritorder.routing_strategies</code> entry point: <code>configure</code> changes the raw configuration it runs on (<code>routing.*</code>, the
+team), <code>route</code> makes each turn's choice (by default <code>Router.decide</code> with its <code>requested</code> and headers), and <code>escalate</code>
+may move the rest of an attempt to another model when the task's evidence (outcomes.py's state, passed in) says it's
+going badly.</p>
+<h3 id="the-scorecard">The scorecard</h3>
+<p>Per strategy, for all tasks and per class:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Measure</th>
+<th>What it is</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Success</td>
+<td>Tasks finished within three attempts</td>
+</tr>
+<tr>
+<td>Model spend /finished</td>
+<td>Model spend ÷ finished tasks</td>
+</tr>
+<tr>
+<td>Time lost to failed attempts</td>
+<td>Failed attempts × the price per failed attempt (<code>--human-cost</code>, $15 by default: 10 minutes at $90 an hour, an assumption you can change). A failed attempt costs someone time: noticing it, asking again, waiting, cleaning up</td>
+</tr>
+<tr>
+<td>Time lost /finished</td>
+<td>Time lost to failed attempts ÷ finished tasks</td>
+</tr>
+<tr>
+<td>Total /finished, counting failed attempts</td>
+<td>(model spend + time lost) ÷ finished tasks: what routing should minimize. It's what the work costs, not time saved</td>
+</tr>
+<tr>
+<td>Escalated, escalation helped</td>
+<td>Tasks with a move to a more able model (within an attempt, or on a retry), and how often the attempt after the move succeeded</td>
+</tr>
+<tr>
+<td>Too high</td>
+<td>First attempts that succeeded while a model at least 10% cheaper would also have succeeded on that attempt</td>
+</tr>
+<tr>
+<td>Too low</td>
+<td>First attempts that failed while some model would have succeeded</td>
+</tr>
+<tr>
+<td>Saves vs Sonnet, vs Opus</td>
+<td>1 − spend ÷ always-Sonnet's (always-Opus's) on the same tasks, on model spend alone and in total</td>
+</tr>
+<tr>
+<td>Estimate ratio</td>
+<td>The router's estimate at the first turn (the session from there) ÷ what the attempt cost</td>
+</tr>
+<tr>
+<td>How sure</td>
+<td>90% intervals from a paired bootstrap over tasks</td>
+</tr>
+</tbody>
+</table></div>
+<p>Sensitivity runs repeat the main strategies with the easier and harder mixes, a pause share of 0, 10% and 30%, and a
+quality error (each model's true ability 3 points off its published one, which the router doesn't know); the price per
+failed attempt is varied on the main run ($0, $5, $15, $50). The output is <code>scorecard.md</code>, <code>scorecard.json</code> and, with
+<code>--html</code>, <code>scorecard.html</code> (in the console's style), in <code>docs/routing-eval/</code> by default.</p>
+<h3 id="todays-strategies">Today's strategies</h3>
+<p>2,000 standard tasks (seed 1), the shipped configuration and the prices and scores of 12 November 2026, a price of
+$15 per failed attempt (<code>docs/routing-eval/scorecard.md</code> has every class, the intervals and the sensitivity runs):</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Strategy</th>
+<th>Success</th>
+<th>Model spend per finished task</th>
+<th>Time lost to failed attempts</th>
+<th>Total, counting failed attempts</th>
+<th>Model spend vs always-Sonnet (90% interval)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Always Claude Opus</td>
+<td>97.7%</td>
+<td>$1.43</td>
+<td>$2.53</td>
+<td>$3.95</td>
+<td>+95%</td>
+</tr>
+<tr>
+<td>Always Claude Sonnet</td>
+<td>97.4%</td>
+<td>$0.73</td>
+<td>$2.66</td>
+<td>$3.40</td>
+<td></td>
+</tr>
+<tr>
+<td>Always the cheapest (DeepSeek V4.1 Flash)</td>
+<td>94.6%</td>
+<td>$0.020</td>
+<td>$4.15</td>
+<td>$4.17</td>
+<td>−97%</td>
+</tr>
+<tr>
+<td><code>auto</code>, threshold</td>
+<td>97.5%</td>
+<td>$1.01</td>
+<td>$2.62</td>
+<td>$3.63</td>
+<td>+38% (+21% to +53%)</td>
+</tr>
+<tr>
+<td><code>auto</code>, cost per success</td>
+<td>96.8%</td>
+<td>$0.40</td>
+<td>$3.07</td>
+<td>$3.47</td>
+<td>−46% (−41% to −51%)</td>
+</tr>
+<tr>
+<td><code>auto</code>, expected total cost (the default, decision 67)</td>
+<td>97.7%</td>
+<td>$0.40</td>
+<td>$2.67</td>
+<td>$3.08</td>
+<td>−45% (−40% to −50%)</td>
+</tr>
+<tr>
+<td><code>auto</code>, expected total cost with its cascade</td>
+<td>97.8%</td>
+<td>$0.54</td>
+<td>$2.54</td>
+<td>$3.08</td>
+<td>−26% (−18% to −34%)</td>
+</tr>
+<tr>
+<td>Oracle (lower bound)</td>
+<td>98.7%</td>
+<td>$0.17</td>
+<td>$1.85</td>
+<td>$2.03</td>
+<td>−76%</td>
+</tr>
+</tbody>
+</table></div>
+<p>What it says, under these assumptions:</p>
+<ul>
+<li><strong>Tools no longer set the level, so easy and ordinary coding go down</strong> (decision 61). Before it, every agent task was
+  level 4 or 5 (the simulated Claude Code sends 16 tools). Now 369 of the 559 easy tasks are level 2 and most ordinary
+  ones level 3, and first attempts on a dearer model than needed fell from 80% to 63% (threshold) and from 67% to 37%
+  (cost per success). Easy coding costs a third of what it did per finished task, ordinary coding about half.</li>
+<li><strong>The threshold still costs more than always using Sonnet</strong>, because hard work goes to level 5, which only Claude
+  Fable meets: 94 tasks (5%) are 84% of the threshold's spend. Two signs of hard work in a prompt ("deadlocks under
+  load", "migrate without downtime") make it level 5; one makes it 4. Against the rules before decision 61 the threshold
+  finishes about as many tasks (97.5% against 97.4%) for 19% more spend and 4% more in total, counting failed attempts, all of it
+  on hard tasks, which finish 81% of the time instead of 80%. Too-low first attempts rose from 1.8% to 2.1%: ordinary
+  coding at level 3 now fails a first attempt on a cheap model where level 4 didn't, and hard work sold as a tidy-up has
+  no hard word to find.</li>
+<li><strong>Cost per success spends 46% less than Sonnet</strong> (level 5 goes to Gemini 4 Carbon, level 3 to DeepSeek V4.1 Flash) and
+  finishes 96.8% of tasks, so in total it's within 2% of Sonnet, and better than before decision 61 on both
+  counts ($3.47 against $3.52, 96.8% against 96.5%). It loses on analysis: 72% of analyses finished, against 83% for
+  the threshold, because general level 3 goes to models whose chance there is just over the 60% minimum.</li>
+<li><strong>Time lost to failed attempts is most of the total.</strong> At $15 per failed attempt, it's three to eight times the model spend for every
+  strategy, and more than a third of it is the 7% of tasks whose first prompt was ambiguous, which no routing
+  fixes. At $5 a failure the cheapest strategies lead; at $50, the ones that fail least.</li>
+<li><strong>The oracle is far ahead</strong> ($0.17 per finished task, 98.7%): most easy and medium coding is finished by the cheapest
+  models in this simulation, so the room left is in the hard tail and in medium coding sent up for a symptom word.</li>
+<li><strong>The router's estimate at a task's start is 10 to 15% of what the attempt costs</strong>: a new session is priced for 3 turns
+  (<code>min_expected_turns</code>), and agent tasks run 4 to 160. A short question alone is overestimated about 15 times.</li>
+<li><strong>Pauses matter where caches are short.</strong> From no pauses to 30% of turns after one, the threshold's cost per finished
+  task rises 44% and cost per success's 166% (their models are on OpenAI's and Google's 5-minute caches); always-Sonnet's
+  rises 30% (Claude's hour).</li>
+<li><strong>Quality data that's 3 points off</strong> (each model's true ability, unknown to the router) costs the threshold 13% more
+  per finished task in total, counting failed attempts, and always-Sonnet nothing.</li>
+</ul>
+<p><strong>Expected total cost</strong>, the default, spends 45% less than Sonnet and 60% less than the threshold, no more than the
+threshold on any class, and finishes 0.2 points more than the threshold, so it costs 15% less than the threshold in
+total and 9% less than Sonnet. Decision 62's version, which charged every failure the full person's cost, cost
+$0.20 less per finished task in total by sending all general work to stronger models (<a href="#is-it-the-right-default">Is it the right
+default?</a>).</p>
+<p>The escalation example moves 11% of tasks up mid-attempt and the move finishes the attempt 65% of the time, but at
+level 5 it moves to Fable, so it spends 51% more than Sonnet for two tenths of a point of success.</p>
+<h3 id="what-the-simulator-cant-tell">What the simulator can't tell</h3>
+<ul>
+<li><strong>The quality data is assumed right on average.</strong> Success comes from the same published abilities the router's
+  scores come from, so the simulator tests the routing logic given that data, not the data. The quality-error run shows
+  what errors of a few points do; only real outcomes (the outcome report) can show the actual errors on your work.</li>
+<li><strong>Every model writes the same.</strong> Turns, reply lengths and reasoning tokens are the task's, whichever model runs it. A
+  weaker model that takes more turns, or a reasoning model that writes more, costs more than this says.</li>
+<li><strong>Cheap models look very good on easy and medium coding</strong>, because their published coding abilities are close to
+  the strong models' and SWE-bench-like work is mostly solved. Long-session reliability (tool-call errors, losing the
+  thread after a compaction) isn't in the benchmarks or here.</li>
+<li><strong>No rate limits, outages, refusals, effort levels, compression or response caching.</strong> The router's speed and
+  capacity paths don't come into it (no speeds are measured, no GPU deployments run).</li>
+<li><strong>People are simple</strong>: they always notice a failure on the next prompt, try at most three times, and never name a
+  model themselves.</li>
+</ul>
+<h3 id="replay-real-task-starts">Replay: real task starts</h3>
+<p><code>routing_sim.py replay</code> scores level policies on task starts a team explored (decision 59), without running them. It
+reads JSON lines, CSV or Parquet rows with the <code>route_features</code> columns (<code>task</code>, <code>level</code>, <code>arm</code>, <code>arm_from</code>,
+<code>propensity</code>, the outcome columns: <code>coding</code>, <code>retried</code>, <code>floor_raised</code>, <code>status</code>) and either a <code>cost</code> per row or the
+ledger export (<code>meritorder export</code>), from which each task start gets the session's spend until its next task start. A
+row's success is its own <code>success</code> column where there is one, else 1 minus the weight of its outcome signals, as the
+outcome report reads them (<code>learned_jobs.signals</code>).</p>
+<p>A policy maps a task start's level (<code>arm_from</code>) to the level it would route at: <code>served</code> (as is), <code>one-down</code>, <code>one-up</code>,
+or a level map as JSON (<code>{"coding:4": 3}</code>). Each row whose routed level is the one the policy would choose counts with
+weight 1 ÷ its arm's chance (a Hájek estimate), so the few task starts explored a level down stand for every task start
+the policy would send there. The output, per policy: rows used, effective sample size, success with its standard error,
+cost per task start, cost per finished task, and the total counting failed attempts. Canary rows and rows without an arm (teams
+that don't explore) are left out.</p>
+<p><code>routing_sim.py export</code> writes such rows from a simulated exploring run (a 50% share, the most a team can set), with the
+truth alongside. <code>tests/test_routing_eval.py</code> checks that replay's estimate for one level down agrees with the simulator
+running one level down for real. The export has the gateway's task starts: one per human prompt and one per compaction;
+an explored arm lasts until the next compaction, which classifies the task again.</p>
+<h2 id="shadow-price">Shadow price</h2>
+<p>Self-hosted tokens aren't literally free: capacity is finite. The shadow price makes spare
+capacity attractive while protecting latency. A self-hosted route is priced at its API-equivalent price (the
+<code>price</code> written on the route in the configuration, e.g. what the same model costs through OpenRouter; a route without
+one is never picked by <code>auto</code>) times</p>
+<pre><code>multiplier(load) = floor                                                 up to the knee
+                 = floor + (1 − floor) × ((load − knee) ÷ (1 − knee))²    from the knee to just under 100%
+                 = full: takes nothing new while another route has room    at 100%
+</code></pre>
+<p>with <code>routing.shadow_floor</code> 0.02 and <code>routing.shadow_knee</code> 0.6 (<code>router.shadow_multiplier</code>). Load is the larger of
+vLLM's KV-cache use (raised to at least 85%, plus 1.5 points per waiting request, while requests queue) and, with
+<code>max_concurrency</code> set, the requests in flight from every gateway divided by <code>max_concurrency</code> × replicas.</p>
+<figure class="chart"><svg viewBox="0 0 640 320" role="img" aria-labelledby="sp-t">
+<title id="sp-t">Shadow price vs replica load</title>
+<rect x="70" y="30" width="270" height="230" class="z1"/>
+<rect x="340" y="30" width="180" height="230" class="z2"/>
+<rect x="520" y="30" width="90" height="230" class="z3"/>
+<text x="205" y="52" text-anchor="middle" class="t i1">Headroom: 2% of the API price</text>
+<text x="430" y="52" text-anchor="middle" class="t i2">Filling up</text>
+<text x="565" y="52" text-anchor="middle" class="t i3">Full</text>
+<line x1="70" y1="85" x2="520" y2="85" class="ref"/>
+<text x="76" y="78" class="lbl">API price of the same model</text>
+<line x1="70" y1="260" x2="612" y2="260" class="axis"/>
+<line x1="70" y1="260" x2="70" y2="26" class="axis"/>
+<text x="340" y="303" text-anchor="middle" class="lbl">Replica load: vLLM's KV-cache use (85%+ when requests queue), or in-flight / max_concurrency</text>
+<text x="30" y="145" text-anchor="middle" class="lbl" transform="rotate(-90 30 145)">Shadow price per token</text>
+<text x="70" y="279" text-anchor="middle" class="tick">0%</text>
+<text x="340" y="279" text-anchor="middle" class="tick">60% (knee)</text>
+<text x="430" y="279" text-anchor="middle" class="tick">80%</text>
+<text x="520" y="279" text-anchor="middle" class="tick">100%</text>
+<path d="M70 256.5 L340 256.5 L349 256.1 L358 254.8 L367 252.6 L376 249.6 L385 245.8 L394 241.1 L403 235.5 L412 229.1 L421 221.8 L430 213.6 L439 204.6 L448 194.8 L457 184.0 L466 172.5 L475 160.0 L484 146.7 L493 132.6 L502 117.6 L511 101.7 L520 85.0" class="curve"/>
+<circle cx="430" cy="213.6" r="4" class="dot"/>
+<text x="424" y="207" text-anchor="end" class="tick">27% at 80%</text>
+<circle cx="475" cy="160" r="4" class="dot"/>
+<text x="469" y="154" text-anchor="end" class="tick">57% at 90%</text>
+<circle cx="520" cy="85" r="5" class="dot"/>
+<text x="565" y="110" text-anchor="middle" class="tick i3">nothing new</text>
+<text x="565" y="126" text-anchor="middle" class="tick i3">while another</text>
+<text x="565" y="142" text-anchor="middle" class="tick i3">route has room</text>
+</svg><figcaption>A running GPU's spare capacity is priced at 2% of the API price up to 60% load (routing.shadow_knee), then rises with the square of the load to the full API price at 100%. A full replica takes nothing new while another route has room.</figcaption></figure>
+<h2 id="which-replica-of-a-gpu-deployment">Which replica of a GPU deployment</h2>
+<p>When the gateway can address a deployment's replicas one by one (a static server's <code>static_urls</code>, SkyPilot's
+clusters, one per replica, or Kubernetes pods when the gateways run in the cluster), the router prices each
+replica like a route of its own and sends the request to the cheapest (<code>Router.place</code>):</p>
+<pre><code>cost(replica) = rebuild(share of the prefix it still holds) + expected_remaining_turns × per_turn(at its own load)
+</code></pre>
+<figure class="diagram"><pre class="mermaid">flowchart TD
+    S[&quot;A route on a GPU deployment&quot;] --&gt; AD{&quot;replica_affinity on, and&lt;br/&gt;replicas addressable?&quot;}
+    AD -- &quot;no&quot; --&gt; LB[&quot;Price the deployment as one route;&lt;br/&gt;its load balancer picks the replica&lt;br/&gt;(warm about 1 time in N)&quot;]
+    AD -- &quot;yes&quot; --&gt; EACH[&quot;Price each ready, reachable replica:&lt;br/&gt;rebuild what it no longer holds&lt;br/&gt;+ the turns at its own shadow price&lt;br/&gt;(draining: only replicas warm for the session)&quot;]
+    EACH --&gt; ROOM{&quot;Any of them&lt;br/&gt;under 100% load?&quot;}
+    ROOM -- &quot;no&quot; --&gt; Q[&quot;Queue on the replica with the fewest waiting&lt;br/&gt;(a last resort, if no other route has room)&quot;]
+    ROOM -- &quot;yes&quot; --&gt; BEST[&quot;The cheapest replica&lt;br/&gt;(equal cost: the less loaded)&quot;]
+    BEST --&gt; STAY{&quot;The session&#x27;s last replica is among them, still&lt;br/&gt;partly warm, and the cheapest saves no more than&lt;br/&gt;10% of staying&#x27;s cost + $0.01?&quot;}
+    STAY -- &quot;yes&quot; --&gt; CUR[&quot;Stay on the session&#x27;s replica&quot;]
+    STAY -- &quot;no&quot; --&gt; MV[&quot;Send to the cheapest&quot;]</pre></figure>
+<ul>
+<li><strong>The session's replica</strong> (the one that served its last turn) usually wins: it has nothing to rebuild.
+  Below 60% load every replica has the same shadow price, so it always wins there; a new session goes to
+  the least loaded one.</li>
+<li><strong>A busy warm replica can lose to an idle cold one.</strong> Past the knee its shadow price rises with load, and
+  over the rest of the session that can outweigh rebuilding the prefix on an idle replica. Moving needs the
+  same margin as moving between backends (10% + $0.01 over the rest of the session), so a long session
+  moves off a replica at around 75–90% load and a short one only when it's full. Example, at $1 input and
+  $0.10 cache read per million tokens, 5 turns: a 200k-token session on a replica at 90% load moves to an
+  idle one; a 10k-token session stays.</li>
+<li><strong>Gone, full or draining.</strong> A replica that's no longer listed, or isn't <code>READY</code> (a SkyPilot cluster
+  being torn down, a failed probe), is skipped, and so is one at 100% load while another has room. When
+  every replica is full, the request queues on the one with the fewest waiting.</li>
+<li><strong>A draining deployment</strong> only takes sessions that are warm on one of its replicas, and sends each to
+  that replica.</li>
+<li><strong>Live load per replica.</strong> With <code>max_concurrency</code> set, gateways count requests in flight to each replica
+  (shared every 2 s), as they do per deployment; otherwise the controller's last sample of the replica's
+  vLLM metrics.</li>
+<li><strong>A replica the gateway can't connect to</strong> (a private address, a firewall) is skipped for 60 s and the
+  request goes to the deployment's endpoint instead (the load balancer in front, if there is one; on SkyPilot,
+  which has none, the first ready replica).</li>
+</ul>
+<p>The routing reason says what happened: <code>gpu-qwen: staying on replica 2 (100% warm (estimate), 72% load)</code>,
+<code>replica 3 (cold, 5% load) over replica 2 (100% warm (KV events), 91% load)</code>, <code>replica 1 is draining; …</code>.</p>
+<p><code>serve.replica_affinity: false</code> (the default behind llm-d, whose endpoint picker chooses the replica with the most of
+the prompt cached), or replicas the gateway can't address, leave the choice to the load balancer. A plain load
+balancer doesn't know sessions, so a session finds its cache there about one time in N replicas, and the router
+counts that share as warm.</p>
+<h2 id="free-upgrades-and-why-theyre-safe">Free upgrades (and why they're safe)</h2>
+<p>If a strong open model is running with headroom and the task only needs a medium model, the user
+gets the strong model at ~zero cost. Three guardrails keep this from backfiring:</p>
+<ol>
+<li><strong>Low priority.</strong> Opportunistic requests use vLLM priority scheduling, so traffic that <em>needs</em>
+   that model always goes first. Batch work on GPUs goes lower still (priority 20, after free upgrades' 10), and only
+   fills a deployment up to the shadow price's knee (<a href="request-flow.html#batch-work-on-your-gpus">02</a>).</li>
+<li><strong>Doesn't keep GPUs alive.</strong> The controller leaves upgraded traffic out of the demand it sizes
+   GPUs by, so free traffic can't make a GPU look worth keeping. (See <a href="gpu-autoscaling.html">05</a>.)</li>
+<li><strong>Only at boundaries.</strong> Upgrades/downgrades happen at session start or task boundaries, so
+   tool-calling behavior and caches stay stable. The only mid-task moves are forced ones: the
+   conversation no longer fits the model, or the model can't run.</li>
+</ol>
+<h2 id="free-moments-to-re-route">Free moments to re-route</h2>
+<p>Moving costs nothing when the session's cache is already gone:</p>
+<ul>
+<li>Session idle longer than the cache TTL (on an API; on a GPU, see the next point).</li>
+<li>A GPU replica evicted the session's KV cache: seen in vLLM's KV events, or estimated from what the
+  replica has written into its cache since the session's last turn
+  (<a href="caching-and-sessions.html#gpu-replicas-which-one-holds-the-cache">04</a>).</li>
+<li>The harness compacted history (prefix hash no longer matches).</li>
+<li>A natural task boundary.</li>
+</ul>
+<p>And one move happens even mid-task, because staying would fail: the conversation has outgrown the
+model's context window (below).</p>
+<h2 id="context-windows">Context windows</h2>
+<p>Each model's context window comes from the live price data (<code>context_window</code>, overridable per model).</p>
+<ul>
+<li><strong>Candidates need room, and that's all length decides.</strong> For <code>auto</code>, a model drops out when the prompt,
+  in that model's tokens (below), plus the reply the client asked for (its <code>max_tokens</code>, lowered to the
+  model's maximum output) is over 95% of its window (<code>router.fits</code>, <code>FIT_SHARE</code>). The floor stays what the
+  work gives it, and the cheapest remaining model wins. The reason names what was ruled out, why, and how
+  the count was made: <code>ruled out gpt-oss-120b (131,072): window too small for about 300,000 tokens plus a
+  32,000-token reply (estimate ×1.08, calibrated from 210 replies)</code>. A model that fits with less than 15%
+  to spare gets a note too, <code>context window check close: claude-haiku (912,000 of 1,048,576 tokens, 87%;
+  estimate ×1.12, calibrated from 340 replies)</code>, and the gateway logs it.</li>
+<li><strong>Nothing at the floor has room.</strong> A higher floor wouldn't help (its models are a subset), and a lower
+  one is never used, nor is a mock model whose window isn't known. The request goes to the model(s) with
+  the largest window anyway, since the count is an estimate, and the provider decides; the reason says
+  <code>no model at coding:4 has room for about …: sent to the largest window, …</code>. A provider's refusal reaches
+  the client as "prompt is too long: …", which makes Claude Code compact. A named model is always sent;
+  its reason says its window may be too small.</li>
+<li><strong>Outgrowing mid-task.</strong> A session normally keeps its model until the next human prompt. If the
+  conversation no longer fits that model, the router re-routes at the session's floor, and the routing
+  reason says "session outgrew X's context window".</li>
+<li><strong>"Too long" from a provider.</strong> A 400/413 that says the prompt doesn't fit (Anthropic's "prompt is too
+  long", OpenAI's "maximum context length", and the like) isn't a backend failure: for <code>auto</code> the request
+  goes to a qualifying model with a bigger window (re-deciding when no remaining candidate has one, e.g.
+  the session was keeping its model). For a named model, or when no bigger model qualifies, the error is
+  returned, with the message starting "prompt is too long:" so Claude Code compacts.</li>
+<li><strong>The reply fits too:</strong> without a client <code>max_tokens</code>, the allowance is cut to the room left
+  (<code>x-meritorder-max-tokens-source: context</code>).</li>
+</ul>
+<p><code>/v1/models</code> reports each model's window, and <code>auto</code>'s as the largest among the models <code>auto</code> can pick for the team (scored ones); harness
+setup passes it on (<a href="how-it-all-works.html#7-context-windows-long-conversations">00, How it all works</a>).</p>
+<h2 id="counting-tokens">Counting tokens</h2>
+<p>The router needs a prompt's size before it picks a model, and every tokenizer counts differently, so
+the gateway estimates once per request and then corrects the estimate for each model by what that
+model's replies have reported (<code>src/meritorder/tokens.py</code>).</p>
+<p><strong>The estimate counts what the text is made of.</strong> One pass over the request's text counts ASCII
+letters (0.28 tokens each), digits (0.4), punctuation and symbols (0.5), spaces (0.05), newlines and
+indented lines (1 each), lower-to-upper case changes and letter-digit changes (0.5 and 0.4: both split
+words in every tokenizer), and characters outside ASCII by their UTF-8 length (0.4, 1 and 1.5 for
+2-, 3- and 4-byte characters, so a Chinese, Japanese or Korean character is about a token). That puts
+prose near 4 characters a token, code and JSON nearer 3, hashes and base64 nearer 2, and CJK text
+near 1. Each message adds 4 tokens of framing, each tool call or result 3, and a request with tools
+300 for the instructions providers add. A text over 256K characters is measured on 512 evenly spaced
+slices and scaled to its length, so a 4 MB conversation is counted in about 5 ms on a laptop. Below that,
+each text of 1,000 characters or more is counted once per process and its counts kept (up to 16 million
+characters' worth, the oldest dropped first): an agent resends its whole history every turn, and
+counting it again was the most expensive thing a long turn did. The kept counts add up to exactly what
+one pass over the request gives.</p>
+<p><strong>Images, PDFs and audio aren't text.</strong> Their bytes are never counted as characters. An image is
+counted the way the model's provider counts it, from the width and height in its file header (PNG,
+JPEG, GIF, WebP): Claude (and pixel-based models generally) at width × height / 750 after scaling to
+1568 px on the long edge and 1092 × 1092 pixels' worth (at most about 1,600); OpenAI at 85 for low
+detail, otherwise 85 + 170 per 512-px tile after fitting 2048 × 2048 and the short side to 768;
+Gemini at 258 per 768-px tile, at most 1,120. An image given by URL is counted at the largest size. A
+PDF is 2,000 tokens a page (560 for Gemini), pages counted from its page objects or, when those are
+compressed, from its size; audio is 10 tokens a second (32 for Gemini).</p>
+<p><strong>Calibration.</strong> Every reply reports the real prompt size (<code>usage</code>). The gateway compares it with its
+estimate of what was sent (after tool-output compression) and keeps a running ratio per model:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Rule</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A prompt of at least this many estimated tokens counts as a full sample; smaller ones in proportion</td>
+<td>20,000</td>
+</tr>
+<tr>
+<td>Prompts too small to use (fixed overheads the estimate can't see dominate)</td>
+<td>under 500 tokens</td>
+</tr>
+<tr>
+<td>Requests that are mostly images or documents (media over 25% of the text)</td>
+<td>not used</td>
+</tr>
+<tr>
+<td>A sample outside 0.4–2.5 times the estimate (a broken count, not a tokenizer)</td>
+<td>ignored</td>
+</tr>
+<tr>
+<td>Once a model has 3 full samples, one sample counts at most this far from its ratio</td>
+<td>±25%</td>
+</tr>
+<tr>
+<td>How fast the ratio follows new samples</td>
+<td>a plain mean at first, then about the last 10 long prompts</td>
+</tr>
+<tr>
+<td>A model with few samples of its own</td>
+<td>leans on the other models of its family (<code>claude-*</code>, <code>gpt-*</code>, …), or on 1, by one sample's weight</td>
+</tr>
+</tbody>
+</table></div>
+<p>Also used: Anthropic's exact count when <code>/v1/messages/count_tokens</code> reaches a backend, and the real size
+when a provider's "too long" error states it (Anthropic, OpenAI, vLLM and Gemini do). Not used: mock
+backends, replies whose usage includes a server-side web search (its results add tokens the request
+didn't carry), and failed or cancelled requests.</p>
+<p><strong>Where the count is used.</strong> Each candidate gets the prompt in its own model's tokens (the text times
+its ratio, plus media as its provider counts them): the window check, long-prompt price tiers, the
+cost estimate (and the growth since the session's last turn), the per-request cost limit and the
+output allowance. The output allowance also leaves room for the count running low: a third of the
+prompt until a model has 3 full samples, then 2.5 times the measured spread, at least 3%. The
+short-question level rule, rate limits and session sizes use the model-neutral estimate.</p>
+<p><strong>Where it's kept and shown.</strong> Each gateway process keeps its ratios, hands them to the new router on a
+configuration reload (as it does measured speeds), saves the models it learned about every minute and
+on shutdown to the store's <code>token_calibration</code> setting, and loads them at startup. Gateways share the
+setting model by model: each save keeps what others saved for models it hasn't seen. The console's
+Models page shows each model's ratio under its context window; <code>/metrics</code> has
+<code>meritorder_token_ratio{model}</code> and <code>meritorder_token_calibration_samples_total{model}</code>.</p>
+<h2 id="batches">Batches</h2>
+<p>A request of a batch is routed by the same <code>decide</code> with <code>batch=True</code>: only routes whose backend has a batch API, each
+priced for that one request at its batch price (prompt at the batch input price plus the reply's <code>max_tokens</code>, or
+<code>est_output_tokens</code>), with no rebuild, stickiness or speed ranking, since there's no session and nobody waiting. Running GPU
+deployments with <code>max_concurrency</code> set qualify too, priced at the <a href="#shadow-price">shadow price</a> for their load now: 2% of
+the route's price below the knee, so a GPU with room beats every provider's batch price, and one near full doesn't. A full,
+draining or stopped deployment isn't a route, and batch work never starts one. Levels, policies, context windows, the
+per-request cost limit (at batch prices) and cost per success apply as live. How a batch is split, reserved, run on GPUs
+and settled: <a href="request-flow.html#batches-work-that-can-wait">02, Request flow</a>.</p>
+<p>Each request is a new task, so with the <a href="#the-learned-router">learned router</a> on it gets the learned level in route mode
+when the model is sure, and in either mode the level that didn't act is priced among batch routes too. Batch requests
+get no <code>route_features</code> row, auto or named. The labels are what follows an answer (sent again, a raised floor, a stopped
+stream, asking again in a new session), and none of that can follow a batch request: every one would look like a
+success, and one followed by the same person's live request with similar words would look like someone giving up
+(decision 45).</p>
+<h2 id="when-a-model-refuses">When a model refuses</h2>
+<p>Some models decline requests through safety classifiers (Claude returns HTTP 200 with
+<code>stop_reason: "refusal"</code>; OpenAI-style APIs use <code>finish_reason: "content_filter"</code>; Gemini's native API
+blocks the prompt or stops with <code>SAFETY</code>, <code>RECITATION</code> and the like, which the gateway reads as
+<code>content_filter</code>). For <code>auto</code> requests, Merit Order retries on the next eligible model:</p>
+<ul>
+<li>Streams are buffered only until the first content arrives, so a refusal before any content is
+  retried invisibly; one that arrives after content has started streams through.</li>
+<li>The refused attempt is recorded in the ledger (it cost tokens), and the response carries
+  <code>x-meritorder-refused-by</code>.</li>
+<li>A model the client named is never substituted. Teams can turn this off (<code>refusal_fallback: false</code>).</li>
+</ul>
+<h2 id="where-quality-scores-come-from">Where quality scores come from</h2>
+<p>The 1–5 quality scores come from published benchmarks, refreshed by the worker every <code>quality.refresh_hours</code> (24;
+<code>src/meritorder/quality_data.py</code>): by default Epoch AI's data (<code>quality.source: epoch</code>), where each score is a model's chance of solving a task as hard as
+FrontierSWE, against a fixed bar: 5 × the chance ÷ <code>quality.anchor</code> (below). The Artificial Analysis
+Intelligence Index is the alternative source (<code>source: artificial_analysis</code>, with a free key in
+<code>ARTIFICIAL_ANALYSIS_API_KEY</code>); <code>source: config</code> uses the scores written in the
+configuration (they also stand until a source has been fetched). A model a source doesn't cover isn't
+picked by <code>auto</code> (it still answers requests that name it) unless it has a <code>quality_override</code>, which
+always wins. Your own evals check them on your work; see <a href="evals.html">11, Evals</a>.</p>
+<h3 id="a-fixed-bar-not-the-best-model-decision-58">A fixed bar, not the best model (decision 58)</h3>
+<p>Until 15 November 2026 the default scale was <code>best</code>: 5 × a model's chance on the reference ÷ the best configured
+model's. That drifts. A new frontier model lowers every other model's score though none of them got worse, so the same
+work moves to dearer models with each release, and cost creeps up. It reaches cost per success too: there a level's
+chances are read from the scores (<code>apply_chances</code>), with a 5 standing for the best model's chance, so a stronger model
+raised the bar every level is measured against.</p>
+<p>A worked example (<code>tests/test_quality_drift.py</code>): three models with a 70%, 50% and 45% chance on FrontierSWE-hard tasks,
+the 45% one the cheapest. On the <code>best</code> scale it scores 5 × 45 ÷ 70 = 3.2 and takes coding:3 work. Add a model with a 95%
+chance and nothing else changes: it scores 2.4, the 50% one 2.6, the 70% one 3.7, and the same coding:3 request goes to
+the 70% model at ten times the price.</p>
+<p>So the default is now <code>scale: absolute</code>: 5 × the chance ÷ <code>quality.anchor</code>, a fixed chance per task type that a 5 stands
+for, at most 5 and at least 1. The default anchors are what the best model, Claude Fable 5.2, solved when the bar was
+fixed: 0.6994 for coding and 0.7685 for general work (12 November 2026), so every score came out as it was on the
+<code>best</code> scale. Level L means the work a model with L/5 of the anchor's chance just meets, release after release; a new
+model changes nobody's score but its own, and one above the anchor scores 5 and meets every level. Its chance at
+level 5 is then counted as the anchor's, which undercounts it a little in cost per success.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Scale</th>
+<th>A 5 is</th>
+<th>A new, stronger model</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>absolute</code> (default)</td>
+<td><code>quality.anchor</code>: 0.6994 coding, 0.7685 general</td>
+<td>Changes nobody else's score</td>
+</tr>
+<tr>
+<td><code>best</code></td>
+<td>The best configured model's chance</td>
+<td>Lowers every other score</td>
+</tr>
+<tr>
+<td><code>range</code></td>
+<td>The best model's; the weakest is 1</td>
+<td>Lowers every other score, and a new weak model raises them</td>
+</tr>
+</tbody>
+</table></div>
+<p>Existing configurations keep working: one that sets <code>scale: best</code> or <code>range</code> keeps it. A change of scale or anchor takes
+effect on the next configuration load, without waiting for the worker: the scores are worked out again from the chances
+stored with them (<code>config.live_section</code>). The anchor is Epoch's FrontierSWE fit as of the date above; if Epoch refits the
+benchmark's difficulty, a model's chance moves, and the anchor stays what it means: that chance on that benchmark. The
+Artificial Analysis index isn't a chance; with it the anchor is a share of the index (0.6994: an index of 69.9 scores 5).
+Measured scores from evals (<code>source: config</code>) are on their own scale, the best measured model's pass rate
+(<code>measured_best_rate</code>), and are written when a run is applied, so they don't move by themselves.</p>
+<h2 id="harness-overrides">Harness overrides</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Harness sends</th>
+<th>Behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>model: "claude-sonnet-5-5"</code> (explicit)</td>
+<td>No model substitution. Router picks the cheapest <em>backend</em> for that model.</td>
+</tr>
+<tr>
+<td><code>model: "auto"</code></td>
+<td>Classifier + router choose.</td>
+</tr>
+<tr>
+<td><code>model: "auto"</code> + <code>X-Route-Floor: coding:3</code></td>
+<td>Harness sets the floor; router chooses above it, also when the team routes by cost per success.</td>
+</tr>
+<tr>
+<td><code>X-Route-Hint: cheap</code> / <code>smart</code></td>
+<td>Nudges the classifier's floor down / up.</td>
+</tr>
+<tr>
+<td><code>reasoning_effort</code> / <code>output_config.effort</code></td>
+<td>Passed through to a backend that speaks the client's format, and translated across formats: OpenAI's <code>reasoning_effort</code> becomes Anthropic's <code>output_config.effort</code>, and an Anthropic client's effort becomes <code>reasoning_effort</code> at the nearest level the model accepts (<code>effort_levels</code>; not sent where those aren't known, since some models reject the field). Merit Order only picks an effort for <code>auto</code> requests that don't set one: by floor level, low for 1–2, medium for 3, high for 4–5 (<code>routing.effort_by_floor</code>; levels 1 to 5, efforts minimal, low, medium, high, xhigh or max, anything else refused at load).</td>
+</tr>
+<tr>
+<td><code>max_tokens</code> (or none)</td>
+<td>A client's own limit is kept (lowered only to the model's maximum). Without one, the reply may be as long as the model can write (<code>max_output_tokens</code>, from the price catalog), less what won't fit in the context window or under the per-request cost limit. <code>x-meritorder-max-tokens</code> and <code>x-meritorder-max-tokens-source</code> on the reply say how much was allowed and why. A request whose own limit could cost more than <code>safeguards.max_request_usd</code> ($25 in the shipped config) on every route is refused.</td>
+</tr>
+<tr>
+<td><code>X-MeritOrder-Backend: &lt;name&gt;</code> (admins, and eval runs)</td>
+<td>Pins the backend, e.g. to test one provider.</td>
+</tr>
+<tr>
+<td><code>X-MeritOrder-Priority: cost</code> / <code>balanced</code> / <code>speed</code></td>
+<td>How much more a faster route may cost: 2%, 20%, or 100% (<a href="how-it-decides.html#which-backend-gpu-or-api">how it decides</a>). Overrides the team's <code>priority</code>.</td>
+</tr>
+<tr>
+<td><code>x-claude-code-session-id</code></td>
+<td>Claude Code's session id; used as the session.</td>
+</tr>
+<tr>
+<td><code>x-claude-code-agent-id</code></td>
+<td>A subagent's turn: routed in its own thread of the session (own model, level, cache).</td>
+</tr>
+<tr>
+<td><code>session-id</code>; <code>thread-id</code> with <code>x-codex-parent-thread-id</code></td>
+<td>Codex CLI's session id, used as the session; a Codex subagent's turn, in its own thread.</td>
+</tr>
+<tr>
+<td><code>x-claude-code-request-class: auxiliary</code> / <code>compaction</code></td>
+<td>Side requests and compaction summaries: the floor is capped (<code>routing.request_class_levels</code>, default 1 and 3). Side requests also get their own thread. Claude Code sends this header to a gateway only with <code>CLAUDE_CODE_GATEWAY_HINT_HEADERS=1</code>, which <code>meritorder setup claude-code</code> sets.</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="when-a-models-gpus-are-stopped">When a model's GPUs are stopped</h2>
+<ul>
+<li><code>auto</code> traffic, including sessions in the middle of a task, moves to the next eligible model
+  (the session's cache is rebuilt there). A stop that drains first (the default for one deployment)
+  lets sessions whose cache is already there finish on the GPUs, on the replica that holds it, until the
+  drain ends.</li>
+<li>A request that names a model whose only routes are stopped GPUs gets a 503 that says why for
+  each route ("stopped by dana: cost review", "OPENROUTER_API_KEY is not set") and suggests <code>auto</code>.
+  A named model is never silently swapped. Teams can opt in to substitution (<code>substitute_unavailable: true</code>, or
+  Config → Teams): the request then goes to a model at least as good for the task (never a weaker
+  one), and the response carries <code>x-meritorder-substituted-for</code>. Give open models an API route (OpenRouter, the vendor, Bedrock) to keep
+  them available; the GPUs page warns which models have none before anyone stops a deployment.</li>
+</ul>
+<p>Team policy (<code>allowed_models</code>, <code>allowed_backends</code>; data residency is set by allowing only backends in
+the right regions) is applied <strong>before</strong> scoring, so an override can never escape policy.</p></section>
+  </main>
+</div>
+
+<script>
+(function () {
+  // Only the all-in-one page: its rail links to sections of the page. One-doc pages mark their own link.
+  var links = Array.prototype.slice.call(document.querySelectorAll('.rail a')).filter(function (a) {
+    return a.getAttribute('href').charAt(0) === '#';
+  });
+  if (!links.length) {
+    var here = document.querySelector('.rail a.active');
+    if (here && here.scrollIntoView && window.matchMedia('(max-width: 860px)').matches) {
+      here.scrollIntoView({ block: 'nearest', inline: 'center' });
+      window.scrollTo(0, 0);
+    }
+    return;
+  }
+  var byId = {};
+  links.forEach(function (a) { byId[a.getAttribute('href').slice(1)] = a; });
+  function setActive(id) {
+    links.forEach(function (a) { a.classList.toggle('active', a === byId[id]); });
+    var a = byId[id];
+    if (a && a.scrollIntoView && window.matchMedia('(max-width: 860px)').matches) {
+      a.scrollIntoView({ block: 'nearest', inline: 'center' });
+    }
+  }
+  if ('IntersectionObserver' in window) {
+    var obs = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) { if (e.isIntersecting) setActive(e.target.id); });
+    }, { rootMargin: '-20% 0px -70% 0px' });
+    document.querySelectorAll('main section').forEach(function (s) { obs.observe(s); });
+  }
+  setActive((location.hash || '#overview').slice(1));
+})();
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js"></script>
+<script>
+(function () {
+  var t = document.documentElement.getAttribute('data-theme');
+  var dark = t ? t === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+  mermaid.initialize({ startOnLoad: true, theme: dark ? 'dark' : 'default', securityLevel: 'strict' });
+})();
+</script>
+</body>
+</html>

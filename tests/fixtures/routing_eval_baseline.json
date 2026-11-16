@@ -1,0 +1,92 @@
+{
+ "by_class": {
+  "analysis": {
+   "cost_per_finished": 0.039932,
+   "success_rate": 0.921569,
+   "tasks": 51
+  },
+  "chat": {
+   "cost_per_finished": 0.002206,
+   "success_rate": 1.0,
+   "tasks": 145
+  },
+  "chat-short": {
+   "cost_per_finished": 2.5e-05,
+   "success_rate": 1.0,
+   "tasks": 106
+  },
+  "coding-easy": {
+   "cost_per_finished": 0.025525,
+   "success_rate": 1.0,
+   "tasks": 273
+  },
+  "coding-hard": {
+   "cost_per_finished": 5.879609,
+   "success_rate": 0.68,
+   "tasks": 50
+  },
+  "coding-medium": {
+   "cost_per_finished": 0.235577,
+   "success_rate": 1.0,
+   "tasks": 371
+  },
+  "coding-very-hard": {
+   "cost_per_finished": 53.444074,
+   "success_rate": 0.25,
+   "tasks": 4
+  }
+ },
+ "cost_per_finished": 0.358155,
+ "human_cost": 15.0,
+ "levels": {
+  "coding:2": 173,
+  "coding:3": 271,
+  "coding:4": 218,
+  "coding:5": 33,
+  "general:1": 106,
+  "general:2": 142,
+  "general:3": 57
+ },
+ "model_choice": "expected_cost",
+ "seed": 7,
+ "success_rate": 0.977,
+ "tasks": 1000,
+ "threshold_by_class": {
+  "analysis": {
+   "cost_per_finished": 0.051914,
+   "success_rate": 0.901961,
+   "tasks": 51
+  },
+  "chat": {
+   "cost_per_finished": 0.002919,
+   "success_rate": 1.0,
+   "tasks": 145
+  },
+  "chat-short": {
+   "cost_per_finished": 2.5e-05,
+   "success_rate": 1.0,
+   "tasks": 106
+  },
+  "coding-easy": {
+   "cost_per_finished": 0.040963,
+   "success_rate": 1.0,
+   "tasks": 273
+  },
+  "coding-hard": {
+   "cost_per_finished": 14.446074,
+   "success_rate": 0.7,
+   "tasks": 50
+  },
+  "coding-medium": {
+   "cost_per_finished": 0.28968,
+   "success_rate": 1.0,
+   "tasks": 371
+  },
+  "coding-very-hard": {
+   "cost_per_finished": 47.864251,
+   "success_rate": 0.75,
+   "tasks": 4
+  }
+ },
+ "total_per_finished_with_human": 2.860714
+}

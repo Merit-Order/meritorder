@@ -1,0 +1,118 @@
+id: skypilot-catalog
+task: coding
+level: 5
+kind: agent
+commit: 70bd825
+summary: "Price GPU replicas from SkyPilot's catalog through the controller, provisioners, cost accrual and the gateway; re-route stranded auto sessions and explain per route why a named model can't run"
+env: meritorder.evals.envs.codebase:CodebaseEnv
+env_args: {task: skypilot-catalog}
+max_turns: 80
+est_turns: 40
+est_tool_tokens: 5000    # new tokens per turn (tool results and the reply), from runs of this suite
+est_output_tokens: 1500
+preamble_file: ../PREAMBLE.md
+prompt: |
+  ## Issue: GPU replicas are priced at a typed-in guess, and a stopped GPU strands its sessions
+
+  Every decision about a self-hosted deployment uses `gpu_cost_per_hour` from the config: whether demand pays for
+  a replica, the fleet plan, what a run costs, the burn rate on the GPUs page, chargeback. That number is a guess
+  typed in once. SkyPilot already knows what GPUs cost: its catalog has on-demand and spot prices for every
+  instance type by cloud and region, and a running replica has an actual instance, region and spot/on-demand
+  status. We should size and charge from those, and keep `gpu_cost_per_hour` only as the fallback.
+
+  Separately, when an admin stops a deployment two things go wrong for the people using it. An `auto` session
+  that was mid-task on that deployment's model gets a 503 "no healthy backend is available for this request",
+  although another model could take over. And a request that names the model gets the same message, with no hint
+  of why or what to do.
+
+  **Catalog lookups**
+
+  SkyPilot is not a dependency of the gateway and must not become one. Lookups must work in both installation
+  arrangements: SkyPilot installed alongside Merit Order (`sky` importable), and SkyPilot kept in its own
+  environment, which is the interpreter named by the environment variable `MERITORDER_SKY_PYTHON`, or the one
+  the `sky` command on PATH runs with. When SkyPilot can be reached neither way, lookups return None and nothing
+  is raised; prices then fall back to the configured value. Three functions in `meritorder.gpu`:
+
+  - `instance_type(resources)`: the instance type out of SkyPilot's resources string, which looks like
+    `1x(gpus=H100:4, p5.48xlarge, [Spot])` or `1x(gpus=H100:4, a3-highgpu-4g)`: the part inside the parentheses
+    that is neither a `key=value` nor bracketed (`p5.48xlarge`, `a3-highgpu-4g`). None for None, an empty string
+    or `-`.
+  - `catalog_price(instance, cloud, region, zone, spot)`: the hourly list price of that instance in SkyPilot's
+    catalog (what `sky.catalog.get_hourly_cost` gives), spot or on-demand, as a float; None when SkyPilot can't
+    be reached.
+  - `catalog_cheapest(accelerators, clouds, regions, spot)`: the cheapest offer for one replica's accelerators
+    (`"H100:4"`) across the given clouds (empty list: any) and regions (empty: any), spot or on-demand, as
+    `{"usd_per_hour", "cloud", "region", "instance_type", "spot"}`; None when nothing is offered or SkyPilot
+    can't be reached.
+
+  **Provisioners**
+
+  Both provisioners get an async `expected_price()`. The static one returns None (your own hardware: the
+  configured price is the price). The SkyPilot one returns the cheapest catalog offer (the dict described above)
+  for the deployment's accelerators within its clouds and regions, spot per `use_spot`, remembered for six hours. The SkyPilot provisioner's replica list also gives
+  each replica its `instance_type` and `usd_per_hour`, looked up for its own instance, cloud, region, zone and
+  spot status.
+
+  **The controller**
+
+  Each cycle, a deployment's replica price is what its provisioner's `expected_price()` returns, if it returns an
+  offer (None or an exception means the configured price). The record `tick` publishes (`deploy:<backend>` in
+  state, and what `tick` returns) carries:
+
+  - `price`: the offer's fields plus `"source": "skypilot_catalog"` and `"configured_usd_per_hour"` (the
+    config's number), or `{"usd_per_hour": <gpu_cost_per_hour>, "source": "configured"}`.
+  - `gpu_usd_per_hour`: the price used, so `4.35` when the catalog offer is $4.35/h.
+  - `burn_usd_per_hour`: what the running replicas cost right now, to 4 decimals. When every running replica in
+    `replicas_info` has a `usd_per_hour`, it's the sum of those (the cheapest `replicas` of them); otherwise
+    `replicas` x the price above. 0 when the deployment is api_only.
+
+  Replica sizing and the fleet plan use that price instead of `gpu_cost_per_hour`, so a $10/h demand that the
+  configured $40/h would never justify does justify a replica the catalog prices at $4.35/h. Cost accrual
+  (`run_cost`, the GPU usage rows) charges the previous record's `burn_usd_per_hour` for the time elapsed when
+  it has one, else replicas x configured price as today: one replica whose own catalog price is $5/h accrues
+  $0.50 over six minutes. The state-change notification quotes the price used.
+
+  The gateway's fleet summary and chargeback should use the published burn when it's there (burn / replicas as
+  the live price per replica for self-hosted tokens), and `GET /v1/reports/gpu` should list, per deployment, the
+  chat models that have no API route (`only_route_for`), so the stop dialog can warn.
+
+  **Stranded sessions and named models**
+
+  When a request names one model and none of its routes can take it, the 503 must say why, route by route, and
+  what to do:
+
+  `'<model>' has nowhere to run right now (<backend>: <why>; <backend>: <why>). Use model '<auto model>' to let
+  Merit Order pick another model, or try again later.`
+
+  where `<auto model>` is `routing.auto_model` and each `<why>` is the first that applies: the backend isn't
+  enabled (its disabled reason, else `not enabled`); `not allowed for team '<team>'`; it isn't available
+  (see below, else `not running`); `failing, retrying shortly`; `draining, only finishing existing sessions`;
+  `saturated`. For `auto`, or when several models are in play, the message stays
+  `no healthy backend is available for this request`.
+
+  The gateway learns a deployment's unavailability from `gpu:controls` and `deploy:<backend>` in state (what
+  `refresh_deployments` reads today). A deployment that an admin stopped (`{"deployments": {"gpu": {"mode":
+  "off", "drain": false, "by": "root", "reason": "cost review"}}}`, or `paused` with `paused_by` and `reason`)
+  is unavailable because of `stopped by <by>: <reason>` (`stopped by <by>` without a reason; `an admin` when
+  nobody is named). One that isn't running is unavailable because of `GPUs are starting` while provisioning,
+  else `GPUs are not running (demand doesn't pay for them right now)`. So a request for a model whose only route
+  is a stopped deployment gets a 503 whose message contains `stopped by root: cost review` and `'auto'`.
+
+  An `auto` session that is mid-task (not at a task boundary) on a model with no candidate left must not fail:
+  decide again as at a task boundary, over the models allowed for the team, and prefix the reason with
+  `session model <model> is unavailable; re-routed: ` followed by the new decision's reason. The candidates are
+  then other models.
+
+  **Interface**
+
+  - `meritorder.gpu`: `instance_type(resources: str | None) -> str | None`;
+    `catalog_price(instance: str, cloud: str, region: str | None, zone: str | None, spot: bool) -> float | None`;
+    `catalog_cheapest(accelerators: str, clouds: list[str], regions: list[str], spot: bool) -> dict | None`.
+    All None without SkyPilot.
+  - Provisioners: `async expected_price() -> dict | None` (the offer dict above, or None). A provisioner handed to
+    `Deployment` may be any object with the provisioner methods; its `status()` may return replicas in
+    `replicas_info` with their own `usd_per_hour`.
+  - `tick` records: `price` (`source` is `skypilot_catalog` or `configured`), `gpu_usd_per_hour`,
+    `burn_usd_per_hour`; `run_cost` accrues from `burn_usd_per_hour`.
+  - 503 message for a named model as above; `Router.decide` re-routes a stranded `auto` session with the reason
+    prefix above.

@@ -1,0 +1,42 @@
+id: g5-cooling-reconcile
+task: general
+level: 5
+kind: judged
+prompt_file: prompt.md
+summary: "Reconcile ten conflicting sources (superseded data sheet, outdated wiki, corrected email, other-model sales claim, resolved fault) into a capacity decision; every stale figure changes the rack count"
+checks:
+  - {final_number: 34}
+rubric:
+  - "Uses 34.0 kW per CX-40 at 24 °C from data sheet Revision D, and says Revision D supersedes Revision B's 38.0 kW."
+  - "Uses Hall C's 24 °C setpoint and does not use the 27 °C ratings."
+  - "Treats Hall C as 11 CX-40 units plus one CX-60 (55 kW) on the move-in date, following the 19 March correction that only C-11 was replaced."
+  - "Sets aside the 45 kW figure in Source 8 because it is for the CX-40-HD, a different model."
+  - "Applies N+2 by removing the two largest in-service units (the CX-60 and one CX-40): 429 - 89 = 340 kW usable."
+  - "Applies the 6% non-IT allowance from policy v3.1 rather than the wiki's 5%, giving about 320.75 kW of total IT load (340 / 1.06)."
+  - "Subtracts the existing 42.0 kW of committed IT load in Hall C, leaving about 278.75 kW for Brightwave."
+  - "Concludes that the 48-rack (384 kW) request cannot be accepted and that the maximum is 34 racks of 8 kW (272 kW)."
+  - "Explains that replacing C-12 with a second CX-60 would not raise N+2 usable capacity (it stays 340 kW, because the two largest units are then both CX-60s), so the phased plan does not make room for the remaining 14 racks."
+  - "Identifies the wiki's 380 kW / 361 kW / about 45 racks figures as outdated."
+  - "Notes that C-07's fault does not reduce capacity on the move-in date because it was repaired on 28 October 2024."
+reference_answer: |
+  Sources relied on: the current policy v3.1 (Source 2), CX-40 data sheet Rev D (Source 5, which supersedes Rev B),
+  CX-60 Rev A (Source 6), the corrected emails and DCIM export (Sources 7 and 9) and the request (Source 1).
+  Set aside: the 2022 wiki (Source 3), which uses Rev B's 38 kW, the withdrawn 5% allowance and a pre-replacement
+  unit mix; Rev B itself (Source 4); the 45 kW claim (Source 8), which is for the CX-40-HD, a different model; the 27 °C
+  ratings, because Hall C runs at 24 °C with no containment; the February email, corrected on 19 March; and the C-07
+  fault, repaired on 28 October.
+
+  Units on 13 January 2025: C-01 to C-10 and C-12 are CX-40s (11 x 34.0 = 374.0 kW) and C-11 is a CX-60 (55.0 kW).
+  Total 429.0 kW. N+2 removes the two largest in-service units, the CX-60 and one CX-40: 429.0 - 55.0 - 34.0 =
+  340.0 kW usable.
+
+  The IT load L must satisfy 1.06 x L <= 340.0, so L <= 320.75 kW. Existing committed load is 42.0 kW, leaving
+  278.75 kW for Brightwave. 278.75 / 8 = 34.8, so 34 racks (272 kW). Check: (42 + 272) x 1.06 = 332.84 kW <= 340; with
+  35 racks, (42 + 280) x 1.06 = 341.32 kW > 340.
+
+  (a) No: 48 racks (384 kW) far exceeds what fits. (b) 34 racks. (c) No: once C-12 is also a CX-60 the hall has
+  10 x 34.0 + 2 x 55.0 = 450.0 kW, but N+2 then removes both CX-60s, leaving 340.0 kW, the same as before. Phase 2
+  would free no capacity, so the remaining 14 racks would need a different plan (for example replacing more CX-40s,
+  or funding containment and a policy-approved setpoint change).
+
+  Final answer: 34

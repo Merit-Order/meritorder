@@ -1,0 +1,1623 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Deployment · Merit Order docs</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Source+Sans+3:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a design-notes reader. Sticky chapter rail on the left, one long readable column on the right; rail folds into a scrolling chip row on phones. */
+:root {
+  --bg: #f4f7f6;
+  --surface: #ffffff;
+  --fg: #142120;
+  --muted: #566866;
+  --line: #d6e0de;
+  --accent: #0b7566;
+  --accent-soft: #e0f0ec;
+  --code-bg: #ecf2f1;
+  --z1: #e3f3ea; --i1: #1d6a3a;
+  --z2: #fcf1d8; --i2: #865600;
+  --z3: #fbe4e3; --i3: #9a1f1c;
+  --curve: #2556c4; --over: #c0392b;
+  --font-display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Source Sans 3", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d1413; --surface: #141d1c; --fg: #e2ebe9; --muted: #92a6a2; --line: #253331;
+    --accent: #4fcab4; --accent-soft: #15302b; --code-bg: #17221f;
+    --z1: #132c1d; --i1: #82d6a0; --z2: #2f260e; --i2: #f0c566; --z3: #351817; --i3: #f39b95;
+    --curve: #7da4ff; --over: #ff7d6e;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0d1413; --surface: #141d1c; --fg: #e2ebe9; --muted: #92a6a2; --line: #253331;
+  --accent: #4fcab4; --accent-soft: #15302b; --code-bg: #17221f;
+  --z1: #132c1d; --i1: #82d6a0; --z2: #2f260e; --i2: #f0c566; --z3: #351817; --i3: #f39b95;
+  --curve: #7da4ff; --over: #ff7d6e;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 24px; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body {
+  background: var(--bg); color: var(--fg);
+  font-family: var(--font-body); font-size: 17px; line-height: 1.6;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+
+.hero { max-width: 1180px; margin: 0 auto; padding-block: 56px 36px; display: grid; gap: 14px; border-bottom: 1px solid var(--line); }
+.eyebrow { font-family: var(--font-mono); font-size: 12.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+.hero h1 { font-family: var(--font-display); font-weight: 700; font-size: clamp(2.1rem, 5vw, 3.4rem); line-height: 1.05; letter-spacing: -.02em; margin: 0; text-wrap: balance; }
+.hero .lede { max-width: 68ch; color: var(--fg); }
+.hero .lede p { margin: 0 0 .7em; }
+.hero .lede ol { margin: 0 0 .7em; padding-left: 1.3em; display: grid; gap: 4px; }
+.hero .lede strong { color: var(--accent); }
+.also { color: var(--muted); font-size: 15.5px; }
+.contents { margin-top: 6px; max-width: 68ch; }
+.contents summary { cursor: pointer; font-family: var(--font-mono); font-size: 12.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+.contents ol { margin: 10px 0 0; padding-left: 1.3em; columns: 2 260px; column-gap: 32px; }
+.contents li { break-inside: avoid; margin: 0 0 4px; }
+h2[id], h3[id], h4[id] { scroll-margin-top: 72px; }
+
+.layout { max-width: 1180px; margin: 0 auto; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 56px; padding-block: 36px 96px; }
+.rail { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 24px); align-self: start; }
+.rail p { font-family: var(--font-mono); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0 0 10px; }
+.rail ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.rail a { display: flex; gap: 10px; align-items: baseline; padding: 6px 10px; border-radius: 6px; color: var(--fg); text-decoration: none; font-size: 15.5px; line-height: 1.3; }
+.rail a:hover { background: var(--accent-soft); }
+.rail a.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.rail a:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.n { font-family: var(--font-mono); font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.rail a.active .n { color: var(--accent); }
+
+main { min-width: 0; max-width: 860px; }
+section { padding-bottom: 56px; margin-bottom: 56px; border-bottom: 1px solid var(--line); }
+section:last-child { border-bottom: 0; }
+.sec-head { display: flex; align-items: baseline; gap: 14px; margin-bottom: 18px; }
+.sec-head .n { font-size: 14px; color: var(--accent); }
+h2 { font-family: var(--font-display); font-weight: 700; font-size: clamp(1.7rem, 3.4vw, 2.3rem); letter-spacing: -.015em; line-height: 1.1; margin: 0; text-wrap: balance; }
+h3 { font-family: var(--font-display); font-weight: 600; font-size: 1.3rem; letter-spacing: -.01em; margin: 2.2em 0 .5em; text-wrap: balance; }
+h4 { font-family: var(--font-body); font-weight: 600; font-size: 1.05rem; margin: 1.6em 0 .4em; }
+p, ul, ol { max-width: 68ch; }
+ul, ol { padding-left: 1.3em; }
+li { margin: .25em 0; }
+a { color: var(--accent); text-underline-offset: 3px; }
+strong { font-weight: 600; }
+
+code { font-family: var(--font-mono); font-size: .84em; background: var(--code-bg); padding: .1em .35em; border-radius: 4px; }
+pre:not(.mermaid) { background: var(--code-bg); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; overflow-x: auto; font-size: 14px; line-height: 1.5; }
+pre:not(.mermaid) code { background: none; padding: 0; font-size: inherit; }
+
+.table-wrap { overflow-x: auto; margin: 1em 0 1.4em; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 15.5px; }
+th, td { text-align: left; vertical-align: top; padding: 9px 14px; border-bottom: 1px solid var(--line); }
+tr:last-child td { border-bottom: 0; }
+th { font-family: var(--font-mono); font-size: 12px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); background: var(--code-bg); }
+td { font-variant-numeric: tabular-nums; }
+
+figure { margin: 1.4em 0 1.8em; }
+.diagram { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px; overflow-x: auto; }
+.diagram pre.mermaid { margin: 0; display: flex; justify-content: center; background: none; }
+
+.chart { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px; overflow-x: auto; }
+.chart svg { display: block; width: 100%; min-width: 520px; max-width: 720px; height: auto; margin: 0 auto; font-family: var(--font-body); }
+.chart figcaption { color: var(--muted); font-size: 15px; margin-top: 10px; max-width: 68ch; }
+.chart .z1 { fill: var(--z1); } .chart .z2 { fill: var(--z2); } .chart .z3 { fill: var(--z3); }
+.chart .t { font-size: 13px; font-weight: 600; }
+.chart .i1 { fill: var(--i1); } .chart .i2 { fill: var(--i2); } .chart .i3 { fill: var(--i3); }
+.chart .lbl { font-size: 13px; fill: var(--fg); }
+.chart .tick { font-size: 12px; fill: var(--muted); }
+.chart .tick.i3 { fill: var(--i3); }
+.chart .axis { stroke: var(--fg); stroke-width: 1.5; fill: none; }
+.chart .ref { stroke: var(--muted); stroke-width: 1.5; stroke-dasharray: 6 5; fill: none; }
+.chart .curve { stroke: var(--curve); stroke-width: 3.5; fill: none; }
+.chart .over { stroke: var(--over); stroke-width: 3.5; fill: none; }
+.chart .dot { fill: var(--over); }
+
+@media (max-width: 860px) {
+  .layout { grid-template-columns: minmax(0, 1fr); gap: 20px; padding-top: 20px; }
+  .rail { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); margin-inline: calc(-1 * max(16px, env(safe-area-inset-left, 0px))); padding: 10px max(16px, env(safe-area-inset-left, 0px)); border-bottom: 1px solid var(--line); }
+  .rail p { display: none; }
+  .rail ol { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; }
+  .rail a { white-space: nowrap; border: 1px solid var(--line); background: var(--surface); }
+  body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+  .hero { padding-block: 36px 24px; }
+  body { font-size: 16px; }
+}
+</style>
+</head>
+<body>
+
+
+<header class="hero">
+  <div class="eyebrow">Merit Order docs · 07</div>
+  <h1>Deployment</h1>
+  <div class="lede"><p class="also"><a href="index.html">All docs on one page</a> · <a href="how-it-all-works.html">How it all works</a></p><details class="contents"><summary>On this page</summary><ol><li><a href="#two-supported-ways-to-run-it">Two supported ways to run it</a></li><li><a href="#containers">Containers</a></li><li><a href="#topology-laptop--single-vm">Topology: laptop / single VM</a></li><li><a href="#quickstart">Quickstart</a></li><li><a href="#topology-production-kubernetes">Topology: production (Kubernetes)</a></li><li><a href="#gpus-on-your-kubernetes-cluster">GPUs on your Kubernetes cluster</a></li><li><a href="#skypilot-gpus">SkyPilot GPUs</a></li><li><a href="#performance-and-scaling">Performance and scaling</a></li><li><a href="#ingress-and-tls">Ingress and TLS</a></li><li><a href="#configuration">Configuration</a></li><li><a href="#secrets">Secrets</a></li><li><a href="#helm-values-worth-knowing">Helm values worth knowing</a></li><li><a href="#the-console-demo">The console demo</a></li><li><a href="#open-source-hygiene">Open-source hygiene</a></li><li><a href="#supply-chain-security">Supply-chain security</a></li></ol></details></div>
+</header>
+
+<div class="layout">
+  <nav class="rail" aria-label="Chapters">
+    <p>Docs</p>
+    <ol><li><a href="overview.html"><span class="n">&nbsp;&nbsp;</span>Overview</a></li><li><a href="how-it-all-works.html"><span class="n">00</span>How it all works (start here)</a></li><li><a href="architecture.html"><span class="n">01</span>Architecture</a></li><li><a href="request-flow.html"><span class="n">02</span>Request flow</a></li><li><a href="routing.html"><span class="n">03</span>Routing</a></li><li><a href="caching-and-sessions.html"><span class="n">04</span>Caching &amp; sessions</a></li><li><a href="gpu-autoscaling.html"><span class="n">05</span>GPU autoscaling</a></li><li><a href="auth-and-spend.html"><span class="n">06</span>Auth &amp; spend</a></li><li><a href="deployment.html" class="active" aria-current="page"><span class="n">07</span>Deployment</a></li><li><a href="reporting.html"><span class="n">08</span>Reporting</a></li><li><a href="decisions.html"><span class="n">09</span>Decisions</a></li><li><a href="how-it-decides.html"><span class="n">10</span>How it decides</a></li><li><a href="evals.html"><span class="n">11</span>Evals: measuring model quality</a></li><li><a href="feature-sheet.html"><span class="n"></span>Merit Order feature sheet</a></li></ol>
+  </nav>
+  <main>
+    
+    <section id="doc"><p>Goal: <strong>clone, add one API key, <code>docker compose up</code>, point pi at it.</strong> Everything else is an
+opt-in layer.</p>
+<h2 id="two-supported-ways-to-run-it">Two supported ways to run it</h2>
+<p>The same container images run under <strong>Docker Compose</strong> or <strong>Kubernetes (Helm chart)</strong>. Each
+organization picks one.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th></th>
+<th>Docker Compose</th>
+<th>Kubernetes (Helm)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>For</strong></td>
+<td>Trying it out, small teams, a single VM</td>
+<td>Production at organizations with real spend</td>
+</tr>
+<tr>
+<td><strong>Setup</strong></td>
+<td><code>docker compose up</code>, minutes</td>
+<td>Needs a cluster and Helm</td>
+</tr>
+<tr>
+<td><strong>High availability</strong></td>
+<td>One machine</td>
+<td>Multiple gateways, restarts, rolling upgrades</td>
+</tr>
+<tr>
+<td><strong>Scaling</strong></td>
+<td>Manual</td>
+<td>Gateway autoscales</td>
+</tr>
+<tr>
+<td><strong>Postgres / Redis</strong></td>
+<td>Containers in the compose file</td>
+<td>Usually managed cloud services</td>
+</tr>
+<tr>
+<td><strong>Secrets</strong></td>
+<td><code>.env</code></td>
+<td>A Secret synced from your cloud's store by External Secrets (<a href="#secrets">Secrets</a>)</td>
+</tr>
+</tbody>
+</table></div>
+<p>What keeps supporting both cheap:</p>
+<ul>
+<li><strong>Merit Order runs the same way under both.</strong> Config is env vars plus one YAML file, health checks
+  are plain HTTP (<code>/healthz</code>, <code>/readyz</code>), logs go to stdout. (The Kubernetes GPU provisioner is about
+  where GPUs run, not how Merit Order itself runs.)</li>
+<li><strong>One active controller, enforced by a Postgres advisory lock.</strong> Works the same under both.</li>
+<li><strong>Migrations are a command</strong> (<code>meritorder migrate</code>): a one-off service in Compose, a pre-install /
+  pre-upgrade hook in Helm.</li>
+<li><strong>CI checks both</strong> on every change: a Compose smoke test (build, start, send requests) and a Helm
+  lint plus schema validation of the rendered manifests (kubeconform).</li>
+<li>Nomad, ECS, Docker Swarm, etc. can be community recipes; they aren't officially supported.</li>
+</ul>
+<p>Where GPUs run is a separate choice. SkyPilot can start GPU VMs on clouds and neoclouds, or target
+an existing Kubernetes cluster with GPUs, from either deployment style. Or the controller can run vLLM
+on your cluster itself, through KServe or llm-d (<a href="#gpus-on-your-kubernetes-cluster">GPUs on your Kubernetes cluster</a>).</p>
+<h2 id="containers">Containers</h2>
+<p>One image runs every Merit Order process; the command picks which. It has two variants: <code>-gpu</code> adds SkyPilot for
+the controller, and <code>-compressor</code> adds torch and llmlingua for the compressor. Docker Compose builds all three from the
+repo (<code>meritorder:dev</code>, <code>meritorder:gpu</code> and <code>meritorder:compressor</code>; <code>MERITORDER_IMAGE</code> renames them).</p>
+<p><strong>No images are published yet.</strong> The release workflow (<code>.github/workflows/release.yml</code>) runs only when a <code>v*</code> tag is
+pushed, and no tag exists yet. Until the first tag, build the images yourself (Compose does it for you; for
+Kubernetes, build and push them to your own registry). From then on, tag <code>v0.0.1</code> publishes
+<code>ghcr.io/merit-order/meritorder:0.0.1</code>, <code>:0.0.1-gpu</code> and <code>:0.0.1-compressor</code>, and moves <code>:latest</code>, <code>:latest-gpu</code> and
+<code>:latest-compressor</code> to them (<a href="#supply-chain-security">Supply-chain security</a>). The chart's default image tag is its
+<code>appVersion</code>, <code>0.0.1</code>, so a default Helm install pulls what that tag publishes.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Service</th>
+<th>Image and command</th>
+<th>Required?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>gateway</td>
+<td><code>meritorder serve</code>: APIs, console at <code>/ui/</code>, reports, admin, SCIM</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>worker</td>
+<td><code>meritorder worker</code>: rollups, partitions, this month's spend counters checked against the ledger, alerts (routes with no known price among them), digests, live prices (every 15 minutes), quality scores (daily), providers' bills (every 6 hours, when <code>billing.sources</code> lists any), eval runs started on the console, the learned router's training (when asked, or every <code>routing.learned.retrain_hours</code>) and the deletion of its old request features, the providers' batch jobs (checked until they end, then settled into the ledger) and batch work on running GPUs, stored responses past their team's retention (deleted every minute, with the providers' copies) and their key rotation, the ledger's copy in ClickHouse (every 30 seconds, with <code>reporting.clickhouse</code>)</td>
+<td>Yes, for reports, alerts, and live prices</td>
+</tr>
+<tr>
+<td>migrate</td>
+<td><code>meritorder migrate</code>, once per upgrade</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>controller</td>
+<td><code>meritorder controller</code> on the <strong><code>-gpu</code> image variant</strong>, which adds SkyPilot (with the extras of every cloud a replica can run on, <code>SKYPILOT_EXTRAS</code>: about 2.0 GB, half of it Azure's CLI; and the ssh and rsync clients it sets machines up with) in its own environment (<code>--build-arg SKYPILOT=&lt;version&gt;</code>; Compose and the release use 0.14.2). GPUs on Kubernetes alone don't need SkyPilot: the plain image will do</td>
+<td>Only for the GPU tier</td>
+</tr>
+<tr>
+<td>postgres</td>
+<td>People, keys, config versions, prices and quality scores, ledger, GPU cost, eval runs</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>redis</td>
+<td>Sessions, counters, GPU state, live feed. Persistence off (below)</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>compressor (profile: compressor)</td>
+<td><code>meritorder compressor</code> on the <strong><code>-compressor</code> image variant</strong> (<code>--build-arg EXTRAS="--extra otel --extra compressor"</code>): LLMLingua-2 for model-based compression of tool results (<a href="caching-and-sessions.html#model-based-llmlingua-2">04</a>). Only this image has torch and llmlingua; the model downloads on first start (2.2 GB for XLM-RoBERTa large, 0.7 GB for multilingual BERT) into the <code>hf-cache</code> volume. CPU, or one NVIDIA GPU (commented example in <code>compose.yaml</code>)</td>
+<td>Only for teams with <code>compression.model</code> on</td>
+</tr>
+<tr>
+<td>caddy (profile: tls)</td>
+<td>HTTPS for single-machine installs</td>
+<td>No</td>
+</tr>
+<tr>
+<td>clickhouse (profile: clickhouse)</td>
+<td>A copy of the ledger that long-range reports read, for very large deployments (<a href="reporting.html#clickhouse-for-very-large-deployments">08</a>)</td>
+<td>No</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Redis keeps nothing on disk.</strong> The compose file starts it with <code>--save "" --appendonly no</code>. The spend counters that
+budgets read live in Redis, but the ledger in Postgres is the source of truth. A Redis that restarts empty seeds each
+counter from the ledger on the next request. A Redis restored from an old snapshot (an RDB file, a replica that was
+behind) would have counters that exist but are behind the ledger, and people over budget would get through. The worker
+checks every counter of the month against the ledger each cycle and corrects one that's off by the same amount twice
+running (<a href="auth-and-spend.html#budgets">06</a>), so that heals in about two minutes, but with no snapshot it doesn't
+happen at all. Nothing else in Redis needs to outlive it: sessions are routing hints, the response cache and the
+compression decisions are caches, and alerts that were deduplicated there may be sent once more. With a managed Redis,
+turn snapshots and AOF off, or accept the two minutes after a restore.</p>
+<p>In the compose stack every Merit Order service but the compressor is built with SkyPilot in its own environment
+(<code>SKYPILOT_VERSION</code>, default 0.14.2; empty leaves it out), so the gateway prices GPUs for the console's break-even itself;
+price lookups use no credentials, so the gateway's image keeps the smaller <code>aws,gcp,kubernetes,lambda</code> extras. In the
+Helm chart only the controller has SkyPilot, and it publishes those prices.</p>
+<p>The SkyPilot controller needs cloud credentials and keeps state in <code>~/.sky</code>: mount them into the
+controller (<a href="#skypilot-gpus">SkyPilot GPUs</a>) or point it at a SkyPilot API server. For local
+testing without a cloud, <code>scripts/fake_vllm.py</code> stands in for a GPU server (<code>provisioner: static</code>).
+A real GPU cycle through SkyPilot (start, serve, scale, the lease running out, prices against the bill) has not been
+run yet: it needs a cloud account, and <code>scripts/skypilot_check.py</code> does it (<a href="gpu-autoscaling.html#checking-it-on-a-real-cloud">05</a>).</p>
+<p><strong>The compressor.</strong> <code>docker compose --profile compressor up -d</code>, then set
+<code>MERITORDER_COMPRESSOR_URL=http://compressor:8090</code> in <code>.env</code> (every process reads it: they all validate
+the config, and a team can't turn on model-based compression without it) and restart. Pick the model with
+<code>MERITORDER_COMPRESSOR_MODEL</code> (the gateways ask for the same one), the device with
+<code>MERITORDER_COMPRESSOR_DEVICE</code>, CPU threads with <code>MERITORDER_COMPRESSOR_THREADS</code> (default: the container's CPU
+limit), and a shared secret with <code>MERITORDER_COMPRESSOR_KEY</code>, also in <code>.env</code>: the compressor checks it and the
+gateways send it (<code>Authorization: Bearer</code>). Each process compresses one request at a time.
+Measured (<a href="caching-and-sessions.html#measured-on-the-published-models">04</a>): on a CPU, the default model
+(XLM-RoBERTa large) takes about half a second per 512-token chunk even with 12 cores, so most results miss the
+1-second deadline and go uncompressed; multilingual BERT on a CPU does every 4k-character result and most 16k ones
+in time, and a GPU is the way to compress large ones. It needs 4–5 GiB of memory at its largest batch.
+Outside Docker, in the clone (Merit Order isn't on PyPI): <code>uv sync --extra compressor</code>, then
+<code>uv run meritorder compressor --model … --device cuda</code>.</p>
+<h2 id="topology-laptop--single-vm">Topology: laptop / single VM</h2>
+<figure class="diagram"><pre class="mermaid">flowchart LR
+    pi[&quot;pi / Claude Code&quot;] --&gt; gw
+    pi -. &quot;HTTPS&quot; .-&gt; caddy
+    subgraph compose[&quot;docker compose&quot;]
+        caddy[&quot;caddy&lt;br/&gt;(profile: tls)&quot;] --&gt; gw
+        gw[&quot;gateway&quot;]
+        wk[&quot;worker&quot;]
+        ctl[&quot;controller&lt;br/&gt;(profile: gpu, -gpu image)&quot;]
+        pg[(&quot;postgres&quot;)]
+        rd[(&quot;redis&quot;)]
+        cmp[&quot;compressor&lt;br/&gt;(profile: compressor)&quot;]
+        ch[(&quot;clickhouse&lt;br/&gt;(profile: clickhouse)&quot;)]
+        gw &amp; wk &amp; ctl --&gt; pg
+        gw &amp; wk &amp; ctl --&gt; rd
+        gw -.-&gt; cmp
+        gw &amp; wk -.-&gt; ch
+    end
+    gw --&gt; apis[&quot;API backends&lt;br/&gt;Bedrock / Vertex / Foundry / OpenRouter&quot;]
+    gw --&gt; own[&quot;Your own vLLM server&lt;br/&gt;(provisioner: static)&quot;]
+    gw --&gt; sky[&quot;GPUs started by SkyPilot&quot;]
+    ctl --&gt; sky</pre></figure>
+<p><code>docker compose up -d</code> starts postgres, redis, migrate (once), gateway and worker. The profiles add the rest. A dashed
+line is used only with its profile on (and, for the compressor and ClickHouse, their URL set in <code>.env</code>).</p>
+<h2 id="quickstart">Quickstart</h2>
+<pre><code class="language-bash">git clone https://github.com/Merit-Order/meritorder &amp;&amp; cd meritorder
+cp .env.example .env          # set MERITORDER_DEV_KEY; provider keys are optional (mock backends without them)
+docker compose up -d          # gateway + worker + Postgres + Redis on :8080, UI at /ui/
+docker compose exec gateway meritorder keys create --user you@example.com --role admin
+curl localhost:8080/v1/chat/completions -H &quot;authorization: Bearer &lt;that key&gt;&quot; -H &quot;content-type: application/json&quot; \
+  -d '{&quot;model&quot;: &quot;auto&quot;, &quot;messages&quot;: [{&quot;role&quot;: &quot;user&quot;, &quot;content&quot;: &quot;hello&quot;}]}'
+</code></pre>
+<p>Sign in to the console at http://localhost:8080/ui/ with that key (or <code>MERITORDER_DEV_KEY</code>). For the harnesses, install
+the CLI on your laptop (<code>uv tool install .</code> in the clone), then <code>meritorder use-key &lt;key&gt; --gateway http://localhost:8080</code>
+and <code>meritorder setup pi</code> or <code>setup claude-code</code>.</p>
+<p>Several copies on one machine (two checkouts, say) each need their own <code>COMPOSE_PROJECT_NAME</code>, <code>MERITORDER_IMAGE</code> (the
+images Compose builds, <code>meritorder:dev</code> and its <code>:gpu</code> and <code>:compressor</code> variants by default) and <code>MERITORDER_PORT</code> in
+their <code>.env</code>. Otherwise each build replaces the other's images. Checked on a fresh clone on 2026-11-13: build, start,
+a key, a request to the mock backends, every console page, <code>use-key</code> and <code>setup pi</code> / <code>claude-code</code>, and the
+<code>gpu</code> and <code>clickhouse</code> profiles.</p>
+<p>Turning on more:</p>
+<pre><code class="language-bash">docker compose -f compose.yaml -f compose.aws.yaml up -d   # use your ~/.aws profile (incl. SSO) for Bedrock
+docker compose --profile gpu up -d                         # adds the GPU capacity controller
+docker compose --profile tls up -d                         # adds Caddy for HTTPS on one machine
+docker compose --profile clickhouse up -d                  # adds ClickHouse for very large ledgers (see below)
+</code></pre>
+<p>ClickHouse: set <code>MERITORDER_CLICKHOUSE_URL=http://clickhouse:8123</code> in <code>.env</code>, start the profile, then copy what the ledger
+already holds with <code>docker compose exec worker meritorder clickhouse backfill</code>. The worker copies new requests from then on.
+Compose gives the gateway, the worker and the profile's server the same user and password (<code>meritorder</code>, or
+<code>MERITORDER_CLICKHOUSE_USER</code> and <code>MERITORDER_CLICKHOUSE_PASSWORD</code>). Without the URL, nothing changes.</p>
+<p>Entra: set <code>MERITORDER_OIDC_ISSUER</code> and <code>MERITORDER_OIDC_CLIENT_ID</code> in <code>.env</code>. Google also needs
+<code>MERITORDER_OIDC_CLIENT_SECRET</code> and <code>MERITORDER_OIDC_HOSTED_DOMAINS</code> (<a href="auth-and-spend.html#signing-in-with-google">06</a>).
+To map Google groups to teams and roles, also set <code>MERITORDER_GOOGLE_GROUPS=true</code> and a service account's key in
+<code>MERITORDER_GOOGLE_GROUPS_CREDENTIALS</code> (<a href="auth-and-spend.html#google-groups">06</a>).</p>
+<p>Vertex AI (Claude and Gemini): set <code>GOOGLE_CLOUD_PROJECT</code> and <code>GOOGLE_APPLICATION_CREDENTIALS</code> (the
+absolute path to a service-account JSON) in <code>.env</code>. Compose mounts that file read-only at
+<code>/run/secrets/google-credentials.json</code> and points the variable there. <code>MERITORDER_VERTEX=false</code>
+switches Vertex off. <code>MERITORDER_VERTEX_GEMINI_NATIVE=true</code> also reaches Gemini there through its native
+API (the <code>vertex-gemini-native</code> backend). The Gemini API with a Google AI Studio key needs only
+<code>GEMINI_API_KEY</code>.</p>
+<h2 id="topology-production-kubernetes">Topology: production (Kubernetes)</h2>
+<figure class="diagram"><pre class="mermaid">flowchart LR
+    users[&quot;Harnesses / apps&quot;] --&gt; ing[&quot;Ingress / LB&quot;]
+    subgraph k8s[&quot;Kubernetes (Helm chart)&quot;]
+        ing --&gt; gw1[&quot;gateway&quot;]
+        ing --&gt; gw2[&quot;gateway&quot;]
+        ing --&gt; gw3[&quot;gateway&quot;]
+        ctl[&quot;controller, -gpu image&lt;br/&gt;(1 active: Postgres lock)&quot;]
+    end
+    gw1 &amp; gw2 &amp; gw3 --&gt; rd[(&quot;Managed Redis&quot;)]
+    gw1 &amp; gw2 &amp; gw3 --&gt; pg[(&quot;Managed Postgres&quot;)]
+    ctl --&gt; pg
+    ctl --&gt; skyapi[&quot;SkyPilot API server&quot;]
+    skyapi --&gt; gpus[&quot;GPU clusters&lt;br/&gt;any cloud / neocloud&quot;]
+    gw1 &amp; gw2 &amp; gw3 --&gt; gpus
+    subgraph own[&quot;This cluster&#x27;s GPU nodes (optional)&quot;]
+        vllm[&quot;vLLM pods&lt;br/&gt;KServe or llm-d&quot;]
+    end
+    ctl -- &quot;Kubernetes API:&lt;br/&gt;create / scale / delete&quot; --&gt; vllm
+    gw1 &amp; gw2 &amp; gw3 --&gt; vllm
+    gw1 &amp; gw2 &amp; gw3 --&gt; apis[&quot;API backends&quot;]
+    gw1 &amp; gw2 &amp; gw3 -.-&gt; otel[&quot;OpenTelemetry →&lt;br/&gt;Grafana / Datadog / ...&quot;]</pre></figure>
+<ul>
+<li>Gateways are stateless; scale with HPA on CPU.</li>
+<li>One controller is active at a time, enforced by a Postgres advisory lock; a standby is fine.</li>
+<li>Very large deployments can add ClickHouse (ClickHouse Cloud, or one you run) for reports: <code>reporting.clickhouse.url</code>. The
+  chart doesn't run it. The worker copies the ledger there; Postgres stays the record.</li>
+<li>Same images as Compose.</li>
+<li>What has been checked: CI renders the chart and validates it with kubeconform on every change, and
+  <code>scripts/kind/</code> installed it by hand on a local kind cluster (14 November). It has not been installed on a managed
+  cluster (EKS, GKE, AKS), or with External Secrets, Reloader and workload identity in a real cluster.</li>
+</ul>
+<h2 id="gpus-on-your-kubernetes-cluster">GPUs on your Kubernetes cluster</h2>
+<p>The controller can run open models on the cluster's own GPUs (<code>provisioner: kubernetes</code>, through
+KServe or llm-d; how it works is in <a href="gpu-autoscaling.html#kubernetes">05, "Kubernetes"</a>). Setup:</p>
+<ol>
+<li><strong>Install what serves the pods.</strong> For <code>api: kserve</code>, KServe in Standard mode (no Knative). For
+   <code>api: llm-d</code>, llm-d's router with its Gateway, <code>InferencePool</code> and endpoint picker, from llm-d's
+   own charts; note the pool's name and the Gateway's address.</li>
+<li><strong>Pick a namespace for the GPU pods</strong>, ideally one of their own: the controller can create and
+   delete Deployments there. Put a Secret with <code>HF_TOKEN</code> there for gated models, and optionally a
+   PersistentVolumeClaim for the Hugging Face cache.</li>
+<li><strong>Turn it on in the chart:</strong></li>
+</ol>
+<p><code>yaml
+   controller:
+     enabled: true
+     imageSuffix: ""            # Kubernetes alone doesn't need the SkyPilot image
+     kubernetes:
+       enabled: true
+       namespaces: [gpus]       # a Role in each; the first is the default for the config (MERITORDER_GPU_NAMESPACE)
+       apis: [kserve]           # or [llm-d], or both (the default)
+       readNodes: true          # optional: price each replica at the node type it landed on</code></p>
+<ol>
+<li><strong>Configure the cluster and the deployment</strong> (Config → YAML, or <code>config/meritorder.yaml</code>): the
+   price of each GPU node type under <code>kubernetes.node_types</code>, and a backend with
+   <code>serve: {provisioner: kubernetes, kubernetes: {...}}</code> and a priced route from its model.</li>
+</ol>
+<p>With <code>controller.kubernetes.enabled</code>, the controller runs as its own ServiceAccount
+(<code>&lt;release&gt;-meritorder-controller</code>), and only it is bound to these Roles. The gateways and the worker
+keep the shared ServiceAccount, with no Kubernetes permissions.</p>
+<p>What the controller may do, in each namespace in <code>namespaces</code>:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Resources</th>
+<th>Verbs</th>
+<th>Why</th>
+<th>When</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>inferenceservices.serving.kserve.io</code></td>
+<td>get, create, update, patch, delete</td>
+<td>One InferenceService per deployment: start, scale, stop, and replace one a restarted controller finds</td>
+<td><code>apis</code> has <code>kserve</code></td>
+</tr>
+<tr>
+<td><code>deployments.apps</code></td>
+<td>get, create, update, patch, delete for <code>llm-d</code>; list for <code>kserve</code></td>
+<td>llm-d: the model server Deployment. KServe: list its predictor Deployment, for pods it can't create (quota)</td>
+<td>Always</td>
+</tr>
+<tr>
+<td><code>inferencepools.inference.networking.k8s.io</code> (and <code>.x-k8s.io</code>)</td>
+<td>get</td>
+<td>The labels and port the pool expects its pods to have</td>
+<td><code>apis</code> has <code>llm-d</code></td>
+</tr>
+<tr>
+<td><code>pods</code></td>
+<td>list</td>
+<td>Where each replica runs, why one won't start, and its address for vLLM's metrics</td>
+<td>Always</td>
+</tr>
+<tr>
+<td><code>nodes</code> (cluster-wide, a ClusterRole)</td>
+<td>get</td>
+<td>Each replica's node type, zone and spot label, for its price</td>
+<td><code>readNodes: true</code></td>
+</tr>
+</tbody>
+</table></div>
+<p>These are exactly the calls the controller makes: no watches, no <code>events</code>, no <code>services</code>. The kind check
+(<code>scripts/kind/check.py</code>, below) ran every lifecycle step and failure with this Role, for both APIs and for each alone,
+and no call was refused.</p>
+<p>The controller must reach the API server and the pods' port (8000, or the InferencePool's target
+port) for metrics; allow that if NetworkPolicies restrict the namespace. Outside the cluster, for
+development, it uses a kubeconfig (<code>kubernetes.kubeconfig</code>, <code>KUBECONFIG</code> or <code>~/.kube/config</code>), with a
+token, a client certificate, or an exec plugin.</p>
+<p><strong>Trying it without GPUs.</strong> <code>scripts/kind/setup.sh</code> makes a kind cluster whose node advertises eight fake
+<code>nvidia.com/gpu</code>, installs cert-manager, KServe (Standard mode) and the InferencePool CRD, a Service standing in for
+llm-d's Gateway, Postgres and Redis, and Merit Order from this chart with the values in <code>scripts/kind/values.yaml</code>
+(the controller with <code>kubernetes.enabled</code>, both APIs, <code>readNodes</code>). The model servers are <code>scripts/fake_vllm.py</code> in a
+tiny image: it takes <code>vllm serve</code>'s command line and serves <code>/health</code>, <code>/v1/models</code>, chat and completions, and
+<code>/metrics</code> with vLLM's metric names. <code>scripts/kind/check.py</code> then drives every step through the admin API and prints
+what Kubernetes and Merit Order showed; <code>scripts/kind/setup.sh down</code> removes it all. It writes its own kubeconfig and
+leaves <code>~/.kube/config</code> alone. What it verified, and what still needs real GPUs:
+<a href="gpu-autoscaling.html#checked-on-kind">05</a>.</p>
+<h2 id="skypilot-gpus">SkyPilot GPUs</h2>
+<p>The controller launches one SkyPilot cluster per replica on your cloud accounts
+(<a href="gpu-autoscaling.html#how-skypilot-runs-a-deployment">05</a>). Where it runs, it needs SkyPilot (the <code>-gpu</code> image has
+0.14.2 with the extra of every cloud a replica can run on, plus ssh and rsync; the <code>SKYPILOT_EXTRAS</code> build argument
+slims it, <a href="gpu-autoscaling.html#which-clouds">05</a>), the clouds' credentials, and a writable <code>~/.sky</code> for SkyPilot's
+state. Each replica deletes itself when the controller stops renewing its lease, so losing
+<code>~/.sky</code> doesn't leave a GPU billing for long, but keep it: with it, a restarted controller sees and stops its clusters
+at once, and the sweep can tear down anything left over.</p>
+<p>What every Merit Order process needs to agree on, kept in Postgres and made once by the first process to need it (set
+them in the environment instead to pin them):</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Environment</th>
+<th>What it is</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>gpu_install_id</code></td>
+<td><code>MERITORDER_INSTALL_ID</code></td>
+<td>8 characters in every cluster name, <code>mo-&lt;install id&gt;-...</code>: two installs on one cloud account never touch each other's clusters</td>
+</tr>
+<tr>
+<td><code>gpu_replica_secret</code></td>
+<td><code>MERITORDER_GPU_KEY</code></td>
+<td>What each deployment's replica key is derived from: the controller and every gateway (and the worker, for batch work on GPUs) must have the same</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Credentials.</strong> Each cloud reads its own files from the controller's home (<code>/home/meritorder</code> in the images). Mount
+only the clouds you launch on: SkyPilot copies every cloud's credentials it finds there to every replica, whichever
+cloud it runs on, and on most clouds the replica deletes itself with that copy. Use keys made for SkyPilot alone,
+which you can revoke (<a href="gpu-autoscaling.html#which-clouds">05</a> has what each cloud's machines end up holding). The
+controller logs a warning for each key SkyPilot will copy when it loads the config.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Cloud</th>
+<th>Files under the home</th>
+<th>What goes in them</th>
+<th>Compose volume (<code>controller</code>)</th>
+<th>Helm Secret (<code>controller.skypilot.credentials</code>)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>AWS</td>
+<td><code>.aws/credentials</code>, <code>.aws/config</code></td>
+<td>An access key for an IAM user SkyPilot can launch with (or none, with a role on the controller)</td>
+<td><code>~/.aws:/home/meritorder/.aws:ro</code></td>
+<td><code>{secret: aws-files, path: .aws}</code> (<code>--from-file=credentials --from-file=config</code>)</td>
+</tr>
+<tr>
+<td>GCP</td>
+<td><code>.config/gcloud/</code></td>
+<td><code>gcloud auth application-default login</code>, or a service-account key with <code>GOOGLE_APPLICATION_CREDENTIALS</code></td>
+<td><code>~/.config/gcloud:/home/meritorder/.config/gcloud:ro</code></td>
+<td><code>{secret: gcloud-files, path: .config/gcloud}</code></td>
+</tr>
+<tr>
+<td>Azure</td>
+<td><code>.azure/</code></td>
+<td><code>az login --service-principal</code> for a principal that is Contributor on one subscription (az writes here, so not read-only)</td>
+<td><code>~/.azure:/home/meritorder/.azure</code></td>
+<td>A Secret is read-only: run <code>az login --service-principal</code> in the pod once, with the home on a claim</td>
+</tr>
+<tr>
+<td>Lambda</td>
+<td><code>.lambda_cloud/lambda_keys</code></td>
+<td>One line, <code>api_key = &lt;key&gt;</code></td>
+<td><code>~/.lambda_cloud:/home/meritorder/.lambda_cloud:ro</code></td>
+<td><code>{secret: lambda-keys, path: .lambda_cloud}</code> (<code>--from-file=lambda_keys</code>)</td>
+</tr>
+<tr>
+<td>RunPod</td>
+<td><code>.runpod/config.toml</code></td>
+<td><code>runpod config</code>, or <code>api_key = "&lt;key&gt;"</code></td>
+<td><code>~/.runpod:/home/meritorder/.runpod:ro</code></td>
+<td><code>{secret: runpod-files, path: .runpod}</code></td>
+</tr>
+<tr>
+<td>Nebius</td>
+<td><code>.nebius/credentials.json</code> and <code>NEBIUS_TENANT_ID.txt</code></td>
+<td>A service-account key, and the tenant id</td>
+<td><code>~/.nebius:/home/meritorder/.nebius:ro</code></td>
+<td><code>{secret: nebius-files, path: .nebius}</code></td>
+</tr>
+<tr>
+<td>Kubernetes, CoreWeave</td>
+<td><code>.kube/config</code></td>
+<td>A kubeconfig whose context can make pods and services in the namespace (CoreWeave: your CKS cluster's)</td>
+<td><code>~/.kube:/home/meritorder/.kube:ro</code></td>
+<td><code>{secret: kubeconfig, path: .kube}</code> (<code>--from-file=config</code>)</td>
+</tr>
+<tr>
+<td>Vast</td>
+<td><code>.config/vastai/vast_api_key</code></td>
+<td>The API key</td>
+<td><code>~/.config/vastai:/home/meritorder/.config/vastai:ro</code></td>
+<td><code>{secret: vast-key, path: .config/vastai}</code></td>
+</tr>
+<tr>
+<td>Fluidstack</td>
+<td><code>.fluidstack/api_key</code></td>
+<td>The API key</td>
+<td><code>~/.fluidstack:/home/meritorder/.fluidstack:ro</code></td>
+<td><code>{secret: fluidstack-key, path: .fluidstack}</code></td>
+</tr>
+<tr>
+<td>Paperspace</td>
+<td><code>.paperspace/config.json</code></td>
+<td><code>{"apiKey": "&lt;key&gt;"}</code></td>
+<td><code>~/.paperspace:/home/meritorder/.paperspace:ro</code></td>
+<td><code>{secret: paperspace-files, path: .paperspace}</code></td>
+</tr>
+<tr>
+<td>DigitalOcean</td>
+<td><code>.config/doctl/config.yaml</code></td>
+<td><code>doctl auth init</code>, with a token scoped to droplets</td>
+<td><code>~/.config/doctl:/home/meritorder/.config/doctl:ro</code></td>
+<td><code>{secret: doctl-files, path: .config/doctl}</code></td>
+</tr>
+<tr>
+<td>Mithril</td>
+<td><code>.config/mithril/config.yaml</code></td>
+<td>Mithril's CLI config, with its API key</td>
+<td><code>~/.config/mithril:/home/meritorder/.config/mithril:ro</code></td>
+<td><code>{secret: mithril-files, path: .config/mithril}</code></td>
+</tr>
+<tr>
+<td>Seeweb</td>
+<td><code>.seeweb_cloud/seeweb_keys</code></td>
+<td>The API key</td>
+<td><code>~/.seeweb_cloud:/home/meritorder/.seeweb_cloud:ro</code></td>
+<td><code>{secret: seeweb-keys, path: .seeweb_cloud}</code></td>
+</tr>
+<tr>
+<td>SkyPilot's own config</td>
+<td><code>.sky-config/config.yaml</code>, with <code>SKYPILOT_GLOBAL_CONFIG=/home/meritorder/.sky-config/config.yaml</code></td>
+<td><code>remote_identity</code> per cloud, to keep keys off the replicas (<a href="gpu-autoscaling.html#which-clouds">05</a>)</td>
+<td><code>./sky-config.yaml:/home/meritorder/.sky-config/config.yaml:ro</code>, and the variable in <code>.env</code></td>
+<td><code>{secret: sky-config, path: .sky-config}</code>, and the variable in the env Secret</td>
+</tr>
+</tbody>
+</table></div>
+<p>Then <code>sky check</code> in the controller (<code>docker compose exec controller sky check</code>) lists the clouds it can use. OCI, Cudo,
+Shadeform, SCP, vSphere, IBM, Hyperbolic, PrimeIntellect, Verda and Yotta can't run a replica (no Docker images, or no
+autodown, in SkyPilot 0.14.2), so their extras aren't in the image and a deployment naming them is refused.</p>
+<p><strong>Docker Compose.</strong> Uncomment the <code>volumes:</code> of the <code>controller</code> service in <code>compose.yaml</code>: a named volume for
+<code>~/.sky</code> (<code>sky-state</code>) and the credentials of your clouds from the table. If a replica's port can't be reached and the
+controller tunnels to it (always on Vast and Mithril, <a href="gpu-autoscaling.html#reaching-the-replicas">05</a>), put
+<code>MERITORDER_TUNNEL_HOST=controller</code> in <code>.env</code> so the gateways reach the tunnel in the controller's container. The
+tunnels listen only on the address that name resolves to in the controller's container (loopback for <code>127.0.0.1</code> or
+<code>localhost</code>), not on every interface; <code>MERITORDER_TUNNEL_BIND</code> sets another address.</p>
+<p><strong>Helm.</strong> The pods' root filesystem is read-only, so <code>controller.skypilot</code> gives the controller a writable home at
+<code>/home/meritorder</code> (where <code>~/.sky</code> and the SSH configs SkyPilot writes live) and mounts credentials inside it:</p>
+<pre><code class="language-yaml">controller:
+  enabled: true
+  skypilot:
+    home:
+      persistence: true        # a 1 Gi claim the chart makes (kept on uninstall); or existingClaim: &lt;yours&gt;
+    credentials:                                     # one per cloud, from the table above
+      - {secret: lambda-keys, path: .lambda_cloud}   # kubectl create secret generic lambda-keys --from-file=lambda_keys
+      - {secret: aws-files, path: .aws}              # --from-file=credentials --from-file=config
+</code></pre>
+<p>Without <code>persistence</code> or <code>existingClaim</code> the home is an emptyDir: it works, but a restarted pod forgets its clusters
+until their leases run out. With a ReadWriteOnce claim keep <code>controller.replicas: 1</code>, or the standby can't mount it.
+Instead of credential files, a cloud identity on the controller's own ServiceAccount
+(<code>controller.kubernetes.serviceAccountAnnotations</code>, with <code>controller.kubernetes.enabled</code>) or a SkyPilot API server
+you run (<code>SKYPILOT_API_SERVER_ENDPOINT</code> in the env Secret) also work; with a remote API server, the credentials (and
+what SkyPilot copies to the replicas) are the API server's. The gateways must be able to reach each replica's port
+(8000, or the address SkyPilot maps it to on Kubernetes and RunPod) from the cluster; NetworkPolicies that limit egress
+need to allow it.</p>
+<h2 id="performance-and-scaling">Performance and scaling</h2>
+<p>Measured against zero-latency mock backends with real Postgres and Redis (one laptop, Apple M4 Max),
+so the numbers are Merit Order's own work. The benchmark is in <code>scripts/bench_gateway.py</code>.</p>
+<p><strong>Added latency per call</strong> (before the request goes upstream; the same for time to first token on
+streams):</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Request</th>
+<th>Merit Order's own time</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Chat with a short or 2k-token prompt</td>
+<td>~0.6 ms</td>
+</tr>
+<tr>
+<td>Agent turn: 30k tokens of history + tools</td>
+<td>~2 ms</td>
+</tr>
+<tr>
+<td>Agent turn: 120k tokens of history + tools</td>
+<td>~6.5 ms (mostly parsing and hashing a ~500 KB body)</td>
+</tr>
+</tbody>
+</table></div>
+<p>Add the network hop to the gateway, and <strong>two Redis round trips</strong> (one pipeline for budgets, rate
+limits, session, and GPU load and in-flight counts; one to save the session). With a managed Redis in the same zone,
+that should be about 0.5–2 ms (an estimate: load against Redis and Postgres over a real network hasn't been measured). Ledger writes, spend counters, and telemetry happen after the response, in
+one more pipeline. For comparison, models take 0.3–2 s to first token, and many seconds to prefill
+120k tokens.</p>
+<p><strong>Throughput:</strong> about <strong>1,100 requests/s per process</strong> (one CPU core); it scales nearly linearly
+with processes (7,100 requests/s with 8 on one machine that was also running Redis, Postgres,
+and the load generator). Gateways share nothing but Redis and Postgres, so add pods or
+<code>--workers</code> (<code>MERITORDER_WORKERS</code>) to scale. Long streams are cheap to hold open: what limits a
+process is CPU per request, not open connections.</p>
+<p><strong>With each feature on.</strong> Measured again on 14 November with <code>scripts/bench_load.py</code>, which starts a
+gateway per feature and loads it with 64 connections, on the same laptop, with in-memory state and
+storage (no Redis or Postgres; then a process does about three times as many requests, the Redis
+client being most of the difference, so compare the rows with each other, not with the numbers above).
+The load average was about 5 when it started (the machine runs other work). One process each:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Turned on</th>
+<th>Short chat turn: requests/s, CPU per request</th>
+<th>Agent turn, 12 tool results (100 KB): requests/s, CPU</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Nothing, the code of 9 November (<code>6b5886c</code>)</td>
+<td>3,703, 0.27 ms</td>
+<td>508, 1.98 ms</td>
+</tr>
+<tr>
+<td>Nothing, today</td>
+<td>2,951, 0.34 ms</td>
+<td>540, 1.87 ms</td>
+</tr>
+<tr>
+<td>Token counts calibrated (ratios learned for both models)</td>
+<td>2,932, 0.34 ms</td>
+<td>534, 1.89 ms</td>
+</tr>
+<tr>
+<td><code>routing.levels</code> with three times the word lists</td>
+<td>2,784, 0.36 ms</td>
+<td>523, 1.93 ms</td>
+</tr>
+<tr>
+<td><code>model_choice: cost_per_success</code></td>
+<td>2,885, 0.35 ms</td>
+<td>521, 1.93 ms</td>
+</tr>
+<tr>
+<td>Learned router, shadow mode, with a trained model</td>
+<td>2,172, 0.46 ms</td>
+<td>520, 1.94 ms</td>
+</tr>
+<tr>
+<td>Learned router, route mode</td>
+<td>2,047, 0.48 ms</td>
+<td>506, 1.99 ms</td>
+</tr>
+<tr>
+<td>Rule-based compression</td>
+<td></td>
+<td>508, 1.98 ms</td>
+</tr>
+<tr>
+<td>Model-based compression (a stub service that answers at once), results already decided</td>
+<td></td>
+<td>476, 2.11 ms</td>
+</tr>
+<tr>
+<td>Model-based compression, a new result in every request</td>
+<td></td>
+<td>219, 4.55 ms</td>
+</tr>
+<tr>
+<td>A GPU deployment (mock, two replicas), replica affinity off / on</td>
+<td>2,846 / 2,809, 0.35 / 0.36 ms</td>
+<td></td>
+</tr>
+</tbody>
+</table></div>
+<p>Eight processes at once weren't measured cleanly this time: each try met a load average of 30 or more
+from other work. Processes still share nothing but Redis and Postgres, so they scale as before.</p>
+<ul>
+<li><strong>Agent turns</strong> cost two thirds more CPU than on 9 November before this measurement (285 requests/s):
+  the token estimate, which counts what text is made of (<a href="routing.html#counting-tokens">03</a>), counted the whole body on
+  every turn. Each long text's counts are now kept per process, and a request's texts counted one by one
+  (they add up to exactly the joined text's, so the estimate is the same); the rules' output is kept per
+  text the same way. Agent turns are now a little cheaper than on 9 November.</li>
+<li><strong>Short turns</strong> cost about a quarter more CPU than on 9 November, spread across what was added since
+  (configurable levels, the checks of features that are off, the body-limit and security-header
+  middleware, more ledger fields), none of it more than a few percent.</li>
+<li><strong>The learned router</strong> adds 35–40% to a short turn's CPU (its features are hashed with a key, an
+  ensemble predicts, and a feature row is written per request); on an agent turn it's lost in the rest.
+  It now hashes the level rules once per configuration rather than per request.</li>
+<li><strong>Model-based compression</strong> adds 13% when the results are already decided, and more than doubles the
+  CPU of a turn that brings a new result (the call to the service and storing its decision; the model's
+  own time comes on top, see <a href="caching-and-sessions.html#measured-on-the-published-models">04</a>). That
+  happens once per result; later turns apply the stored decision.</li>
+<li>Calibrated token counts, configured levels, cost per success and replica affinity are within the
+  noise.</li>
+<li><strong>Expected total cost</strong> (decision 62), measured on 15 November against the learned router in shadow mode with the
+  team exploring (<code>bench_load.py all --features exploration,expected-cost</code>, 15 seconds each, the same laptop under
+  other load): a chat turn, a new task every request, 0.72 → 0.82 ms of CPU (the plan over every route and the opening
+  prompt's triage buckets); an agent turn that grows an edit and a test run each request (<code>agent-grow</code>) 3.50 → 3.55 ms.</li>
+</ul>
+<p>A rough sizing for 10,000 requests/s: 10–16 gateway cores, one Redis node (~20 commands per
+request in three pipelines), and Postgres taking 10,000 ledger inserts/s, the first part that would
+need work (batched inserts) at that scale. For perspective, an organization spending $300k a month
+on LLMs makes about 5–50 requests/s. The other part that grows with traffic is reporting over months of rows: there, a
+ClickHouse copy of the ledger answers the long ranges and tag breakdowns (<a href="reporting.html#clickhouse-for-very-large-deployments">08</a>).</p>
+<p>Connection pools, all per process:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Pool</th>
+<th>Default</th>
+<th>Setting</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Upstream, per backend (each stream holds one connection)</td>
+<td>500</td>
+<td><code>MERITORDER_UPSTREAM_MAX_CONNECTIONS</code>, <code>MERITORDER_UPSTREAM_KEEPALIVE</code> (100)</td>
+</tr>
+<tr>
+<td>Redis (waits for a free connection rather than failing)</td>
+<td>200</td>
+<td><code>MERITORDER_REDIS_MAX_CONNECTIONS</code></td>
+</tr>
+<tr>
+<td>Postgres</td>
+<td>10</td>
+<td><code>MERITORDER_DB_POOL_SIZE</code>; with many processes, put PgBouncer in front</td>
+</tr>
+</tbody>
+</table></div>
+<p>Request bodies are capped at 32 MB (<code>MERITORDER_MAX_BODY_MB</code>; Anthropic's own limit), 64 KB for
+sign-in, and 1 MB for SCIM; batch uploads get the providers' own limits (512 MB on <code>/v1/files</code>, 256 MB on
+<code>/v1/messages/batches</code>). Larger ones get a 413 before the handler reads them (at once when the
+<code>Content-Length</code> says so, or as soon as a body sent without one passes the limit). An ingress in front needs room for those too
+(nginx: <code>nginx.ingress.kubernetes.io/proxy-body-size</code>). A backend's answer is capped the same way, at the largest of
+those (512 MB once decompressed, whole or as a stream): past it the gateway drops the connection and treats it as a
+broken one, so a backend at a <code>base_url</code> an admin set can't make a gateway hold more.</p>
+<h2 id="ingress-and-tls">Ingress and TLS</h2>
+<p>Merit Order is a plain HTTP service. It runs behind whatever the organization already uses: a cloud
+load balancer, an existing ingress controller, NGINX, Envoy. Nothing requires a proxy in front of
+it. Single-machine installs that want HTTPS can enable the Caddy profile (<code>MERITORDER_DOMAIN</code> is
+the hostname it gets a certificate for); the Helm chart can create an Ingress (<code>ingress.enabled</code>).</p>
+<p>What's exposed: Docker Compose publishes the gateway on <code>127.0.0.1</code> (set <code>MERITORDER_BIND=0.0.0.0</code>
+to open it to your network). Behind a public ingress, <code>/metrics</code> is reachable too; it shows spend
+and traffic totals, not prompts or users, but set <code>MERITORDER_METRICS_TOKEN</code> (and Helm
+<code>metrics.tokenKey</code>) to require a token. The console is served with a strict Content-Security-Policy
+and refuses to be framed. It loads nothing from elsewhere: its fonts (Geist and Geist Mono) are bundled with it, so it
+works offline.</p>
+<p>Behind a proxy, have it pass the <code>Host</code> header through. The links the gateway writes into its own answers (a batch's
+<code>results_url</code>) use the request's <code>Host</code> and scheme. It never reads <code>X-Forwarded-Host</code>, which any client can send;
+<code>meritorder serve</code> applies <code>X-Forwarded-Proto</code> and <code>X-Forwarded-For</code> only from the proxies uvicorn trusts
+(<code>FORWARDED_ALLOW_IPS</code>, default <code>127.0.0.1</code>; set it to your load balancer's addresses).</p>
+<p><strong>Network policies.</strong> With <code>networkPolicy.enabled</code> (off by default; it needs a CNI that enforces policies, such as
+Calico, Cilium or the cloud's), the chart adds NetworkPolicies that limit who may connect: the gateways' port 8080
+from <code>networkPolicy.gatewayFrom</code> (NetworkPolicy peers, e.g. the ingress controller's namespace; empty: any source,
+that port only), the worker's metrics port from <code>networkPolicy.metricsFrom</code>, and the worker, controller and
+compressor only from the release's own pods. Outbound traffic isn't limited, since the gateways call providers,
+Postgres, Redis and GPU replicas wherever those are.</p>
+<pre><code class="language-yaml">networkPolicy:
+  enabled: true
+  gatewayFrom:
+    - namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: ingress-nginx}}
+</code></pre>
+<h2 id="configuration">Configuration</h2>
+<p><code>config/meritorder.yaml</code> (plus <code>include:</code>d files and environment variables for secrets) describes
+everything. The image ships the default config. Compose mounts the repo's <code>config/</code> over it
+(read-only); in Helm, override files with <code>--set-file configFiles.&lt;name&gt;=...</code>.</p>
+<p>API prices are not typed in. The worker refreshes them every 15 minutes from OpenRouter's catalog
+(OpenRouter routes) and LiteLLM's price list (direct provider APIs); <code>price:</code> on an API route only
+overrides the list, e.g. for a negotiated discount. Quality scores come from Epoch AI's benchmark
+data by default (<code>quality.source</code>; <code>artificial_analysis</code> needs <code>ARTIFICIAL_ANALYSIS_API_KEY</code>),
+refreshed daily. The <code>quality:</code> written on a model is used with <code>quality.source: config</code>, and until a
+source has been fetched. A model the source doesn't cover isn't picked by <code>auto</code> unless it has a
+<code>quality_override</code>.</p>
+<pre><code class="language-yaml">baseline_model: claude-sonnet          # counterfactual for savings reports
+include: [models-open.yaml, models-embeddings.yaml]   # open-weight catalog, direct vendor APIs, embeddings
+quality: {source: epoch}               # where `auto` gets 1-5 quality scores
+
+backends:
+  bedrock:
+    format: anthropic
+    base_url: https://bedrock-mantle.${AWS_REGION:-us-east-1}.api.aws/anthropic
+    auth: {type: aws_sigv4, service: bedrock-mantle, region: &quot;${AWS_REGION:-us-east-1}&quot;}
+
+models:
+  claude-sonnet:
+    aliases: [&quot;claude-sonnet-*&quot;]
+    quality: {coding: 5, general: 4}   # used with quality.source: config, or until a source is fetched
+    routes:
+      - {backend: anthropic, model: claude-sonnet-5-5}           # price from the live list
+      - {backend: bedrock, model: anthropic.claude-sonnet-5-5}
+
+teams:
+  platform:
+    budget_usd_month: 20000
+    user_budget_usd_month: 500
+    allowed_models: [&quot;*&quot;]
+    allowed_backends: [&quot;*&quot;, &quot;!openrouter-free&quot;]
+    compression: {enabled: true}
+</code></pre>
+<p>Useful commands:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Command</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>meritorder check</code></td>
+<td>Which backends and models are usable with the current credentials; with Google Groups on, which key or identity it would call Google as (nothing is sent)</td>
+</tr>
+<tr>
+<td><code>meritorder prices refresh</code></td>
+<td>Write the live prices, context windows, output limits, and quality scores to <code>prices.json</code> (the worker keeps the stored ones current on its own)</td>
+</tr>
+<tr>
+<td><code>meritorder models discover</code></td>
+<td>List the model IDs each enabled backend serves</td>
+</tr>
+<tr>
+<td><code>meritorder keys create / list / revoke</code></td>
+<td>Manage API keys</td>
+</tr>
+<tr>
+<td><code>meritorder login</code> or <code>use-key &lt;key&gt;</code>, then <code>meritorder setup pi</code> / <code>claude-code</code></td>
+<td>Sign in with Entra or Google (or save a key you were given) and point a harness at the gateway; <code>setup claude-code --config-dir &lt;dir&gt;</code> writes a separate Claude Code profile</td>
+</tr>
+<tr>
+<td><code>meritorder usage [--bills]</code></td>
+<td>Your own spend; <code>--bills</code> (finance and admins): the ledger against the providers' bills (<a href="reporting.html#checking-costs-against-the-bills">08</a>)</td>
+</tr>
+<tr>
+<td><code>meritorder batch submit FILE [--watch]</code>, <code>watch</code>, <code>list</code>, <code>results ID --out FILE</code>, <code>cancel</code>, <code>storage</code></td>
+<td>Send work that can wait to the providers' batch APIs and running GPUs (OpenAI or Anthropic JSONL) and get the results; <code>storage</code> (admins): where uploads and GPU work are held and the batch key's rotation</td>
+</tr>
+<tr>
+<td><code>meritorder eval --models a,b [--apply]</code></td>
+<td>Measure quality scores with graded tasks (asks before spending)</td>
+</tr>
+<tr>
+<td><code>meritorder export --out file.jsonl</code> or <code>s3://…</code> (<code>--format csv</code> or <code>parquet</code>; Parquet needs the <code>parquet</code> extra)</td>
+<td>Export the ledger</td>
+</tr>
+<tr>
+<td><code>meritorder worker --backfill</code></td>
+<td>Rebuild hourly report rollups from the raw ledger</td>
+</tr>
+<tr>
+<td><code>meritorder clickhouse backfill [--start] [--end]</code></td>
+<td>Copy existing ledger rows to ClickHouse (<code>reporting.clickhouse</code>); run again, it copies only what's missing</td>
+</tr>
+<tr>
+<td><code>meritorder clickhouse status</code></td>
+<td>Whether ClickHouse is reachable, how far the copy has got, its rows and size on disk, and whether reports read it</td>
+</tr>
+<tr>
+<td><code>meritorder controller [--once] [--interval 60]</code></td>
+<td>Run the GPU capacity controller</td>
+</tr>
+<tr>
+<td><code>meritorder gpu volumes [list \| delete &lt;name&gt; --yes]</code></td>
+<td>The weights cache volumes (<code>serve.weights_cache: volume</code>), what they cost a month and what uses them; delete one. Nothing else deletes them (<a href="gpu-autoscaling.html#the-weights-cache-volume">05</a>). Runs where the controller does</td>
+</tr>
+<tr>
+<td><code>meritorder compressor [--model …] [--device auto] [--port 8090]</code></td>
+<td>Run the LLMLingua-2 service for model-based compression (the <code>compressor</code> extra)</td>
+</tr>
+<tr>
+<td><code>meritorder router train [--days N] [--dry-run]</code></td>
+<td>Train the learned router on the recorded requests (default: the last <code>routing.learned.train_days</code>, 30); it's used only if it beats the rules on the newest fifth (needs Postgres)</td>
+</tr>
+<tr>
+<td><code>meritorder router report [--days 7]</code></td>
+<td>Where the learned router and the rules disagree, what each would cost, and the outcomes</td>
+</tr>
+<tr>
+<td><code>meritorder router use &lt;version or none&gt;</code></td>
+<td>Choose the learned-router model gateways use</td>
+</tr>
+</tbody>
+</table></div>
+<p>Once the first configuration is saved from the console, the stored version (in Postgres) is what
+gateways, the worker, and the controller use; the YAML file is the starting point and the format
+for import and export.</p>
+<h2 id="secrets">Secrets</h2>
+<p>Merit Order never stores provider keys. It reads them from the environment (<code>value_env</code>) or from a
+file (<code>value_file</code>), and a configuration saved from the console is refused if it contains a literal
+key, so keys never reach Postgres or the config history. A saved configuration may also read only the
+variables and files the rules in <a href="auth-and-spend.html#secrets-in-a-saved-configuration">06</a> allow, so an
+admin can't point a backend at their own server and have it send the database URL. Those rules don't apply to
+the YAML file on disk. The operator widens them with three variables on the gateways and the worker:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>MERITORDER_CONFIG_SECRET_ENVS</code></td>
+<td>More variables any secret field (<code>value_env</code>, <code>key_env</code>, ...) may read: comma-separated names, a trailing <code>*</code> for a prefix (<code>CORP_LLM_KEY,VAULT_*</code>)</td>
+</tr>
+<tr>
+<td><code>MERITORDER_CONFIG_ENVS</code></td>
+<td>More variables <code>${NAME}</code> may name outside secret fields (a <code>base_url</code>, a region)</td>
+</tr>
+<tr>
+<td><code>MERITORDER_SECRETS_DIR</code></td>
+<td>Where <code>*_file</code> fields may read from. Default <code>/run/secrets/meritorder</code>, where the chart's <code>secrets.mountAsFiles</code> mounts the Secret</td>
+</tr>
+</tbody>
+</table></div>
+<p>Where each secret lives:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Secret</th>
+<th>Where</th>
+<th>How</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Provider keys</td>
+<td>Environment or a mounted file</td>
+<td>Supplied by the platform from your secret store</td>
+</tr>
+<tr>
+<td>Google Groups service-account key (optional)</td>
+<td>Environment (<code>MERITORDER_GOOGLE_GROUPS_CREDENTIALS</code>) or a mounted file</td>
+<td>Same Secret; none with GKE Workload Identity</td>
+</tr>
+<tr>
+<td><code>MERITORDER_DATABASE_URL</code>, <code>MERITORDER_REDIS_URL</code></td>
+<td>Environment</td>
+<td>Same Secret as the provider keys</td>
+</tr>
+<tr>
+<td><code>MERITORDER_CLICKHOUSE_PASSWORD</code> (only with ClickHouse)</td>
+<td>Environment or a mounted file</td>
+<td>Same Secret; the shipped config also reads <code>/run/secrets/meritorder/MERITORDER_CLICKHOUSE_PASSWORD</code> (Helm <code>secrets.mountAsFiles</code>), so a rotation needs no restart</td>
+</tr>
+<tr>
+<td>Merit Order keys (<code>mo-…</code>) for people and harnesses</td>
+<td>Postgres</td>
+<td>Shown once; stored only as a SHA-256 hash (random 256-bit tokens, so a slow hash isn't needed)</td>
+</tr>
+<tr>
+<td>Entra / Google / OIDC tokens</td>
+<td>Not stored</td>
+<td>Verified against the issuer's signing keys (and, for Google, the Workspace domain and a verified email), then exchanged for a short-lived <code>mo-</code> key</td>
+</tr>
+<tr>
+<td><code>MERITORDER_FEATURE_KEY</code> (optional)</td>
+<td>Environment, the same on every gateway and the worker</td>
+<td>The key the learned router hashes words with. Unset, one is generated and kept in Postgres, where whoever can read the database can check guessed words against the stored hashes; set it to keep it out. Changing it makes recorded features and models unusable</td>
+</tr>
+<tr>
+<td><code>MERITORDER_BATCH_KEY</code></td>
+<td>Environment (the same on every gateway and the worker)</td>
+<td>Seals uploaded batch files while they wait to be submitted, and batch work held for GPUs (<a href="request-flow.html#what-the-gateway-holds-and-for-how-long">02</a>). Any long random string (<code>openssl rand -base64 32</code>). Without it, a gateway on Postgres refuses uploads and sends no batch work to GPUs. To rotate it, move the old value to <code>MERITORDER_BATCH_KEY_PREVIOUS</code>: what it sealed is read for <code>batches.key_grace_days</code> (the retention period plus two days), then the old key can go. Changing it without that makes waiting uploads unreadable</td>
+</tr>
+<tr>
+<td><code>MERITORDER_RESPONSES_KEY</code>, <code>MERITORDER_RESPONSES_OLD_KEYS</code></td>
+<td>Environment or a mounted file (<code>response_store.key_file</code>), the same on every gateway and the worker</td>
+<td>Seals what teams in the Responses API's stored mode keep (<a href="caching-and-sessions.html#stateful-apis">04</a>). Any long random string. Without it, a gateway on Postgres refuses requests that would be stored (503). To rotate, move the old key to <code>MERITORDER_RESPONSES_OLD_KEYS</code> (comma-separated) and set the new one; the worker seals everything again, and Config → Teams says when the old key is no longer needed. Dropping a key that still seals something makes that unreadable</td>
+</tr>
+</tbody>
+</table></div>
+<p><code>MemoryState</code> (no <code>MERITORDER_REDIS_URL</code>) is for development, tests and a single gateway: it never evicts
+anything, so its memory grows with traffic until the process restarts. Production runs on Redis, where keys expire.</p>
+<p><strong>The best key is no key.</strong> For each cloud's own models, use the workload's identity instead:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Models</th>
+<th>Config</th>
+<th>Identity</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Claude in Bedrock</td>
+<td><code>auth: {type: aws_sigv4, service: bedrock-mantle, region: …}</code></td>
+<td>IRSA or EKS Pod Identity: a role allowed to invoke the Bedrock models you route to</td>
+</tr>
+<tr>
+<td>Claude and Gemini on Vertex</td>
+<td><code>auth: {type: google}</code></td>
+<td>GKE Workload Identity: a Google service account with <code>roles/aiplatform.user</code></td>
+</tr>
+<tr>
+<td>Azure OpenAI, Foundry</td>
+<td><code>auth: {type: azure_ad}</code></td>
+<td>AKS Workload Identity: a managed identity with <em>Cognitive Services OpenAI User</em> (or the Foundry equivalent) on the resource</td>
+</tr>
+</tbody>
+</table></div>
+<p>Batches through Bedrock and Vertex AI need a bucket (<code>batch.bucket</code> on the backend). Bedrock: the workload's role needs
+<code>bedrock:CreateModelInvocationJob</code>, <code>GetModelInvocationJob</code>, <code>StopModelInvocationJob</code>, <code>iam:PassRole</code> on <code>batch.role_arn</code>,
+and <code>s3:PutObject</code>, <code>GetObject</code>, <code>ListBucket</code>, <code>DeleteObject</code> on the bucket's prefix; the role Bedrock assumes
+(<code>batch.role_arn</code>) needs to read and write the same prefix. Vertex AI: the service account needs
+<code>roles/aiplatform.user</code> and <code>roles/storage.objectAdmin</code> on the bucket (Vertex's own service agent reads and writes it too).
+The other batch APIs use the backend's own key.</p>
+<p><code>batches.storage.bucket</code> holds uploads and GPU batch work in your own bucket instead of Postgres, signed with a backend's
+credentials (<code>batches.storage.backend</code>, else the first that signs in to that cloud, else that cloud's defaults). The
+workload needs to put, get, list and delete objects under the prefix: S3 <code>s3:PutObject</code>, <code>GetObject</code>, <code>ListBucket</code>,
+<code>DeleteObject</code>; Cloud Storage <code>roles/storage.objectAdmin</code>; Azure Blob Storage <em>Storage Blob Data Contributor</em> on the
+container (an Entra token for <code>https://storage.azure.com/.default</code>).</p>
+<p>The worker serves the batch requests it settles as Prometheus metrics on <code>MERITORDER_WORKER_METRICS_PORT</code> (Compose and the
+Helm chart: 9464, <code>worker.metricsPort</code>; the chart adds a Service, and its ServiceMonitor scrapes it next to the gateways).</p>
+<p>The image includes the Google and Azure identity libraries. In Helm, put the identity on the
+service account (<code>serviceAccount.annotations</code>; AKS also needs the pod label
+<code>podLabels: {azure.workload.identity/use: "true"}</code>). Third-party providers (Anthropic direct,
+OpenAI, the Gemini API, OpenRouter, xAI, DeepSeek, Moonshot, Z.ai, MiniMax, Mistral) always need a key.
+Reading Google Groups for sign-in works keyless the same way: GKE Workload Identity with a Google service account
+that has the Groups Reader admin role in the Google Admin console (<a href="auth-and-spend.html#google-groups">06</a>).</p>
+<h3 id="kubernetes-three-ways-to-provide-the-secret">Kubernetes: three ways to provide the Secret</h3>
+<p>Every component reads its environment from one Secret. Set exactly one of these (the chart refuses
+more than one):</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Value</th>
+<th>What it does</th>
+<th>Use for</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>externalSecret.enabled</code></td>
+<td>The chart creates an <code>ExternalSecret</code>; <a href="https://external-secrets.io">External Secrets Operator</a> syncs it from AWS Secrets Manager, GCP Secret Manager, Azure Key Vault, Vault, …</td>
+<td>Production (recommended)</td>
+</tr>
+<tr>
+<td><code>existingSecret</code></td>
+<td>Use a Secret you create and manage some other way (Sealed Secrets, SOPS, CSI sync, by hand)</td>
+<td>Production</td>
+</tr>
+<tr>
+<td><code>secretEnv</code></td>
+<td>The chart creates the Secret from Helm values</td>
+<td>Trying it out only: the values end up in Helm's release history (one Secret per revision) and in whatever values file you passed</td>
+</tr>
+</tbody>
+</table></div>
+<p>The <code>ExternalSecret</code> is a pre-install/pre-upgrade hook, because the migration hook needs
+<code>MERITORDER_DATABASE_URL</code> before anything else starts. Its synced Secret is kept across upgrades;
+delete it by hand after <code>helm uninstall</code>.</p>
+<h3 id="rotating-keys">Rotating keys</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Approach</th>
+<th>Values</th>
+<th>What happens when a key changes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Rolling restart</strong> (default)</td>
+<td><code>secrets.reloadOnChange: true</code> and <a href="https://github.com/stakater/Reloader">Stakater Reloader</a> installed in the cluster</td>
+<td>Reloader rolls the gateways, worker, and controller; pods start with the new environment. Works for every secret, including the database and Redis URLs</td>
+</tr>
+<tr>
+<td><strong>No restart</strong></td>
+<td><code>secrets.mountAsFiles: true</code>, and <code>value_file:</code> on each backend's <code>auth</code></td>
+<td>The Secret is also mounted as files under <code>/run/secrets/meritorder/</code>; Kubernetes refreshes them about a minute after the Secret changes, and the next request uses the new key. Provider keys only</td>
+</tr>
+</tbody>
+</table></div>
+<p>With External Secrets, a rotation in the cloud store reaches the Secret within
+<code>externalSecret.refreshInterval</code> (default 1 h; lower it, or annotate the ExternalSecret with
+<code>force-sync</code> to pull at once). For zero-restart rotation of provider keys:</p>
+<pre><code class="language-yaml"># values.yaml
+secrets: {mountAsFiles: true, reloadOnChange: false}
+</code></pre>
+<pre><code class="language-yaml"># meritorder.yaml: the file when it's there, the environment otherwise (so the same config works locally)
+backends:
+  openrouter:
+    auth: {type: api_key, value_file: /run/secrets/meritorder/OPENROUTER_API_KEY, value_env: OPENROUTER_API_KEY}
+</code></pre>
+<p>Keep the old key valid until the new one is everywhere (most providers allow two keys at once),
+then revoke it.</p>
+<h3 id="aws-secrets-manager">AWS: Secrets Manager</h3>
+<p>One JSON secret holding every variable:</p>
+<pre><code class="language-bash">aws secretsmanager create-secret --name meritorder/prod --secret-string '{
+  &quot;MERITORDER_DATABASE_URL&quot;: &quot;postgresql://…&quot;, &quot;MERITORDER_REDIS_URL&quot;: &quot;rediss://…&quot;,
+  &quot;ANTHROPIC_API_KEY&quot;: &quot;…&quot;, &quot;OPENROUTER_API_KEY&quot;: &quot;…&quot;}'
+</code></pre>
+<pre><code class="language-yaml"># Once per cluster. ESO's own service account has an IRSA role allowed to read meritorder/*.
+apiVersion: external-secrets.io/v1
+kind: ClusterSecretStore
+metadata: {name: aws-secrets-manager}
+spec:
+  provider:
+    aws: {service: SecretsManager, region: us-east-1}
+---
+# values.yaml
+externalSecret:
+  enabled: true
+  secretStoreRef: {kind: ClusterSecretStore, name: aws-secrets-manager}
+  dataFrom:
+    - extract: {key: meritorder/prod}       # every JSON key becomes an environment variable
+serviceAccount:
+  annotations: {eks.amazonaws.com/role-arn: arn:aws:iam::123456789012:role/meritorder}  # keyless Bedrock
+</code></pre>
+<p>Without Kubernetes (ECS), put the same secret ARNs in the task definition's <code>secrets</code>
+(<code>valueFrom</code>) and give the task role the Bedrock permissions.</p>
+<h3 id="gcp-secret-manager">GCP: Secret Manager</h3>
+<p>Secret Manager holds one value per secret, so map each one:</p>
+<pre><code class="language-bash">printf '%s' &quot;$ANTHROPIC_API_KEY&quot; | gcloud secrets create meritorder-anthropic-api-key --data-file=-
+</code></pre>
+<pre><code class="language-yaml">apiVersion: external-secrets.io/v1
+kind: ClusterSecretStore
+metadata: {name: gcp-secret-manager}
+spec:
+  provider:
+    gcpsm: {projectID: my-project}          # ESO authenticates with its own Workload Identity
+---
+# values.yaml
+externalSecret:
+  enabled: true
+  secretStoreRef: {kind: ClusterSecretStore, name: gcp-secret-manager}
+  data:
+    - {secretKey: MERITORDER_DATABASE_URL, remoteRef: {key: meritorder-database-url}}
+    - {secretKey: MERITORDER_REDIS_URL,    remoteRef: {key: meritorder-redis-url}}
+    - {secretKey: ANTHROPIC_API_KEY,       remoteRef: {key: meritorder-anthropic-api-key}}
+serviceAccount:
+  annotations: {iam.gke.io/gcp-service-account: meritorder@my-project.iam.gserviceaccount.com}  # keyless Vertex
+env: {GOOGLE_CLOUD_PROJECT: my-project}
+</code></pre>
+<p>Without Kubernetes (Cloud Run), use <code>--set-secrets ANTHROPIC_API_KEY=meritorder-anthropic-api-key:latest</code>
+and run the service as a service account with <code>roles/aiplatform.user</code>.</p>
+<h3 id="azure-key-vault">Azure: Key Vault</h3>
+<p>Key Vault secret names allow only letters, digits, and dashes, so map them to variable names:</p>
+<pre><code class="language-bash">az keyvault secret set --vault-name my-vault --name anthropic-api-key --value &quot;$ANTHROPIC_API_KEY&quot;
+</code></pre>
+<pre><code class="language-yaml">apiVersion: external-secrets.io/v1
+kind: ClusterSecretStore
+metadata: {name: azure-key-vault}
+spec:
+  provider:
+    azurekv:
+      vaultUrl: https://my-vault.vault.azure.net
+      authType: WorkloadIdentity
+      serviceAccountRef: {name: external-secrets, namespace: external-secrets}
+---
+# values.yaml
+externalSecret:
+  enabled: true
+  secretStoreRef: {kind: ClusterSecretStore, name: azure-key-vault}
+  data:
+    - {secretKey: MERITORDER_DATABASE_URL, remoteRef: {key: meritorder-database-url}}
+    - {secretKey: MERITORDER_REDIS_URL,    remoteRef: {key: meritorder-redis-url}}
+    - {secretKey: ANTHROPIC_API_KEY,       remoteRef: {key: anthropic-api-key}}
+serviceAccount:
+  annotations: {azure.workload.identity/client-id: 00000000-0000-0000-0000-000000000000}  # keyless Azure OpenAI
+podLabels: {azure.workload.identity/use: &quot;true&quot;}
+</code></pre>
+<p>Without Kubernetes (Container Apps), add each secret as a Key Vault reference
+(<code>--secrets name=keyvaultref:&lt;secret-uri&gt;,identityref:&lt;identity&gt;</code>) and map it to an environment
+variable.</p>
+<h3 id="locally">Locally</h3>
+<p><code>.env</code> (git-ignored) is plain text on your disk: fine for development, not for shared machines.
+Compose reads it into every Merit Order container (not Postgres, Redis, ClickHouse, or Caddy).</p>
+<h2 id="helm-values-worth-knowing">Helm values worth knowing</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Value</th>
+<th>Default</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>image.repository</code>, <code>image.tag</code></td>
+<td><code>ghcr.io/merit-order/meritorder</code>; <code>""</code> (the chart's <code>appVersion</code>)</td>
+<td>The default tag, <code>0.0.1</code>, is what release tag <code>v0.0.1</code> publishes; a chart from a later release defaults to that release's images. Until the tag is pushed, build and push the images yourself and point these at them</td>
+</tr>
+<tr>
+<td><code>env</code></td>
+<td><code>{}</code></td>
+<td>Non-secret environment for every component. <code>MERITORDER_GATEWAY_URL</code> (how the worker reaches the gateway to run evals started on the console) defaults to the chart's gateway Service; set it here to override</td>
+</tr>
+<tr>
+<td><code>externalSecret</code></td>
+<td>off</td>
+<td>Sync the env Secret from a cloud secret store via External Secrets Operator (<a href="#secrets">Secrets</a>)</td>
+</tr>
+<tr>
+<td><code>existingSecret</code></td>
+<td><code>""</code></td>
+<td>A Secret you manage with provider keys, <code>MERITORDER_DATABASE_URL</code>, <code>MERITORDER_REDIS_URL</code></td>
+</tr>
+<tr>
+<td><code>secretEnv</code></td>
+<td><code>{}</code></td>
+<td>Chart-made Secret from values: for trying it out only</td>
+</tr>
+<tr>
+<td><code>secrets.reloadOnChange</code></td>
+<td><code>true</code></td>
+<td>Reloader annotation: roll pods when the Secret changes</td>
+</tr>
+<tr>
+<td><code>secrets.mountAsFiles</code></td>
+<td><code>false</code></td>
+<td>Also mount the Secret as files, for <code>value_file:</code> keys that rotate without a restart</td>
+</tr>
+<tr>
+<td><code>configFiles</code></td>
+<td><code>{}</code></td>
+<td>Files mounted over <code>/app/config/&lt;name&gt;</code></td>
+</tr>
+<tr>
+<td><code>gateway.autoscaling</code></td>
+<td>on, 2 to 10 pods at 70% CPU</td>
+<td>HPA on CPU; <code>gateway.podDisruptionBudget.minAvailable</code> is 1</td>
+</tr>
+<tr>
+<td><code>worker.metricsPort</code></td>
+<td><code>9464</code></td>
+<td>The worker's batch metrics, with a Service the ServiceMonitor scrapes; <code>0</code> turns it off</td>
+</tr>
+<tr>
+<td><code>controller.enabled</code></td>
+<td><code>false</code></td>
+<td>Turn on with self-hosted backends; extra replicas stand by</td>
+</tr>
+<tr>
+<td><code>controller.imageSuffix</code></td>
+<td><code>-gpu</code></td>
+<td>The controller runs the image variant with SkyPilot; <code>""</code> for GPUs on Kubernetes alone</td>
+</tr>
+<tr>
+<td><code>controller.kubernetes.enabled</code></td>
+<td><code>false</code></td>
+<td>GPUs on this cluster: the controller's own ServiceAccount and a Role in each GPU namespace (<a href="#gpus-on-your-kubernetes-cluster">GPUs on your Kubernetes cluster</a>)</td>
+</tr>
+<tr>
+<td><code>controller.kubernetes.namespaces</code></td>
+<td><code>[]</code> (the release namespace)</td>
+<td>Where GPU deployments run; the first becomes <code>MERITORDER_GPU_NAMESPACE</code></td>
+</tr>
+<tr>
+<td><code>controller.kubernetes.apis</code></td>
+<td><code>[kserve, llm-d]</code></td>
+<td>What the Role allows</td>
+</tr>
+<tr>
+<td><code>controller.kubernetes.readNodes</code></td>
+<td><code>false</code></td>
+<td>A ClusterRole to read nodes, to price each replica at its node's type</td>
+</tr>
+<tr>
+<td><code>controller.kubernetes.serviceAccountAnnotations</code></td>
+<td><code>{}</code></td>
+<td>For the controller's own ServiceAccount (e.g. a cloud identity SkyPilot needs too)</td>
+</tr>
+<tr>
+<td><code>controller.skypilot.enabled</code></td>
+<td><code>true</code></td>
+<td>A writable home for SkyPilot's <code>~/.sky</code> in the controller (<a href="#skypilot-gpus">SkyPilot GPUs</a>); <code>false</code> with GPUs on Kubernetes alone</td>
+</tr>
+<tr>
+<td><code>controller.skypilot.home</code></td>
+<td>an emptyDir</td>
+<td><code>existingClaim</code>, or <code>persistence: true</code> (with <code>size</code>, <code>storageClass</code>) for a claim the chart makes and keeps on uninstall</td>
+</tr>
+<tr>
+<td><code>controller.skypilot.credentials</code></td>
+<td><code>[]</code></td>
+<td>Secrets mounted read-only at <code>/home/meritorder/&lt;path&gt;</code>: <code>{secret: lambda-keys, path: .lambda_cloud}</code></td>
+</tr>
+<tr>
+<td><code>compressor.enabled</code></td>
+<td><code>false</code></td>
+<td><code>meritorder compressor</code> on the <code>-compressor</code> image, with a Service; every component then gets <code>MERITORDER_COMPRESSOR_URL</code> and <code>MERITORDER_COMPRESSOR_MODEL</code>. A shared secret, <code>MERITORDER_COMPRESSOR_KEY</code>, goes in the env Secret, which the compressor pod and every gateway read</td>
+</tr>
+<tr>
+<td><code>compressor.model</code>, <code>compressor.revision</code>, <code>compressor.device</code></td>
+<td>XLM-RoBERTa large, unpinned, <code>auto</code></td>
+<td><code>auto</code> uses a GPU when the pod has one: add <code>nvidia.com/gpu: 1</code> to <code>compressor.resources.limits</code> and a <code>compressor.nodeSelector</code>. Without a GPU, use the multilingual BERT model: XLM-RoBERTa large is too slow on a CPU for the 1-second deadline (<a href="caching-and-sessions.html#measured-on-the-published-models">04</a>)</td>
+</tr>
+<tr>
+<td><code>compressor.cache.existingClaim</code></td>
+<td><code>""</code> (an emptyDir)</td>
+<td>A PersistentVolumeClaim for the model's files (<code>HF_HOME</code>), so a restart doesn't download them again</td>
+</tr>
+<tr>
+<td><code>compressor.replicas</code>, <code>compressor.resources</code></td>
+<td>1; 2 CPUs, 4–6 GiB</td>
+<td>One request at a time per pod. On a CPU it uses a thread per CPU of its limit (all the node's cores without one), and more cores make it faster</td>
+</tr>
+<tr>
+<td><code>migrations.enabled</code></td>
+<td><code>true</code></td>
+<td><code>meritorder migrate</code> as a pre-install/pre-upgrade hook</td>
+</tr>
+<tr>
+<td><code>serviceAccount.annotations</code>, <code>podLabels</code></td>
+<td><code>{}</code></td>
+<td>Workload identity (IRSA, GKE, AKS) for keyless Bedrock, Vertex, and Azure OpenAI</td>
+</tr>
+<tr>
+<td><code>metrics.serviceMonitor</code></td>
+<td><code>false</code></td>
+<td>Prometheus Operator scraping <code>/metrics</code></td>
+</tr>
+<tr>
+<td><code>metrics.tokenKey</code></td>
+<td><code>""</code></td>
+<td>The env Secret's key that holds <code>MERITORDER_METRICS_TOKEN</code>, so the ServiceMonitor scrapes with it</td>
+</tr>
+<tr>
+<td><code>metrics.grafanaDashboard.enabled</code></td>
+<td><code>false</code></td>
+<td>A ConfigMap with the Grafana dashboard, for Grafana's sidecar (<a href="reporting.html#prometheus-and-grafana">08</a>)</td>
+</tr>
+<tr>
+<td><code>ingress.enabled</code>, <code>ingress.host</code>, <code>ingress.tls</code></td>
+<td><code>false</code>, <code>meritorder.example.com</code>, <code>[]</code></td>
+<td>An Ingress for the gateway Service</td>
+</tr>
+<tr>
+<td><code>reporting.clickhouse.url</code>, <code>.database</code>, <code>.user</code></td>
+<td><code>""</code>, <code>meritorder</code>, <code>default</code></td>
+<td>An external ClickHouse for the ledger's copy (no ClickHouse is bundled); sets <code>MERITORDER_CLICKHOUSE_URL</code>, <code>_DATABASE</code> and <code>_USER</code> on every component. The password goes in the env Secret as <code>MERITORDER_CLICKHOUSE_PASSWORD</code></td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="the-console-demo">The console demo</h2>
+<p>A static copy of the console, with sample data and no gateway, so people can click through every page. It runs at
+<a href="https://dev.meritorder.dev">dev.meritorder.dev</a>. It is the real console (<code>ui/</code>), built with <code>vite build --mode demo</code>:</p>
+<ul>
+<li><strong>No server.</strong> <code>ui/src/demo/</code> replaces the gateway in the browser. It answers every call the console makes from
+  <code>ui/src/demo/data.json</code>. It signs in as a demo admin (Alex Morgan, <code>alex.morgan@example.com</code>) and shows a
+  "Demo: sample data" line above every page, with links to meritorder.dev and GitHub.</li>
+<li><strong>Changes work for the session.</strong> Saving configuration, budgets, GPU controls, new keys, people, Apply on a level
+  recommendation, starting an eval: each works in memory until the page is reloaded. A note says nothing is saved.</li>
+<li><strong>It moves.</strong> A new request, modelled on a recorded one, arrives every two to four seconds: the live feed, Dispatch's
+  totals and Reports → Requests grow.</li>
+<li><strong>Its clock.</strong> The demo's clock starts at the moment the data was recorded and runs from there, so "this month", the
+  period presets and "5 minutes ago" read as they did then.</li>
+<li><strong>Nothing of it in the gateway's console.</strong> The demo is behind <code>__DEMO__</code>, a constant Vite writes in (false in the
+  normal build), so the production bundle has none of its code or data. The demo workflow checks this on every run.</li>
+</ul>
+<h3 id="the-sample-data">The sample data</h3>
+<p><code>scripts/build_demo_data.py</code> writes <code>ui/src/demo/data.json</code> (about 2 MB, committed). It doesn't make up numbers. It
+builds a gateway in memory from <code>config/meritorder.yaml</code>, its models, <code>prices.json</code> and quality scores, and adds an
+invented organization: four teams (platform, mobile, data-science, support-bots), 17 people at example.com, keys,
+budgets, three GPU deployments and three bill sources. Then it sends six weeks of invented traffic through the real
+router (levels, exploration, the learned router in shadow mode) and the real pricing (savings by cause), and calls
+every endpoint the console uses as an admin, writing the answers down. So the figures are what Merit Order would show
+for that traffic: savings by cause add up, the level report's recommendations come from the exploration arms, and the
+learned router's disagreements are its own.</p>
+<p>Other parts are set up directly, the way the gateway, worker and controller would leave them: the GPU fleet (one
+deployment running on spot with two replicas and their leases, one starting on Kubernetes and pinned on, one stopped)
+and its activity log, batches, the providers' bills, two eval runs scored by the real scoring, configuration versions
+and alerts. Nothing leaves the machine while it runs: no provider keys, connections out are refused, and <code>HOME</code> points
+at an empty directory. The same <code>--seed</code> gives the same organization; timestamps follow the day it runs.</p>
+<pre><code class="language-bash">uv run python scripts/build_demo_data.py            # after a change to what the console shows
+cd ui &amp;&amp; npm run build:demo &amp;&amp; npm run preview:demo  # http://127.0.0.1:4174/
+npm run e2e:demo                                     # every page and tab, no console error, no failed request
+</code></pre>
+<p>A page whose call has no recorded answer shows "The demo has no sample answer for …": run the script again, and add the
+call to <code>Demo.calls()</code> if it takes a new query.</p>
+<h3 id="hosting-it-devmeritorderdev-on-aws">Hosting it: dev.meritorder.dev on AWS</h3>
+<p>The demo runs at <strong>https://dev.meritorder.dev</strong>, from Merit Order's AWS account. <code>deploy/aws/demo-site.yaml</code> is one
+CloudFormation stack (<code>meritorder-demo-site</code>, us-east-1) with everything it needs, and no servers:</p>
+<ul>
+<li><strong>A private S3 bucket</strong> with the build: all public access blocked, encrypted (SSE-S3), versioning off.</li>
+<li><strong>CloudFront</strong> in front, reading the bucket through Origin Access Control. HTTP/2 and HTTP/3, gzip and Brotli,
+  PriceClass_100. <code>/</code> serves <code>index.html</code>. Pages are addressed by hash (<code>/#gpus</code>), so the only other paths are links
+  or refreshes on a path such as <code>/gpus</code>: S3 answers those with 403, and CloudFront sends <code>404.html</code> (status 404),
+  which goes on to <code>/#gpus</code>.</li>
+<li><strong>Headers on every answer:</strong> HSTS (two years), <code>nosniff</code>, <code>X-Frame-Options: DENY</code>,
+  <code>strict-origin-when-cross-origin</code>, and a Content-Security-Policy that allows only what the console uses: scripts,
+  styles, fonts and fetches from the site itself, Mantine's inline styles, and the <code>data:</code> favicon. <code>404.html</code>'s
+  redirect is a file of its own (<code>404.js</code>), so no inline script is needed. <code>vite preview --mode demo</code> sends the
+  same policy, so <code>npm run e2e:demo</code> fails on anything it blocks. <code>tests/test_demo_site.py</code> keeps the two the same.</li>
+<li><strong>Caching:</strong> files in <code>/assets/</code> have a content hash in their names and are kept a year (<code>immutable</code>). <code>index.html</code>,
+  <code>404.html</code>, <code>404.js</code> and the notices are <code>no-cache</code>: browsers check for a new copy on each load, so a deploy shows at
+  once.</li>
+<li><strong>A certificate</strong> for <code>dev.meritorder.dev</code> (ACM, validated by DNS in the <code>meritorder.dev</code> hosted zone) and <strong>A and
+  AAAA alias records</strong> to the distribution.</li>
+<li><strong>A deploy role for GitHub Actions</strong>, through GitHub's OIDC provider (the stack creates it; pass
+  <code>CreateGitHubOidcProvider=false</code> if the account already has one). It trusts only pushes to <code>main</code> of the
+  repositories in the stack's <code>GitHubSubjects</code> parameter (<code>Merit-Order/meritorder</code>). It may only list, write and
+  delete objects in the bucket and invalidate the distribution.</li>
+</ul>
+<p>To create or change the stack, see <a href="https://github.com/Merit-Order/meritorder/blob/main/deploy/aws/README.md">deploy/aws/README.md</a>.</p>
+<p><strong>The pipeline.</strong> <code>.github/workflows/demo.yml</code> runs on pushes to <code>main</code> that touch <code>ui/</code>, <code>src/</code>, <code>config/</code> or
+<code>scripts/build_demo_data.py</code>, on the 1st of every month (so "this month" in the demo is the current month), by hand
+(Run workflow), and on every PR. Each run makes the sample data again, dated that day. Then it builds the demo, runs
+its smoke test, and checks the production bundle has no demo code. On <code>main</code> it then assumes the deploy role, uploads
+the build and invalidates CloudFront. The upload goes in three steps: hashed assets first (so the new <code>index.html</code>
+never points at a file that isn't there yet), then the rest, then old files are removed. PRs build and test without
+deploying. The role, bucket and distribution come from the repository variables <code>DEMO_DEPLOY_ROLE_ARN</code>, <code>DEMO_BUCKET</code>
+and <code>DEMO_DISTRIBUTION_ID</code> (not secrets). Without them the deploy job is skipped. The regenerated data isn't
+committed: <code>ui/src/demo/data.json</code> in the repository is what local builds use.</p>
+<p>To run the smoke test against the live site: <code>cd ui &amp;&amp; DEMO_URL=https://dev.meritorder.dev/ npm run e2e:demo</code>.</p>
+<p><strong>Costs</strong>, at a demo's traffic: about <strong>$0.50 a month</strong>, the Route 53 hosted zone, which the domain has anyway.
+CloudFront's always-free tier covers 1 TB out and 10 million requests a month. A first visit is about 0.7 MB
+compressed, so that is over a million visits. S3 holds about 3.5 MB (a fraction of a cent), the certificate is free,
+and an invalidation of <code>/*</code> counts as one of the 1,000 free paths a month. Past the free tier, CloudFront costs about
+$0.085 per GB and $0.01 per 10,000 HTTPS requests in North America and Europe (AWS's prices in November 2026). The
+domain's registration is billed separately.</p>
+<p><strong>Elsewhere.</strong> Any static host works: serve <code>ui/dist-demo</code>, send unknown paths to <code>404.html</code>, and send the CSP above.
+On GitHub Pages as a project page (<code>&lt;owner&gt;.github.io/meritorder/</code>), build it with
+<code>DEMO_BASE=/meritorder/ npm run build:demo</code>.</p>
+<h2 id="open-source-hygiene">Open-source hygiene</h2>
+<ul>
+<li><strong>License: AGPL-3.0</strong> (GNU Affero General Public License, version 3). You can run, change and redistribute Merit
+  Order. If you change it and let people use your changed version over a network (your organization's gateway
+  counts), you must offer those users the source of your version under the same license. If you give copies to others,
+  changed or not, the source and the license go with them. Running it unchanged inside your organization adds no
+  obligations. <code>LICENSE</code> has the full text. The console's footer and <code>GET /about</code> (no key needed) link to the source (<code>console.source_url</code>,
+  <code>MERITORDER_SOURCE_URL</code> in the shipped config: in <code>.env</code>, or the chart's <code>env</code>). Point it at your own repository if you
+  run a changed version. The footer also links to the third-party notices of the packages the console bundles
+  and fonts (<code>/ui/third-party-notices.txt</code>, written by the build; the fonts are under the SIL Open Font License 1.1).</li>
+<li>The <code>-compressor</code> image includes NVIDIA's CUDA libraries, which PyTorch's Linux wheels bring as Python packages
+  (<code>nvidia-*</code>). They're under NVIDIA's own license, not the AGPL (<a href="https://github.com/Merit-Order/meritorder/blob/main/NOTICE">NOTICE</a>). The other images don't have them.</li>
+<li>Version 0.0.1 is pre-production. Most of it is tested only against mocks; docs/README.md's "What's verified" table
+  lists what has run against live accounts and what hasn't.</li>
+<li>Multi-arch images (amd64 and arm64) on GHCR, from the release workflow. None are published until the first <code>v*</code> tag
+  (<a href="#containers">Containers</a>).</li>
+<li>No telemetry phone-home. Metrics stay with the operator: Prometheus <code>/metrics</code> and their own
+  OpenTelemetry endpoint. The worker downloads public data on a schedule (OpenRouter's catalog,
+  LiteLLM's price list, and Epoch AI's benchmark data or Artificial Analysis's index, whichever is
+  the quality source) and sends nothing about your traffic. With <code>billing.sources</code> set, it also reads
+  your own cost data from the providers you list, with the credentials you give it.</li>
+<li>Works with zero cloud accounts beyond one API key; each cloud is a backend in the config, switched
+  off until its credentials are set.</li>
+</ul>
+<h2 id="supply-chain-security">Supply-chain security</h2>
+<p>A gateway holds every provider credential an organization has, so a compromised dependency or image would be costly.
+These are the rules the repo follows:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Area</th>
+<th>Policy</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Dependencies</strong></td>
+<td>A small set: FastAPI, uvicorn, httpx, pydantic, PyYAML, redis, asyncpg, PyJWT + cryptography, botocore; optional extras for google-auth, azure-identity, OpenTelemetry, pyzmq + msgpack (<code>kv-events</code>, for the controller to follow vLLM's KV-cache events; in the image), and pyarrow (<code>parquet</code>, for <code>meritorder export --format parquet</code> and for reading Parquet bill exports (<code>aws_cur</code>, <code>azure_export</code>); not in the image, which reads gzipped CSV exports), and llmlingua (<code>compressor</code>, which brings torch and transformers; only in the <code>-compressor</code> image). ClickHouse, when set up, is reached over its HTTP interface with httpx: no driver. SkyPilot (~150 packages) lives only in the controller's <code>-gpu</code> image, in its own environment (the compose stack also builds it into the local image, for GPU prices). The Kubernetes provisioner uses httpx, not a Kubernetes client library. Adding a dependency needs a written justification in the PR.</td>
+</tr>
+<tr>
+<td><strong>Lockfile</strong></td>
+<td><code>uv.lock</code> with hashes. <code>exclude-newer</code> in <code>pyproject.toml</code> is a fixed cutoff date, set a few days back and bumped deliberately, so a new release isn't used until it has been out that long: the window in which most malicious releases are caught and pulled.</td>
+</tr>
+<tr>
+<td><strong>Updates</strong></td>
+<td>Renovate waits 7 days before proposing a new version; <code>pip-audit</code> and <code>npm audit</code> in CI. The UI's npm dependencies are pinned exactly and install scripts are disabled. CI's own tools are pinned too: <code>pip-audit</code> to a version (<code>uvx pip-audit==2.10.1</code>), and the kubeconform image to its digest.</td>
+</tr>
+<tr>
+<td><strong>Our releases</strong></td>
+<td><code>.github/workflows/release.yml</code> runs on a pushed <code>v*</code> tag. It builds three images for linux/amd64 and linux/arm64 with Docker Buildx and pushes them to <code>ghcr.io/merit-order/meritorder</code>, tagged with the version without the <code>v</code>: <code>&lt;version&gt;</code> (the gateway, worker and migrate image), <code>&lt;version&gt;-gpu</code> (adds SkyPilot 0.14.2) and <code>&lt;version&gt;-compressor</code> (adds llmlingua and torch, no SkyPilot). Each also moves its own <code>latest</code>: <code>latest</code>, <code>latest-gpu</code> and <code>latest-compressor</code> (the variants' <code>flavor</code> sets <code>onlatest=true</code>, so the suffix applies to <code>latest</code> too and a variant never overwrites the main image's). Each push carries an SBOM and build provenance (<code>provenance: mode=max</code>) as attestations, and each image digest is signed with cosign, keyless, through GitHub's OIDC token (Sigstore). Every action is pinned to a commit hash. No tag exists yet, so nothing is published. The workflow doesn't publish the Helm chart or a PyPI package: install the chart from <code>charts/meritorder</code> in the repo.</td>
+</tr>
+<tr>
+<td><strong>Images</strong></td>
+<td>Slim base image (<code>python:3.12-slim</code>), non-root user (uid 10001). The Helm chart runs it with a read-only root filesystem and all capabilities dropped.</td>
+</tr>
+<tr>
+<td><strong>Reporting issues</strong></td>
+<td><code>SECURITY.md</code>: report privately through GitHub's private vulnerability reporting.</td>
+</tr>
+</tbody>
+</table></div></section>
+  </main>
+</div>
+
+<script>
+(function () {
+  // Only the all-in-one page: its rail links to sections of the page. One-doc pages mark their own link.
+  var links = Array.prototype.slice.call(document.querySelectorAll('.rail a')).filter(function (a) {
+    return a.getAttribute('href').charAt(0) === '#';
+  });
+  if (!links.length) {
+    var here = document.querySelector('.rail a.active');
+    if (here && here.scrollIntoView && window.matchMedia('(max-width: 860px)').matches) {
+      here.scrollIntoView({ block: 'nearest', inline: 'center' });
+      window.scrollTo(0, 0);
+    }
+    return;
+  }
+  var byId = {};
+  links.forEach(function (a) { byId[a.getAttribute('href').slice(1)] = a; });
+  function setActive(id) {
+    links.forEach(function (a) { a.classList.toggle('active', a === byId[id]); });
+    var a = byId[id];
+    if (a && a.scrollIntoView && window.matchMedia('(max-width: 860px)').matches) {
+      a.scrollIntoView({ block: 'nearest', inline: 'center' });
+    }
+  }
+  if ('IntersectionObserver' in window) {
+    var obs = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) { if (e.isIntersecting) setActive(e.target.id); });
+    }, { rootMargin: '-20% 0px -70% 0px' });
+    document.querySelectorAll('main section').forEach(function (s) { obs.observe(s); });
+  }
+  setActive((location.hash || '#overview').slice(1));
+})();
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js"></script>
+<script>
+(function () {
+  var t = document.documentElement.getAttribute('data-theme');
+  var dark = t ? t === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+  mermaid.initialize({ startOnLoad: true, theme: dark ? 'dark' : 'default', securityLevel: 'strict' });
+})();
+</script>
+</body>
+</html>

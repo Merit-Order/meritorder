@@ -1,0 +1,7 @@
+id: g4-filing-log-3hop
+task: general
+level: 4
+kind: answer
+generate: meritorder.evals.generators.records:multi_hop
+generate_args: {seed: 11, words: 20000, hops: 3}
+summary: "20k-word filing log: ticket -> project ID -> codename -> lead employee ID -> name; the latest transfer and the latest lead change are both rescinded, and the lead has a near-duplicate name and swapped-digit ID"

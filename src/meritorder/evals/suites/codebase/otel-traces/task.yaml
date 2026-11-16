@@ -1,0 +1,67 @@
+id: otel-traces
+task: coding
+level: 4
+kind: agent
+commit: d119ac3
+summary: "OpenTelemetry spans for every LLM call through the gateway: GenAI semantic conventions, Merit Order's own attributes, joining the client's W3C trace, emitted through the global tracer with no provider installed unless an OTLP endpoint is set"
+env: meritorder.evals.envs.codebase:CodebaseEnv
+env_args: {task: otel-traces}
+max_turns: 80
+est_turns: 30
+est_tool_tokens: 5000    # new tokens per turn (tool results and the reply), from runs of this suite
+est_output_tokens: 1500
+preamble_file: ../PREAMBLE.md
+prompt: |
+  ## Issue: LLM calls are invisible in the teams' traces
+
+  Teams instrument their agents with OpenTelemetry. Every call the agent makes through the gateway shows up in
+  their trace as an HTTP span to Merit Order and nothing more: no model, no tokens, no cost, no routing decision.
+  The gateway's own telemetry is Prometheus metrics and the console's request feed, neither of which can be
+  joined to an agent's trace.
+
+  **Wanted**
+
+  One OpenTelemetry span per request the gateway handles (chat, messages, responses, embeddings), with the data
+  the ledger row has, emitted when that row is recorded as part of the request's background bookkeeping (so it
+  is finished once the gateway's pending work for the request has drained). Spans go through the OpenTelemetry
+  API's global tracer, with instrumentation scope name `meritorder`, so whatever tracer provider the process has
+  installed receives them.
+
+  - Name: `<operation> <model>`, where the operation is `chat`, or `embeddings` for an embeddings request, and
+    the model is the Merit Order model name that served the request (so `chat small`). Span kind CLIENT. The
+    span's start is the request's start and its end the request's end, so its duration is the request latency.
+  - GenAI semantic-convention attributes: `gen_ai.operation.name` (`chat` or `embeddings`), `gen_ai.system`
+    (the provider, derived from the backend: `anthropic`, `openai`, `aws.bedrock`, `gcp.vertex_ai`, `openrouter`,
+    ... falling back to the backend name), `gen_ai.request.model` (the model the client asked for),
+    `gen_ai.response.model` (the upstream model id the backend served, for example `small-1`),
+    `gen_ai.usage.input_tokens` (all prompt tokens: uncached plus cache reads and cache writes) and
+    `gen_ai.usage.output_tokens`.
+  - Merit Order's own: `meritorder.model` (served model), `meritorder.backend` (backend name, for example
+    `mock-openai`), `meritorder.team`, `meritorder.user`, `meritorder.session`, `meritorder.cache_read_tokens`,
+    `meritorder.cost_usd` (the actual cost, a float), `meritorder.baseline_usd`, `meritorder.free_upgrade`, and
+    when known `meritorder.floor` and `meritorder.time_to_first_token_ms`.
+  - Joining the client's trace: when the request carries a W3C `traceparent` header (and `tracestate`), the span
+    is created in that context, so its trace id is the client's and the agent's spans and its LLM calls line up
+    in one trace. Without one it starts a trace of its own.
+  - Errors: a status of 400 or more sets the span status to ERROR with the error text as its description and
+    `error.type` set to the status; a note on a successful row (an error text with status 200) goes into
+    `meritorder.note`.
+  - Recording a span must never fail a request: errors there are logged.
+
+  **Set-up**
+
+  Tracing is off by default. When `OTEL_EXPORTER_OTLP_ENDPOINT` (or `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`) is set,
+  the app installs at startup a tracer provider that exports over OTLP/HTTP in batches, with service name from
+  `OTEL_SERVICE_NAME` (default `meritorder-gateway`). When neither is set, the gateway installs no provider of
+  its own; spans still go to the global tracer, so a provider installed by someone else in the process (the test
+  suite installs one with an in-memory exporter before building the app) receives them. The OpenTelemetry API
+  and SDK packages are installed in the dev environment; the OTLP exporter is an optional `otel` extra, and the
+  gateway must import and run without it, warning when an endpoint is set but the exporter is missing. Without
+  the API installed at all, span recording is a no-op.
+
+  **Interface**
+
+  - Spans from tracer `meritorder`, named `chat <served model>` / `embeddings <served model>`, with the attributes
+    above; `gen_ai.request.model` is the requested name, `gen_ai.response.model` the upstream model id.
+  - Incoming `traceparent` / `tracestate` headers set the span's parent context.
+  - Environment: `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`, `OTEL_SERVICE_NAME`.

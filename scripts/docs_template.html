@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{TITLE}}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Source+Sans+3:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a design-notes reader. Sticky chapter rail on the left, one long readable column on the right; rail folds into a scrolling chip row on phones. */
+:root {
+  --bg: #f4f7f6;
+  --surface: #ffffff;
+  --fg: #142120;
+  --muted: #566866;
+  --line: #d6e0de;
+  --accent: #0b7566;
+  --accent-soft: #e0f0ec;
+  --code-bg: #ecf2f1;
+  --z1: #e3f3ea; --i1: #1d6a3a;
+  --z2: #fcf1d8; --i2: #865600;
+  --z3: #fbe4e3; --i3: #9a1f1c;
+  --curve: #2556c4; --over: #c0392b;
+  --font-display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Source Sans 3", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d1413; --surface: #141d1c; --fg: #e2ebe9; --muted: #92a6a2; --line: #253331;
+    --accent: #4fcab4; --accent-soft: #15302b; --code-bg: #17221f;
+    --z1: #132c1d; --i1: #82d6a0; --z2: #2f260e; --i2: #f0c566; --z3: #351817; --i3: #f39b95;
+    --curve: #7da4ff; --over: #ff7d6e;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0d1413; --surface: #141d1c; --fg: #e2ebe9; --muted: #92a6a2; --line: #253331;
+  --accent: #4fcab4; --accent-soft: #15302b; --code-bg: #17221f;
+  --z1: #132c1d; --i1: #82d6a0; --z2: #2f260e; --i2: #f0c566; --z3: #351817; --i3: #f39b95;
+  --curve: #7da4ff; --over: #ff7d6e;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 24px; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body {
+  background: var(--bg); color: var(--fg);
+  font-family: var(--font-body); font-size: 17px; line-height: 1.6;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+
+.hero { max-width: 1180px; margin: 0 auto; padding-block: 56px 36px; display: grid; gap: 14px; border-bottom: 1px solid var(--line); }
+.eyebrow { font-family: var(--font-mono); font-size: 12.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+.hero h1 { font-family: var(--font-display); font-weight: 700; font-size: clamp(2.1rem, 5vw, 3.4rem); line-height: 1.05; letter-spacing: -.02em; margin: 0; text-wrap: balance; }
+.hero .lede { max-width: 68ch; color: var(--fg); }
+.hero .lede p { margin: 0 0 .7em; }
+.hero .lede ol { margin: 0 0 .7em; padding-left: 1.3em; display: grid; gap: 4px; }
+.hero .lede strong { color: var(--accent); }
+.also { color: var(--muted); font-size: 15.5px; }
+.contents { margin-top: 6px; max-width: 68ch; }
+.contents summary { cursor: pointer; font-family: var(--font-mono); font-size: 12.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+.contents ol { margin: 10px 0 0; padding-left: 1.3em; columns: 2 260px; column-gap: 32px; }
+.contents li { break-inside: avoid; margin: 0 0 4px; }
+h2[id], h3[id], h4[id] { scroll-margin-top: 72px; }
+
+.layout { max-width: 1180px; margin: 0 auto; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 56px; padding-block: 36px 96px; }
+.rail { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 24px); align-self: start; }
+.rail p { font-family: var(--font-mono); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0 0 10px; }
+.rail ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.rail a { display: flex; gap: 10px; align-items: baseline; padding: 6px 10px; border-radius: 6px; color: var(--fg); text-decoration: none; font-size: 15.5px; line-height: 1.3; }
+.rail a:hover { background: var(--accent-soft); }
+.rail a.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.rail a:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.n { font-family: var(--font-mono); font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.rail a.active .n { color: var(--accent); }
+
+main { min-width: 0; max-width: 860px; }
+section { padding-bottom: 56px; margin-bottom: 56px; border-bottom: 1px solid var(--line); }
+section:last-child { border-bottom: 0; }
+.sec-head { display: flex; align-items: baseline; gap: 14px; margin-bottom: 18px; }
+.sec-head .n { font-size: 14px; color: var(--accent); }
+h2 { font-family: var(--font-display); font-weight: 700; font-size: clamp(1.7rem, 3.4vw, 2.3rem); letter-spacing: -.015em; line-height: 1.1; margin: 0; text-wrap: balance; }
+h3 { font-family: var(--font-display); font-weight: 600; font-size: 1.3rem; letter-spacing: -.01em; margin: 2.2em 0 .5em; text-wrap: balance; }
+h4 { font-family: var(--font-body); font-weight: 600; font-size: 1.05rem; margin: 1.6em 0 .4em; }
+p, ul, ol { max-width: 68ch; }
+ul, ol { padding-left: 1.3em; }
+li { margin: .25em 0; }
+a { color: var(--accent); text-underline-offset: 3px; }
+strong { font-weight: 600; }
+
+code { font-family: var(--font-mono); font-size: .84em; background: var(--code-bg); padding: .1em .35em; border-radius: 4px; }
+pre:not(.mermaid) { background: var(--code-bg); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; overflow-x: auto; font-size: 14px; line-height: 1.5; }
+pre:not(.mermaid) code { background: none; padding: 0; font-size: inherit; }
+
+.table-wrap { overflow-x: auto; margin: 1em 0 1.4em; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 15.5px; }
+th, td { text-align: left; vertical-align: top; padding: 9px 14px; border-bottom: 1px solid var(--line); }
+tr:last-child td { border-bottom: 0; }
+th { font-family: var(--font-mono); font-size: 12px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); background: var(--code-bg); }
+td { font-variant-numeric: tabular-nums; }
+
+figure { margin: 1.4em 0 1.8em; }
+.diagram { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px; overflow-x: auto; }
+.diagram pre.mermaid { margin: 0; display: flex; justify-content: center; background: none; }
+
+.chart { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px; overflow-x: auto; }
+.chart svg { display: block; width: 100%; min-width: 520px; max-width: 720px; height: auto; margin: 0 auto; font-family: var(--font-body); }
+.chart figcaption { color: var(--muted); font-size: 15px; margin-top: 10px; max-width: 68ch; }
+.chart .z1 { fill: var(--z1); } .chart .z2 { fill: var(--z2); } .chart .z3 { fill: var(--z3); }
+.chart .t { font-size: 13px; font-weight: 600; }
+.chart .i1 { fill: var(--i1); } .chart .i2 { fill: var(--i2); } .chart .i3 { fill: var(--i3); }
+.chart .lbl { font-size: 13px; fill: var(--fg); }
+.chart .tick { font-size: 12px; fill: var(--muted); }
+.chart .tick.i3 { fill: var(--i3); }
+.chart .axis { stroke: var(--fg); stroke-width: 1.5; fill: none; }
+.chart .ref { stroke: var(--muted); stroke-width: 1.5; stroke-dasharray: 6 5; fill: none; }
+.chart .curve { stroke: var(--curve); stroke-width: 3.5; fill: none; }
+.chart .over { stroke: var(--over); stroke-width: 3.5; fill: none; }
+.chart .dot { fill: var(--over); }
+
+@media (max-width: 860px) {
+  .layout { grid-template-columns: minmax(0, 1fr); gap: 20px; padding-top: 20px; }
+  .rail { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); margin-inline: calc(-1 * max(16px, env(safe-area-inset-left, 0px))); padding: 10px max(16px, env(safe-area-inset-left, 0px)); border-bottom: 1px solid var(--line); }
+  .rail p { display: none; }
+  .rail ol { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; }
+  .rail a { white-space: nowrap; border: 1px solid var(--line); background: var(--surface); }
+  body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+  .hero { padding-block: 36px 24px; }
+  body { font-size: 16px; }
+}
+</style>
+</head>
+<body>
+
+
+<header class="hero">
+  <div class="eyebrow">{{EYEBROW}}</div>
+  <h1>{{H1}}</h1>
+  <div class="lede">{{LEDE}}</div>
+</header>
+
+<div class="layout">
+  <nav class="rail" aria-label="Chapters">
+    <p>{{RAIL}}</p>
+    <ol>{{NAV}}</ol>
+  </nav>
+  <main>
+    {{OVERVIEW}}
+    {{SECTIONS}}
+  </main>
+</div>
+
+<script>
+(function () {
+  // Only the all-in-one page: its rail links to sections of the page. One-doc pages mark their own link.
+  var links = Array.prototype.slice.call(document.querySelectorAll('.rail a')).filter(function (a) {
+    return a.getAttribute('href').charAt(0) === '#';
+  });
+  if (!links.length) {
+    var here = document.querySelector('.rail a.active');
+    if (here && here.scrollIntoView && window.matchMedia('(max-width: 860px)').matches) {
+      here.scrollIntoView({ block: 'nearest', inline: 'center' });
+      window.scrollTo(0, 0);
+    }
+    return;
+  }
+  var byId = {};
+  links.forEach(function (a) { byId[a.getAttribute('href').slice(1)] = a; });
+  function setActive(id) {
+    links.forEach(function (a) { a.classList.toggle('active', a === byId[id]); });
+    var a = byId[id];
+    if (a && a.scrollIntoView && window.matchMedia('(max-width: 860px)').matches) {
+      a.scrollIntoView({ block: 'nearest', inline: 'center' });
+    }
+  }
+  if ('IntersectionObserver' in window) {
+    var obs = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) { if (e.isIntersecting) setActive(e.target.id); });
+    }, { rootMargin: '-20% 0px -70% 0px' });
+    document.querySelectorAll('main section').forEach(function (s) { obs.observe(s); });
+  }
+  setActive((location.hash || '#overview').slice(1));
+})();
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js"></script>
+<script>
+(function () {
+  var t = document.documentElement.getAttribute('data-theme');
+  var dark = t ? t === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+  mermaid.initialize({ startOnLoad: true, theme: dark ? 'dark' : 'default', securityLevel: 'strict' });
+})();
+</script>
+</body>
+</html>

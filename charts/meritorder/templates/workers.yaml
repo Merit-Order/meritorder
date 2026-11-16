@@ -1,0 +1,69 @@
+{{- range $component := list "worker" "controller" }}
+{{- $v := index $.Values $component }}
+{{- if $v.enabled }}
+{{- /* With GPUs on this cluster, the controller runs as its own ServiceAccount, the only one with the GPU Role. */}}
+{{- $k8s := and (eq $component "controller") $.Values.controller.kubernetes.enabled }}
+{{- /* With SkyPilot, the controller gets a writable home (~/.sky) and its cloud credentials (values: controller.skypilot). */}}
+{{- $sky := and (eq $component "controller") $.Values.controller.skypilot.enabled }}
+{{- $pod := dict "root" $ "hook" false }}
+{{- if $k8s }}{{ $_ := set $pod "serviceAccount" (include "meritorder.controllerServiceAccount" $) }}{{ end }}
+{{- if $sky }}{{ $_ := set $pod "skypilot" $.Values.controller.skypilot }}{{ end }}
+{{- $env := dict }}
+{{- if $k8s }}{{ $_ := set $env "MERITORDER_GPU_NAMESPACE" (first (include "meritorder.gpuNamespaces" $ | fromJsonArray)) }}{{ end }}
+{{- $metrics := and (eq $component "worker") $v.metricsPort }}
+{{- if $metrics }}{{ $_ := set $env "MERITORDER_WORKER_METRICS_PORT" ($v.metricsPort | toString) }}{{ end }}
+{{- $ctr := dict "root" $ "env" $env }}
+{{- if $sky }}{{ $_ := set $ctr "skypilot" $.Values.controller.skypilot }}{{ end }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "meritorder.fullname" $ }}-{{ $component }}
+  labels: {{- include "meritorder.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: {{ $component }}
+  {{- include "meritorder.deploymentAnnotations" $ | nindent 2 }}
+spec:
+  replicas: {{ $v.replicas | default 1 }}
+  selector:
+    matchLabels: {{- include "meritorder.selector" $ | nindent 6 }}
+      app.kubernetes.io/component: {{ $component }}
+  template:
+    metadata:
+      labels: {{- include "meritorder.selector" $ | nindent 8 }}
+        app.kubernetes.io/component: {{ $component }}
+        {{- include "meritorder.podMeta" $ | nindent 8 }}
+      annotations:
+        checksum/config: {{ toYaml $.Values.configFiles | sha256sum }}
+        checksum/env: {{ toYaml $.Values.secretEnv | sha256sum }}
+    spec:
+      {{- include "meritorder.podCommon" $pod | nindent 6 }}
+      containers:
+        - name: {{ $component }}
+          image: {{ include "meritorder.image" $ }}{{ $v.imageSuffix | default "" }}
+          {{- include "meritorder.containerCommon" $ctr | nindent 10 }}
+          {{- if $metrics }}
+          {{- /* The batch requests the worker settles, as Prometheus metrics (docs/08-reporting.md#prometheus-and-grafana). */}}
+          ports:
+            - name: metrics
+              containerPort: {{ $v.metricsPort }}
+          {{- end }}
+          args: ["meritorder", {{ $component | quote }}]
+          resources: {{- toYaml $v.resources | nindent 12 }}
+{{- if and (eq $component "worker") $v.metricsPort }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "meritorder.fullname" $ }}-worker-metrics
+  labels: {{- include "meritorder.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: worker
+spec:
+  selector: {{- include "meritorder.selector" $ | nindent 4 }}
+    app.kubernetes.io/component: worker
+  ports:
+    - name: metrics
+      port: {{ $v.metricsPort }}
+      targetPort: metrics
+{{- end }}
+{{- end }}
+{{- end }}

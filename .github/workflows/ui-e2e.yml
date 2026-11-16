@@ -1,0 +1,44 @@
+name: ui-e2e
+on:
+  push: {branches: [main]}
+  pull_request:
+permissions:
+  contents: read
+
+jobs:
+  console:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # Key management and saving configuration need Postgres; the tests empty this database first.
+    services:
+      postgres:
+        image: postgres:16
+        env: {POSTGRES_PASSWORD: e2e, POSTGRES_DB: e2etest}
+        ports: ["5432:5432"]
+        options: --health-cmd "pg_isready -U postgres" --health-interval 2s --health-timeout 5s --health-retries 15
+    env:
+      E2E_DATABASE_URL: postgresql://postgres:e2e@localhost:5432/e2etest
+    defaults: {run: {working-directory: ui}}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e  # v6
+        with: {version: "0.10.9"}
+      - run: uv sync --frozen
+        working-directory: .
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4.4.0
+        with: {node-version: "26.13.0", cache: npm, cache-dependency-path: ui/package-lock.json}
+      - run: npm ci
+      # The runner image already has Chromium's system libraries. When Ubuntu's package mirrors can't be reached,
+      # install just the browser; missing libraries would still fail the tests below.
+      - run: npx playwright install --with-deps chromium || npx playwright install chromium
+      - run: npm run typecheck
+      - run: npm run build
+      - run: npx playwright test
+      - if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        with:
+          name: playwright-report
+          path: |
+            ui/playwright-report/
+            ui/test-results/
+          retention-days: 14

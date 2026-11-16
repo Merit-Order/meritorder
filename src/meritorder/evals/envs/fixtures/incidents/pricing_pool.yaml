@@ -1,0 +1,197 @@
+# a5-checkout-incident. Root cause: dep-8b2f (pricing-svc, 12:52) removed DB_POOL_MAX, so pricing-svc fell back to the
+# library default of 8 connections per replica. Harmless at normal traffic; when the autumn-sale campaign doubled
+# checkout traffic at 13:40 the pools saturated, pricing timed out, and checkout returned 503s from 13:42.
+# Scaling pricing 3 -> 6 replicas at 14:04 only halved the errors (still above 1%); the hotfix dep-8d4a (DB_POOL_MAX=40)
+# at 14:15 ended it: checkout's error rate is back under 1% from 14:17.
+# Red herrings: dep-91aa (checkout banner, 13:35, nearest before the alert), dep-8c07 (pricing logging bump, 13:38),
+# dep-4d10 (inventory index migration, 13:41, with a real latency bump but no errors), a search-svc crawler spike
+# (13:50-14:06, nothing depends on it), and the morning newsletter surge (10:20-11:00, no errors: the pool was 40 then).
+date: "2026-11-03"
+data_from: "08:00"
+data_to: "16:00"
+expected:
+  deploy_id: dep-8b2f
+  service: pricing-svc
+  config_key: DB_POOL_MAX
+  impact_start: "13:42"
+  impact_end: "14:17"
+  tolerance_minutes: 2
+
+services:
+  checkout-api: {owner: team-checkout, depends_on: [pricing-svc, inventory-svc, payments-gw], tier: 1}
+  pricing-svc: {owner: team-pricing, depends_on: [pricing-db], tier: 1}
+  inventory-svc: {owner: team-fulfilment, depends_on: [inventory-db], tier: 1}
+  payments-gw: {owner: team-payments, depends_on: [], tier: 1, notes: "proxy to the external payment provider"}
+  search-svc: {owner: team-discovery, depends_on: [search-index], tier: 2}
+  pricing-db: {owner: team-data, depends_on: [], tier: 1, notes: "PostgreSQL primary + pg-replica-1, pg-replica-2"}
+  inventory-db: {owner: team-data, depends_on: [], tier: 1}
+  search-index: {owner: team-discovery, depends_on: [], tier: 2}
+
+deploys:
+  - id: dep-4c1e
+    service: inventory-svc
+    at: "09:12"
+    kind: deploy
+    author: a.nowak
+    title: "Reservation expiry: release stock after 20 min instead of 30"
+    changes:
+      config: {RESERVATION_TTL_MIN: ["30", "20"]}
+      commits: ["Shorter reservation TTL (FUL-812)"]
+  - id: dep-8b2f
+    service: pricing-svc
+    at: "12:52"
+    kind: deploy
+    author: j.okafor
+    title: "Route read-only price lookups to pg-replica-2; tidy DB settings"
+    changes:
+      config:
+        PRICING_DB_READ_HOST: ["pg-primary.internal", "pg-replica-2.internal"]
+        DB_POOL_MAX: ["40", "(unset)"]
+      commits:
+        - "Read price lookups from the replica (PRC-221)"
+        - "Remove pool overrides from the deployment config; library defaults are fine"
+  - id: dep-91aa
+    service: checkout-api
+    at: "13:35"
+    kind: deploy
+    author: m.silva
+    title: "Autumn sale banner copy; enable flag new-banner for 5% of sessions"
+    changes:
+      config: {}
+      feature_flags: {new-banner: ["0%", "5%"]}
+      commits: ["Banner copy for the autumn sale", "Flag new-banner at 5%"]
+  - id: dep-8c07
+    service: pricing-svc
+    at: "13:38"
+    kind: deploy
+    author: renovate-bot
+    title: "Bump structlog 24.1.0 -> 24.4.0"
+    changes:
+      config: {}
+      dependencies: {structlog: ["24.1.0", "24.4.0"]}
+      commits: ["chore(deps): update structlog to 24.4.0"]
+  - id: dep-4d10
+    service: inventory-svc
+    at: "13:41"
+    kind: deploy
+    author: a.nowak
+    title: "Online migration: add index on stock_movements (sku, created_at)"
+    changes:
+      config: {}
+      migrations: ["0047_stock_movements_sku_created_at_idx (CREATE INDEX CONCURRENTLY)"]
+      commits: ["Index for the stock history page (FUL-830)"]
+  - id: scale-2291
+    service: pricing-svc
+    at: "14:04"
+    kind: scale
+    author: r.chen
+    title: "Scale pricing-svc from 3 to 6 replicas"
+    changes:
+      replicas: [3, 6]
+  - id: dep-8d4a
+    service: pricing-svc
+    at: "14:15"
+    kind: deploy
+    author: r.chen
+    title: "Hotfix: set DB pool limit explicitly"
+    changes:
+      config: {DB_POOL_MAX: ["(unset)", "40"]}
+      commits: ["hotfix: DB_POOL_MAX=40 in the deployment config"]
+  - id: dep-91b3
+    service: checkout-api
+    at: "15:20"
+    kind: deploy
+    author: m.silva
+    title: "Flag new-banner to 25%"
+    changes:
+      config: {}
+      feature_flags: {new-banner: ["5%", "25%"]}
+      commits: ["Flag new-banner at 25%"]
+
+alerts:
+  - {name: "checkout-api error_rate_pct > 1 for 5m", service: checkout-api, fired: "13:47", resolved: "14:22", severity: page}
+  - {name: "pricing-svc latency_p99_ms > 1000 for 5m", service: pricing-svc, fired: "13:48", resolved: "14:21", severity: page}
+  - {name: "search-svc error_rate_pct > 5 for 5m", service: search-svc, fired: "13:56", resolved: "14:11", severity: ticket}
+  - {name: "inventory-svc latency_p99_ms > 300 for 5m", service: inventory-svc, fired: "13:46", resolved: "13:52", severity: ticket}
+
+# Per-minute series: base value (+- noise), then segments [from, to) that replace it. Noise is deterministic.
+metrics:
+  checkout-api:
+    requests_per_min: {unit: "req/min", base: 900, noise: 40, segments: [{from: "10:20", to: "11:00", value: 1500, noise: 60}, {from: "13:40", to: "15:30", value: 1650, noise: 60}]}
+    error_rate_pct: {unit: "%", base: 0.3, noise: 0.15, segments: [{from: "13:42", to: "14:05", value: 12.5, noise: 1.5}, {from: "14:05", to: "14:17", value: 2.6, noise: 0.4}]}
+    latency_p99_ms: {unit: "ms", base: 420, noise: 40, segments: [{from: "13:42", to: "14:05", value: 2150, noise: 60}, {from: "14:05", to: "14:17", value: 1300, noise: 120}]}
+  pricing-svc:
+    requests_per_min: {unit: "req/min", base: 2700, noise: 120, segments: [{from: "10:20", to: "11:00", value: 4500, noise: 150}, {from: "13:40", to: "15:30", value: 4950, noise: 150}]}
+    error_rate_pct: {unit: "%", base: 0.1, noise: 0.05, segments: [{from: "13:42", to: "14:05", value: 9.0, noise: 1.0}, {from: "14:05", to: "14:17", value: 1.8, noise: 0.3}]}
+    latency_p99_ms: {unit: "ms", base: 85, noise: 10, segments: [{from: "13:42", to: "14:05", value: 1950, noise: 50}, {from: "14:05", to: "14:17", value: 1100, noise: 100}]}
+    db_pool_max: {unit: "connections per replica", base: 40, noise: 0, segments: [{from: "12:53", to: "14:16", value: 8}]}
+    db_pool_in_use: {unit: "connections, all replicas", base: 9, noise: 2, segments: [{from: "10:20", to: "11:00", value: 17, noise: 3}, {from: "12:53", to: "13:40", value: 9, noise: 2}, {from: "13:40", to: "13:42", value: 21, noise: 1}, {from: "13:42", to: "14:05", value: 24, noise: 0}, {from: "14:05", to: "14:16", value: 48, noise: 0}, {from: "14:16", to: "15:30", value: 33, noise: 4}, {from: "15:30", to: "16:00", value: 18, noise: 3}]}
+    db_pool_wait_ms: {unit: "ms (p95)", base: 1, noise: 1, segments: [{from: "13:42", to: "14:05", value: 1500, noise: 0}, {from: "14:05", to: "14:16", value: 900, noise: 150}]}
+    replicas: {unit: "pods", base: 3, noise: 0, segments: [{from: "14:04", to: "16:00", value: 6}]}
+  inventory-svc:
+    requests_per_min: {unit: "req/min", base: 1100, noise: 60, segments: [{from: "10:20", to: "11:00", value: 1800, noise: 80}, {from: "13:40", to: "15:30", value: 1950, noise: 80}]}
+    error_rate_pct: {unit: "%", base: 0.1, noise: 0.05}
+    latency_p99_ms: {unit: "ms", base: 180, noise: 20, segments: [{from: "13:41", to: "13:52", value: 330, noise: 30}]}
+  payments-gw:
+    requests_per_min: {unit: "req/min", base: 850, noise: 40, segments: [{from: "10:20", to: "11:00", value: 1400, noise: 60}, {from: "13:40", to: "13:42", value: 1500, noise: 60}, {from: "13:42", to: "14:05", value: 1380, noise: 60}, {from: "14:05", to: "14:17", value: 1520, noise: 60}, {from: "14:17", to: "15:30", value: 1560, noise: 60}]}
+    error_rate_pct: {unit: "%", base: 0.4, noise: 0.2}
+    latency_p99_ms: {unit: "ms", base: 640, noise: 60}
+  search-svc:
+    requests_per_min: {unit: "req/min", base: 3000, noise: 150, segments: [{from: "13:50", to: "14:06", value: 7800, noise: 300}]}
+    error_rate_pct: {unit: "%", base: 0.2, noise: 0.1, segments: [{from: "13:50", to: "14:06", value: 7.0, noise: 1.0}]}
+    latency_p99_ms: {unit: "ms", base: 160, noise: 20, segments: [{from: "13:50", to: "14:06", value: 210, noise: 20}]}
+  pricing-db:
+    connections: {unit: "connections", base: 140, noise: 10, segments: [{from: "12:53", to: "14:04", value: 25, noise: 3}, {from: "14:04", to: "14:16", value: 49, noise: 2}]}
+    cpu_pct: {unit: "%", base: 22, noise: 4, segments: [{from: "10:20", to: "11:00", value: 35, noise: 4}, {from: "13:40", to: "15:30", value: 31, noise: 4}]}
+    query_p99_ms: {unit: "ms", base: 11, noise: 2}
+  inventory-db:
+    connections: {unit: "connections", base: 60, noise: 5}
+    cpu_pct: {unit: "%", base: 18, noise: 3, segments: [{from: "13:41", to: "13:52", value: 55, noise: 5}]}
+  search-index:
+    cpu_pct: {unit: "%", base: 30, noise: 5, segments: [{from: "13:50", to: "14:06", value: 72, noise: 6}]}
+
+# Log streams: `count` lines per minute (fractional = every 1/count minutes) in [from, to). Placeholders: {ms} a
+# number in `ms: [lo, hi]`, {id} a request id, {n} 1..`n` (default 50). Deterministic.
+logs:
+  # background traffic
+  - {service: checkout-api, level: INFO, count: 2, msg: "POST /api/checkout 200 {ms}ms order=ord_{id}", ms: [180, 420]}
+  - {service: checkout-api, level: WARN, count: 0.1, msg: "inventory-svc slow response {ms}ms (reserve sku)", ms: [300, 380]}
+  - {service: pricing-svc, level: INFO, count: 2, msg: "GET /v1/quote 200 {ms}ms items={n}", ms: [8, 60], n: 12}
+  - {service: inventory-svc, level: INFO, count: 2, msg: "POST /v1/reserve 200 {ms}ms", ms: [20, 140]}
+  - {service: payments-gw, level: INFO, count: 1, msg: "authorize ok provider_latency={ms}ms", ms: [250, 700]}
+  - {service: payments-gw, level: WARN, count: 0.2, msg: "provider declined card: insufficient_funds", from: "08:00", to: "16:00"}
+  - {service: search-svc, level: INFO, count: 2, msg: "GET /search 200 {ms}ms q_len={n}", ms: [20, 160], n: 40}
+  # inventory reservation TTL change
+  - {service: inventory-svc, level: INFO, count: 1, from: "09:12", to: "09:13", msg: "config reloaded: RESERVATION_TTL_MIN=20"}
+  - {service: inventory-svc, level: INFO, count: 0.25, from: "09:13", to: "16:00", msg: "released {n} expired reservations", n: 9}
+  # morning newsletter
+  - {service: checkout-api, level: INFO, count: 1, from: "10:20", to: "10:21", msg: "traffic: campaign=morning-newsletter referrals rising"}
+  # the culprit deploy
+  - {service: pricing-svc, level: INFO, count: 1, from: "12:52", to: "12:53", msg: "deploy dep-8b2f: rolling restart (3 replicas)"}
+  - {service: pricing-svc, level: INFO, count: 1, from: "12:53", to: "12:54", msg: "db: read host pg-replica-2.internal; DB_POOL_MAX not set, using library default pool max=8 per replica"}
+  # banner flag
+  - {service: checkout-api, level: INFO, count: 1, from: "13:35", to: "13:36", msg: "deploy dep-91aa: feature flag new-banner enabled for 5% of sessions"}
+  - {service: checkout-api, level: WARN, count: 0.5, from: "13:36", to: "15:20", msg: "new-banner: image CDN slow ({ms}ms), served placeholder", ms: [800, 1400]}
+  # structlog bump
+  - {service: pricing-svc, level: INFO, count: 1, from: "13:38", to: "13:39", msg: "deploy dep-8c07: rolling restart (3 replicas), structlog 24.4.0"}
+  - {service: pricing-svc, level: WARN, count: 1, from: "13:39", to: "13:40", msg: "structlog: 'processors' argument order changed; using compatible defaults"}
+  # autumn sale traffic
+  - {service: checkout-api, level: INFO, count: 1, from: "13:40", to: "13:41", msg: "traffic: campaign=autumn-sale email sent, referrals rising"}
+  # inventory index migration
+  - {service: inventory-svc, level: INFO, count: 1, from: "13:41", to: "13:42", msg: "migration 0047_stock_movements_sku_created_at_idx started (CREATE INDEX CONCURRENTLY)"}
+  - {service: inventory-svc, level: WARN, count: 1, from: "13:42", to: "13:52", msg: "slow query {ms}ms during index build: SELECT ... FROM stock_movements", ms: [300, 420]}
+  - {service: inventory-svc, level: INFO, count: 1, from: "13:52", to: "13:53", msg: "migration 0047_stock_movements_sku_created_at_idx finished"}
+  # the incident
+  - {service: pricing-svc, level: WARN, count: 2, from: "13:40", to: "13:42", msg: "db pool: 8 of 8 connections in use, {n} requests waiting (pool max=8)", n: 6}
+  - {service: pricing-svc, level: ERROR, count: 5, from: "13:42", to: "14:05", msg: "db pool exhausted: could not acquire a connection within 1500ms (pool max=8, in use=8, waiting={n}) GET /v1/quote", n: 60}
+  - {service: pricing-svc, level: ERROR, count: 1, from: "14:05", to: "14:16", msg: "db pool exhausted: could not acquire a connection within 1500ms (pool max=8, in use=8, waiting={n}) GET /v1/quote", n: 20}
+  - {service: checkout-api, level: ERROR, count: 6, from: "13:42", to: "14:05", msg: "POST /api/checkout 503 upstream=pricing-svc error=\"timeout after 2000ms\" order=ord_{id}"}
+  - {service: checkout-api, level: ERROR, count: 1.5, from: "14:05", to: "14:17", msg: "POST /api/checkout 503 upstream=pricing-svc error=\"timeout after 2000ms\" order=ord_{id}"}
+  - {service: pricing-svc, level: INFO, count: 1, from: "14:04", to: "14:05", msg: "scaled to 6 replicas (scale-2291)"}
+  - {service: pricing-svc, level: INFO, count: 1, from: "14:15", to: "14:16", msg: "deploy dep-8d4a: rolling restart (6 replicas)"}
+  - {service: pricing-svc, level: INFO, count: 1, from: "14:16", to: "14:17", msg: "db: read host pg-replica-2.internal; pool max=40 per replica (DB_POOL_MAX)"}
+  # search crawler
+  - {service: search-svc, level: WARN, count: 5, from: "13:50", to: "14:06", msg: "429 Too Many Requests client=crawler-7731 ip=203.0.113.{n}", n: 250}
+  - {service: search-svc, level: ERROR, count: 2, from: "13:50", to: "14:06", msg: "GET /search 503 shard search-index-3 overloaded ({ms}ms)", ms: [900, 1500]}
+  # checkout feature flag widened later
+  - {service: checkout-api, level: INFO, count: 1, from: "15:20", to: "15:21", msg: "deploy dep-91b3: feature flag new-banner enabled for 25% of sessions"}

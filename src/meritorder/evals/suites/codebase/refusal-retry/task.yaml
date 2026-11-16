@@ -1,0 +1,67 @@
+id: refusal-retry
+task: coding
+level: 5
+kind: agent
+commit: ae80248
+summary: "Retry auto requests on the next model when one refuses: detect Claude refusal and OpenAI content_filter in bodies and in streams held only until first content, record the refused attempt, header and team switch, plus a mock that can refuse on cue"
+env: meritorder.evals.envs.codebase:CodebaseEnv
+env_args: {task: refusal-retry}
+max_turns: 80
+est_turns: 40
+est_tool_tokens: 5000    # new tokens per turn (tool results and the reply), from runs of this suite
+est_output_tokens: 2500
+preamble_file: ../PREAMBLE.md
+prompt: |
+  ## Issue: an `auto` request refused by one model fails instead of trying another
+
+  `auto` sends a request to the cheapest model that meets its quality floor. When that model declines to answer
+  (Claude ends with `stop_reason: "refusal"`, OpenAI-style APIs with `finish_reason: "content_filter"`), the
+  client gets the refusal, although the next model on the list would have answered. Cheaper models refuse
+  more often and over-cautiously (security questions, medical text, "explain this exploit"), so the people who
+  hit this are exactly the ones `auto` was meant to serve.
+
+  **Wanted**
+
+  - For `auto` requests, when the model that was tried refuses before producing any content, the request is
+    retried on the next eligible candidate: never the same model again, never a backend that already failed,
+    and within the existing attempt limit. The client gets the answer of the model that answered. A request
+    that names its model gets that model's refusal unchanged; `auto` is the only case where one model stands
+    in for another.
+  - Non-streaming responses are judged from the body. For a stream, the gateway holds the upstream events back
+    only until the first content (text, or a tool call) arrives, then lets everything through unchanged; a
+    stream that ends in a refusal before any content is dropped and the request retried, so the client never
+    sees the refusing model's events (no `content_filter` chunk, no refusal `message_delta`). A refusal after
+    content has started is passed through as it comes.
+  - Headers on the final response: `x-meritorder-model` is the model that answered (as now), and
+    `x-meritorder-refused-by` lists the Merit Order model names that refused, comma separated. It is absent
+    when nothing was refused.
+  - Each refused attempt is recorded in the ledger as its own row (it cost prompt tokens): `served_model` is
+    the model that refused, with that attempt's token usage and cost, status 200, and `error` text that says the
+    model refused, containing the word `refused` (the reference wording is `refused by the model; retried on
+    another model`). The answering attempt gets its usual row.
+  - Teams can switch it off: `refusal_fallback: bool = True` on the team config. When false, the refusal is
+    returned to the client as it is, headers and ledger as for any request.
+
+  **Mock backend**
+
+  The mock backend needs a way to refuse on cue, for tests and development: when the text of the last message
+  contains `[refuse:<model>]` where `<model>` is the upstream model name the mock was asked for (the route's
+  `model`, for example `small-1`), it returns a refusal instead of its usual reply, shaped as the real
+  providers shape theirs, streaming or not, with the prompt tokens counted in usage and 0 output tokens:
+
+  - Anthropic format: a message with empty `content`, `stop_reason: "refusal"`; as a stream, `message_start`,
+    a `message_delta` whose delta has `stop_reason: "refusal"` (with usage), and `message_stop`.
+  - OpenAI format: one choice with `message.content` null and `finish_reason: "content_filter"`; as a stream, a
+    role-only delta chunk, a chunk with `finish_reason: "content_filter"`, a usage chunk and `[DONE]`.
+
+  A request for `small-1` carrying `[refuse:small-1]` therefore refuses on `small` and, under `auto` with a
+  floor both models meet, is answered by `big`.
+
+  **Interface**
+
+  - `TeamConfig.refusal_fallback: bool = True`.
+  - Response header `x-meritorder-refused-by` (comma-separated Merit Order model names; absent when none).
+  - Ledger rows for refused attempts: `served_model` = the refusing model, `error` containing `refused`.
+  - Mock backend: `[refuse:<upstream model>]` in the last message's text produces a refusal in either format,
+    streaming or not; a named model's client sees `finish_reason: "content_filter"` (OpenAI format) or
+    `stop_reason: "refusal"` (Anthropic format).

@@ -1,0 +1,148 @@
+# a4-charger-order: buy 12 new USB-C chargers (>= 100 W) for the Porto office, delivered by 2026-11-20, cheapest total.
+#
+# Lowest headline price first; why each loses (totals are for 12 units to the Porto office):
+#   OF-733  19.90  refurbished (only in get_offer)                         246.80
+#   OF-204  24.50  65 W (only in get_offer)                                302.00
+#   OF-118  27.90  import handling 6.50/unit + brokerage 25 + shipping 18  455.80 (also over the PO's remaining budget)
+#   OF-512  28.50  sold in packs of 10: 12 isn't possible, 20 is too many  570.00
+#   OF-407  29.50  only 7 in stock: 12 arrive 2026-11-27, too late          364.00
+#   OF-609  30.20  small-order handling fee 15.00 under 20 units           387.30
+#   OF-311  31.00  the answer                                              384.00
+# place_order without the PO's cost center is rejected; the first accepted order answers 504 but is created anyway.
+today: "2026-11-10"
+offers:
+  - id: OF-733
+    title: Kestrel 100W USB-C charger
+    seller: Kestrel Outlet
+    keywords: [usb-c, charger, gan, 100w, laptop]
+    unit_price: 19.90
+    condition: "refurbished (grade A, 90-day warranty)"
+    watts: 100
+    ports: "1x USB-C"
+    ships_from: ES
+    stock: 40
+    shipping: 8.00
+    delivery: "2026-11-13"
+    backorder_delivery: "2026-12-04"
+  - id: OF-204
+    title: Kestrel GaN USB-C charger
+    seller: Kestrel Store
+    keywords: [usb-c, charger, gan, laptop, travel]
+    unit_price: 24.50
+    condition: new
+    watts: 65
+    ports: "1x USB-C"
+    ships_from: ES
+    stock: 200
+    shipping: 8.00
+    delivery: "2026-11-14"
+    backorder_delivery: "2026-11-28"
+  - id: OF-118
+    title: VoltEdge 100W GaN USB-C charger
+    seller: VoltEdge Direct
+    keywords: [usb-c, charger, gan, 100w, laptop]
+    unit_price: 27.90
+    condition: new
+    watts: 100
+    ports: "2x USB-C, 1x USB-A"
+    ships_from: CN
+    stock: 500
+    shipping: 18.00
+    delivery: "2026-11-18"
+    backorder_delivery: "2026-12-10"
+    fees:
+      - {name: import handling, kind: per_unit, amount: 6.50, note: "Import handling for shipments from outside the EU: EUR 6.50 per unit"}
+      - {name: customs brokerage, kind: per_order, amount: 25.00, note: "Customs brokerage: EUR 25.00 per order"}
+  - id: OF-512
+    title: Brightcell 100W USB-C charger (10-pack)
+    seller: Brightcell EU
+    keywords: [usb-c, charger, 100w, laptop, bulk]
+    unit_price: 28.50
+    pack_size: 10
+    condition: new
+    watts: 100
+    ports: "1x USB-C"
+    ships_from: ES
+    stock: 300
+    shipping: 0.00
+    delivery: "2026-11-14"
+    backorder_delivery: "2026-11-30"
+  - id: OF-407
+    title: Northwind 140W USB-C charger
+    seller: Northwind Supply
+    keywords: [usb-c, charger, gan, 140w, laptop]
+    unit_price: 29.50
+    condition: new
+    watts: 140
+    ports: "2x USB-C"
+    ships_from: DE
+    stock: 7
+    shipping: 10.00
+    delivery: "2026-11-13"
+    backorder_delivery: "2026-11-27"
+  - id: OF-609
+    title: Halcyon 100W 2-port USB-C charger
+    seller: Halcyon Tech
+    keywords: [usb-c, charger, gan, 100w, laptop]
+    unit_price: 30.20
+    condition: new
+    watts: 100
+    ports: "2x USB-C"
+    ships_from: PT
+    stock: 80
+    shipping: 9.90
+    delivery: "2026-11-12"
+    backorder_delivery: "2026-11-26"
+    fees:
+      - {name: small-order handling, kind: small_order, below_units: 20, amount: 15.00, note: "Small-order handling: EUR 15.00 on orders of fewer than 20 units"}
+  - id: OF-311
+    title: Brightcell 100W USB-C charger
+    seller: Brightcell EU
+    keywords: [usb-c, charger, 100w, laptop]
+    unit_price: 31.00
+    condition: new
+    watts: 100
+    ports: "1x USB-C"
+    ships_from: ES
+    stock: 60
+    shipping: 12.00
+    free_shipping_over: 500.00
+    delivery: "2026-11-14"
+    backorder_delivery: "2026-11-30"
+  - id: OF-850
+    title: Brightcell USB-C to USB-C cable, 2 m, 240W
+    seller: Brightcell EU
+    keywords: [usb-c, cable, 240w]
+    unit_price: 9.90
+    condition: new
+    ports: "USB-C to USB-C"
+    ships_from: ES
+    stock: 900
+    shipping: 4.00
+    delivery: "2026-11-14"
+    backorder_delivery: "2026-11-30"
+  - id: OF-861
+    title: Aluminium laptop stand
+    seller: Halcyon Tech
+    keywords: [laptop, stand, desk]
+    unit_price: 34.00
+    condition: new
+    ships_from: PT
+    stock: 25
+    shipping: 9.90
+    delivery: "2026-11-12"
+    backorder_delivery: "2026-11-26"
+addresses:
+  - {id: ADDR-OPO-1, label: "Halyard Labs, Porto office", address: "Rua do Almada 210, 4050-031 Porto, PT"}
+  - {id: ADDR-OPO-2, label: "Halyard Labs, Porto warehouse (goods in)", address: "Rua de Sao Joao de Brito 605, 4100-455 Porto, PT"}
+  - {id: ADDR-LIS-1, label: "Halyard Labs, Lisbon office", address: "Avenida da Liberdade 110, 1269-046 Lisboa, PT"}
+purchase_orders:
+  - {po_number: PO-4471, cost_center: CC-OPS-210, remaining_eur: 420.00, owner: facilities, notes: "Office equipment, Q4"}
+  - {po_number: PO-4302, cost_center: CC-ENG-115, remaining_eur: 2500.00, owner: engineering, notes: "Test hardware"}
+expected:
+  offer_id: OF-311
+  quantity: 12
+  address_id: ADDR-OPO-1
+  po_number: PO-4471
+  total: 384.00
+first_order_id: ORD-88412

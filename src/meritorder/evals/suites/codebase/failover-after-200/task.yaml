@@ -1,0 +1,158 @@
+id: failover-after-200
+task: coding
+level: 5
+kind: agent
+commit: 4074d65
+summary: "Failover on errors that arrive after a 200 (in-stream overload, error chunks, error bodies, streams that never start), a per-model circuit breaker with Retry-After and last-resort retries, and outage alerts, across backends, proxy, router, console and metrics"
+env: meritorder.evals.envs.codebase:CodebaseEnv
+env_args: {task: failover-after-200}
+max_turns: 120
+est_turns: 75
+est_tool_tokens: 5000    # new tokens per turn (tool results and the reply), from runs of this suite
+est_output_tokens: 2500
+preamble_file: ../PREAMBLE.md
+prompt: |
+  ## Issue: provider failures after a 200 reach the client, and one busy model takes a whole backend down
+
+  Failover only happens when a backend answers with an error status or the connection fails. Three things slip
+  through:
+
+  - Anthropic reports overload inside a stream that has already started: a 200, `message_start`, then an
+    `event: error` with `overloaded_error`. OpenRouter-style providers send a 200 whose body is only
+    `{"error": ...}`, or a stream whose chunk carries an `error` and a choice with `finish_reason: "error"`.
+    The gateway treats every 200 as a success and relays these to the client, although nothing had reached the
+    client yet and another source could have served the request.
+  - A stream that never sends anything is waited on for the backend's whole `timeout_seconds` (ten minutes).
+  - The circuit breaker is per backend. Three errors from one model skip every model on that backend. A 429 on
+    one model skips nothing (the same route is tried again on the next request), while a rejected key counts as
+    one failure of three. Nobody is told what is being skipped, or why.
+
+  ### 1. Errors after a 200 are failures
+
+  Before a stream is committed to the client, read it up to its first content: a text or tool-call delta, a
+  finish reason, usage, `[DONE]`; for Anthropic, `content_block_delta`, `message_delta` or `message_stop`. An
+  error event before that point, a 200 non-streaming body that is only an error, or a stream that breaks
+  (network error) before any content, is a failure like an error status: the next source is tried, and the
+  partially read upstream stream is closed. After content has started, errors pass through as today (switching
+  then would duplicate output): a stream that sends a content delta and then an error chunk is relayed, error
+  included.
+
+  The status of such an error is the error object's numeric `code` (an int, or a string of digits) when it is
+  in 400-599; otherwise it follows the error's `type`: `overloaded_error` 529, `rate_limit_error` 429,
+  `insufficient_quota` 429, `api_error` and `server_error` 500, `timeout_error` 504, `service_unavailable` and
+  `service_unavailable_error` 503, `not_found_error` 404, `authentication_error` 401, `permission_error` 403,
+  `invalid_request_error` 400; anything else is 502. The message is the error's `message`, else
+  `"upstream error"`.
+
+  `meritorder.failover.error_in(data, fmt)` does this for one parsed event or body: it returns
+  `(status, message)` or `None`. For `fmt="anthropic"` only `{"type": "error", "error": {...}}` is an error.
+  For `fmt="openai"`, `{"error": "plain text"}` is `(502, "plain text")`, `{"error": {"code": "503",
+  "message": "busy"}}` is `(503, "busy")`, `{"error": {"type": "insufficient_quota", "message": "q"}}` is
+  `(429, "q")`. A body that has `choices` or `data` (embeddings) is not an error even if it also has an `error`
+  key (OpenRouter sends `"error": null`), unless its first choice has `finish_reason: "error"`, in which case
+  the status and message come from its `error` object. A non-dict is `None`.
+
+  ### 2. Streams that never start
+
+  A new backend setting, `first_byte_timeout_seconds` (a float above 0, or null for off). The default is 120 for
+  API backends; for `self_hosted` backends it is off unless set explicitly (a request may wait in vLLM's queue
+  on purpose). `BackendConfig.first_byte_timeout()` returns the effective value, `None` when off. It is measured
+  from sending the request to the first SSE event arriving: response headers alone do not count. A stream that
+  shows nothing by then is abandoned (closed, its in-flight slot released) as a 504 failure and the next source
+  is tried. Read the setting from the backend's config when the request is made; tests replace a live
+  backend's `cfg` with a copy that sets it.
+
+  ### 3. Skip the model that failed, not the whole backend
+
+  `Backend` keeps a breaker per backend and per upstream model on it:
+
+  - `healthy(now, model=None)`: False while the backend is skipped, or (with a model) while that model on it is.
+  - `skipped(now, model=None)`: the outage the backend (or that model) is being skipped for right now, else
+    `None`. An outage has `until` (absolute time), `status` (int; 0 when it is not from one status),
+    `message` (the provider's), and `capacity` (True when the model is busy rather than broken).
+  - `record_failure(now, model=None, status=0, retry_after=None, message="")`: counts one failure and returns the
+    outage if this failure started a skip that was not already in effect, else `None` (so a caller can alert
+    once). `retry_after` is the provider's wait in seconds.
+  - `record_success(model=None)`: clears the backend's failures and skip, and the model's; returns True if the
+    backend or that model was being skipped (it has recovered), else False.
+
+  Which statuses are about one model on a backend rather than the backend as a whole: 429, 503 and 529 (over
+  capacity), 404 (that model or deployment does not exist there), and 408, 409, 425 and 500. Everything else
+  (401, 403, 502, 504, network errors, a status of 0) is the backend's. How long a skip lasts:
+
+  - Over capacity (429/503/529): the model is skipped on the first failure, for the provider's `retry_after`
+    when given, else 10 s, doubling with each further consecutive failure (10, 20, 40...). Either way at most
+    300 s. `capacity` is True.
+  - 404: the model is skipped for 300 s on the first failure.
+  - 401/403: the backend is skipped for 60 s on the first failure, doubling, at most 600 s.
+  - Anything else: as today, after three consecutive failures, 5 s doubling to at most 60 s; for a model-scoped
+    status such as 500 the count and the skip belong to the model, otherwise to the backend.
+
+  A failure that is not model-scoped skips the backend for every model (`healthy(now, "other")` is False too).
+
+  Routing and the attempt loop follow the breaker: a route whose model is skipped is left out while other
+  models on the same backend are still tried; within one request a route that failed is not tried again, a
+  model-scoped failure rules out only that route, and a backend-wide failure rules out every route on that
+  backend. When every route for the request is skipped for capacity, try them anyway, the one that frees up
+  soonest first, rather than refuse (the client would retry anyway). This applies to embeddings too: with both
+  embedding backends over capacity, the request is sent and the backend's own error (its message included) comes
+  back. Skips that are not about capacity (404, 401) are not retried early: the request gets the routing 503, whose
+  message for a named model lists the route as `"<backend>: <reason>, trying again in <n>s"` inside the existing
+  "has nowhere to run" message, and the response carries a `Retry-After` header with the seconds until the
+  soonest skipped route is tried again. The reason words, used everywhere a failure is described: 429
+  `rate limited`, 529 `overloaded`, 503 `unavailable`, 404 `model or deployment not found`, 401
+  `credentials rejected`, 403 `access denied`, 504 `timed out`, 502 `unreachable or bad response`, 500
+  `server error`, 408 `request timeout`, otherwise `HTTP <status>`.
+
+  Pinning a backend with `X-MeritOrder-Backend` while that backend, or the model on it, is skipped answers 503
+  (today 400) with a message that says it `is being skipped` for how many more seconds and quotes the
+  provider's message, plus `Retry-After`.
+
+  The provider's `Retry-After` is kept on the failure (`BackendError.retry_after`, seconds as a float) and,
+  when the last error of a request has one, passed on to the client as a `Retry-After` header (a 529 with
+  `Retry-After: 3` from the only route comes back as a 529 with `Retry-After: 3`).
+  `meritorder.backends.http.retry_after(headers)` parses it from an `httpx.Headers`: `retry-after` in
+  seconds (`"42"` gives 42), `retry-after-ms` (`"1500"` gives 1.5), or an HTTP date (seconds from now);
+  missing or unparseable gives `None`.
+
+  ### 4. Saying what happened
+
+  - Responses served after one or more failed attempts carry `X-MeritOrder-Failed-Over`: one
+    `"<backend>/<upstream model> <status>"` per failed attempt, in order, joined by `", "`; for example
+    `up-a/m-a 529`.
+  - A counter `meritorder_failovers_total` with labels `backend` and `status`, one per failed attempt that
+    moved on to the next source (`meritorder_failovers_total{backend="up-a",status="429"} 1`).
+  - Alerts, through the same channel as the budget alerts (so they appear in `state.recent_alerts()`, newest
+    first): when a backend or a model on it starts being skipped, one alert whose text begins
+    `"<backend> (<model>) is failing: <reason>"` (`"<backend> is failing: <reason>"` for the whole backend),
+    says for how long, and ends with where traffic goes meanwhile: `"Traffic goes to <the other backends among
+    the request's candidates> meanwhile."`, or `"Nothing else serves it, so its requests wait."` when there are
+    none. At most one such alert per backend and model every 30 minutes. When a request later succeeds on a
+    backend or model that was skipped and alerted, one alert with exactly the text
+    `"<backend> (<model>) is working again."` (or `"<backend> is working again."`).
+  - `GET /v1/console/backends`: each backend gains `skipped` (null, or an object for a whole-backend skip) and
+    `skipped_models` (upstream model name to object). Each object has `why` (starting with the reason word,
+    then `": <provider message>"` when there is one), `status`, `seconds_left` and `capacity`.
+    `GET /v1/console/attention` keeps its `"<backend> is failing"` item for a skipped backend and adds a
+    warning titled `"<backend>: <model>[, <model>...] skipped"` when only models on it are skipped.
+
+  Everything that worked keeps working: the existing three-strikes behaviour for plain 5xx now applies per model
+  (three 500s from `m-a` skip `m-a` on that backend and nothing else), `record_success()` with no arguments
+  still clears the backend, and the in-flight count of a backend returns to zero after an abandoned or failed
+  stream.
+
+  **Interface**
+
+  - `meritorder.failover.error_in(data: dict | None, fmt: str) -> tuple[int, str] | None`
+  - `meritorder.backends.http.retry_after(headers: httpx.Headers) -> float | None`
+  - `BackendError(status, message, body=None, retryable=False, retry_after: float | None = None)`, attribute
+    `retry_after`
+  - `BackendConfig.first_byte_timeout_seconds: float | None = 120.0` (> 0), `BackendConfig.first_byte_timeout()
+    -> float | None`
+  - `Backend.healthy(now, model=None) -> bool`, `Backend.skipped(now, model=None)` (an object with `until`,
+    `status`, `message`, `capacity`, or None), `Backend.record_failure(now, model=None, status=0,
+    retry_after=None, message="")` (that object when a skip starts, else None),
+    `Backend.record_success(model=None) -> bool`
+  - Response headers `X-MeritOrder-Failed-Over` and `Retry-After`; metric `meritorder_failovers_total`
+  - `/v1/console/backends` fields `skipped` and `skipped_models`; `/v1/console/attention` item
+    `"<backend>: <models> skipped"`

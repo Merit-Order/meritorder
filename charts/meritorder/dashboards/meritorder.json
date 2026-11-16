@@ -1,0 +1,1422 @@
+{
+ "title": "Merit Order",
+ "uid": "meritorder",
+ "tags": [
+  "meritorder",
+  "llm"
+ ],
+ "timezone": "browser",
+ "schemaVersion": 39,
+ "version": 1,
+ "editable": true,
+ "refresh": "30s",
+ "time": {
+  "from": "now-6h",
+  "to": "now"
+ },
+ "description": "Spend, savings, traffic, latency, and GPUs from Merit Order's /metrics.",
+ "templating": {
+  "list": [
+   {
+    "name": "datasource",
+    "label": "Prometheus",
+    "type": "datasource",
+    "query": "prometheus",
+    "current": {},
+    "hide": 0,
+    "refresh": 1
+   }
+  ]
+ },
+ "annotations": {
+  "list": []
+ },
+ "links": [],
+ "panels": [
+  {
+   "id": 1,
+   "type": "row",
+   "title": "Spend and savings",
+   "collapsed": false,
+   "gridPos": {
+    "x": 0,
+    "y": 0,
+    "w": 24,
+    "h": 1
+   },
+   "panels": []
+  },
+  {
+   "id": 2,
+   "type": "stat",
+   "title": "Spend",
+   "description": "What is being spent per hour right now: requests on APIs, plus what running GPU replicas cost, idle or busy.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "expr": "(sum(rate(meritorder_cost_usd_total{kind!=\"gpu_share\"}[$__rate_interval])) or vector(0)) * 3600 + (sum(max by (backend) (meritorder_gpu_usd_per_hour)) or vector(0))",
+     "legendFormat": "spend",
+     "refId": "A",
+     "range": true
+    }
+   ],
+   "gridPos": {
+    "x": 0,
+    "y": 1,
+    "w": 4,
+    "h": 5
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "currencyUSD",
+     "decimals": 2
+    },
+    "overrides": []
+   },
+   "options": {
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "",
+     "values": false
+    },
+    "colorMode": "value",
+    "graphMode": "area",
+    "textMode": "auto",
+    "justifyMode": "auto"
+   }
+  },
+  {
+   "id": 3,
+   "type": "stat",
+   "title": "Would have cost",
+   "description": "The same requests at the baseline model's API price, per hour.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "expr": "sum(rate(meritorder_baseline_usd_total[$__rate_interval])) * 3600",
+     "legendFormat": "baseline",
+     "refId": "A",
+     "range": true
+    }
+   ],
+   "gridPos": {
+    "x": 4,
+    "y": 1,
+    "w": 4,
+    "h": 5
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "currencyUSD",
+     "decimals": 2
+    },
+    "overrides": []
+   },
+   "options": {
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "",
+     "values": false
+    },
+    "colorMode": "value",
+    "graphMode": "area",
+    "textMode": "auto",
+    "justifyMode": "auto"
+   }
+  },
+  {
+   "id": 4,
+   "type": "stat",
+   "title": "Saving",
+   "description": "What the requests would have cost less what is being spent, GPUs included, as a share of what they would have cost. Negative when GPUs cost more than they save.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "expr": "(sum(rate(meritorder_baseline_usd_total[$__rate_interval])) * 3600 - ((sum(rate(meritorder_cost_usd_total{kind!=\"gpu_share\"}[$__rate_interval])) or vector(0)) * 3600 + (sum(max by (backend) (meritorder_gpu_usd_per_hour)) or vector(0)))) / clamp_min(sum(rate(meritorder_baseline_usd_total[$__rate_interval])) * 3600, 1e-9)",
+     "legendFormat": "saving",
+     "refId": "A",
+     "range": true
+    }
+   ],
+   "gridPos": {
+    "x": 8,
+    "y": 1,
+    "w": 4,
+    "h": 5
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "percentunit",
+     "decimals": 0
+    },
+    "overrides": []
+   },
+   "options": {
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "",
+     "values": false
+    },
+    "colorMode": "value",
+    "graphMode": "area",
+    "textMode": "auto",
+    "justifyMode": "auto"
+   }
+  },
+  {
+   "id": 5,
+   "type": "stat",
+   "title": "GPU burn",
+   "description": "What running GPU replicas cost per hour (SkyPilot catalog prices).",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "expr": "sum(max by (backend) (meritorder_gpu_usd_per_hour)) or vector(0)",
+     "legendFormat": "GPUs",
+     "refId": "A",
+     "range": true
+    }
+   ],
+   "gridPos": {
+    "x": 12,
+    "y": 1,
+    "w": 4,
+    "h": 5
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "currencyUSD",
+     "decimals": 2
+    },
+    "overrides": []
+   },
+   "options": {
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "",
+     "values": false
+    },
+    "colorMode": "value",
+    "graphMode": "area",
+    "textMode": "auto",
+    "justifyMode": "auto"
+   }
+  },
+  {
+   "id": 6,
+   "type": "stat",
+   "title": "Requests",
+   "description": "",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "expr": "(sum(rate(meritorder_requests_total[$__rate_interval])) or vector(0)) + (sum(rate(meritorder_rejected_requests_total[$__rate_interval])) or vector(0))",
+     "legendFormat": "req/s",
+     "refId": "A",
+     "range": true
+    }
+   ],
+   "gridPos": {
+    "x": 16,
+    "y": 1,
+    "w": 4,
+    "h": 5
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "reqps",
+     "decimals": 1
+    },
+    "overrides": []
+   },
+   "options": {
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "",
+     "values": false
+    },
+    "colorMode": "value",
+    "graphMode": "area",
+    "textMode": "auto",
+    "justifyMode": "auto"
+   }
+  },
+  {
+   "id": 7,
+   "type": "stat",
+   "title": "Errors",
+   "description": "Failed requests, including ones refused before reaching a backend.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "expr": "((sum(rate(meritorder_requests_total{status!~\"2..\"}[$__rate_interval])) or vector(0)) + (sum(rate(meritorder_rejected_requests_total[$__rate_interval])) or vector(0))) / clamp_min((sum(rate(meritorder_requests_total[$__rate_interval])) or vector(0)) + (sum(rate(meritorder_rejected_requests_total[$__rate_interval])) or vector(0)), 1e-9)",
+     "legendFormat": "errors",
+     "refId": "A",
+     "range": true
+    }
+   ],
+   "gridPos": {
+    "x": 20,
+    "y": 1,
+    "w": 4,
+    "h": 5
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "percentunit",
+     "decimals": 1,
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "orange",
+        "value": 0.02
+       },
+       {
+        "color": "red",
+        "value": 0.05
+       }
+      ]
+     },
+     "color": {
+      "mode": "thresholds"
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "",
+     "values": false
+    },
+    "colorMode": "value",
+    "graphMode": "area",
+    "textMode": "auto",
+    "justifyMode": "auto"
+   }
+  },
+  {
+   "id": 8,
+   "type": "timeseries",
+   "title": "Spend by model ($/h)",
+   "description": "",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "expr": "sum by (model) (rate(meritorder_cost_usd_total[$__rate_interval])) * 3600",
+     "legendFormat": "{{model}}",
+     "refId": "A",
+     "range": true
+    }
+   ],
+   "gridPos": {
+    "x": 0,
+    "y": 6,
+    "w": 12,
+    "h": 8
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "currencyUSD",
+     "custom": {
+      "drawStyle": "line",
+      "lineWidth": 1,
+      "fillOpacity": 18,
+      "showPoints": "never",
+      "stacking": {
+       "mode": "normal",
+       "group": "A"
+      },
+      "spanNulls": true
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom",
+     "showLegend": true
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "desc"
+    }
+   }
+  },
+  {
+   "id": 9,
+   "type": "timeseries",
+   "title": "Savings by cause ($/h)",
+   "description": "routing: a cheaper model; caching: prompt-cache reads; self_hosting: GPUs instead of APIs, at each request's share of the GPU; GPU time no request paid for: the rest of the GPUs' burn (idle, starting, draining), which comes off self_hosting; compression: tool results shortened by the rules; compression_model: by model-based compression (LLMLingua-2); response_cache: exact repeats served from cache. Live traffic only: batches are in the Batches row below (the worker's meritorder_batch_* counters).",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "expr": "sum by (cause) (rate(meritorder_savings_usd_total[$__rate_interval])) * 3600",
+     "legendFormat": "{{cause}}",
+     "refId": "A",
+     "range": true
+    },
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "expr": "(sum(rate(meritorder_cost_usd_total{kind=\"gpu_share\"}[$__rate_interval])) or vector(0)) * 3600 - (sum(max by (backend) (meritorder_gpu_usd_per_hour)) or vector(0))",
+     "legendFormat": "GPU time no request paid for",
+     "refId": "B",
+     "range": true
+    }
+   ],
+   "gridPos": {
+    "x": 12,
+    "y": 6,
+    "w": 12,
+    "h": 8
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "currencyUSD",
+     "custom": {
+      "drawStyle": "line",
+      "lineWidth": 1,
+      "fillOpacity": 18,
+      "showPoints": "never",
+      "stacking": {
+       "mode": "normal",
+       "group": "A"
+      },
+      "spanNulls": true
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom",
+     "showLegend": true
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "desc"
+    }
+   }
+  },
+  {
+   "id": 10,
+   "type": "row",
+   "title": "Traffic",
+   "collapsed": false,
+   "gridPos": {
+    "x": 0,
+    "y": 14,
+    "w": 24,
+    "h": 1
+   },
+   "panels": []
+  },
+  {
+   "id": 11,
+   "type": "timeseries",
+   "title": "Requests by model",
+   "description": "",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "expr": "sum by (model) (rate(meritorder_requests_total[$__rate_interval]))",
+     "legendFormat": "{{model}}",
+     "refId": "A",
+     "range": true
+    }
+   ],
+   "gridPos": {
+    "x": 0,
+    "y": 15,
+    "w": 8,
+    "h": 8
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "reqps",
+     "custom": {
+      "drawStyle": "line",
+      "lineWidth": 1,
+      "fillOpacity": 18,
+      "showPoints": "never",
+      "stacking": {
+       "mode": "normal",
+       "group": "A"
+      },
+      "spanNulls": true
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom",
+     "showLegend": true
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "desc"
+    }
+   }
+  },
+  {
+   "id": 12,
+   "type": "timeseries",
+   "title": "Requests by backend",
+   "description": "",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "expr": "sum by (backend) (rate(meritorder_requests_total[$__rate_interval]))",
+     "legendFormat": "{{backend}}",
+     "refId": "A",
+     "range": true
+    }
+   ],
+   "gridPos": {
+    "x": 8,
+    "y": 15,
+    "w": 8,
+    "h": 8
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "reqps",
+     "custom": {
+      "drawStyle": "line",
+      "lineWidth": 1,
+      "fillOpacity": 18,
+      "showPoints": "never",
+      "stacking": {
+       "mode": "normal",
+       "group": "A"
+      },
+      "spanNulls": true
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom",
+     "showLegend": true
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "desc"
+    }
+   }
+  },
+  {
+   "id": 13,
+   "type": "timeseries",
+   "title": "Errors by backend and refusals by reason",
+   "description": "Backend failures by backend, and requests refused before a backend: rate_limit_error is budgets and rate limits, overloaded_error is nowhere to run, authentication_error is bad keys.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "expr": "sum by (backend) (rate(meritorder_requests_total{status!~\"2..\"}[$__rate_interval]))",
+     "legendFormat": "{{backend}}",
+     "refId": "A",
+     "range": true
+    },
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "expr": "sum by (reason) (rate(meritorder_rejected_requests_total[$__rate_interval]))",
+     "legendFormat": "refused: {{reason}}",
+     "refId": "B",
+     "range": true
+    }
+   ],
+   "gridPos": {
+    "x": 16,
+    "y": 15,
+    "w": 8,
+    "h": 8
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "reqps",
+     "custom": {
+      "drawStyle": "line",
+      "lineWidth": 1,
+      "fillOpacity": 6,
+      "showPoints": "never",
+      "stacking": {
+       "mode": "none",
+       "group": "A"
+      },
+      "spanNulls": true
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom",
+     "showLegend": true
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "desc"
+    }
+   }
+  },
+  {
+   "id": 14,
+   "type": "timeseries",
+   "title": "Tokens by kind",
+   "description": "Input, cache reads, cache writes, and output tokens per second.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "expr": "sum by (kind) (rate(meritorder_tokens_total[$__rate_interval]))",
+     "legendFormat": "{{kind}}",
+     "refId": "A",
+     "range": true
+    }
+   ],
+   "gridPos": {
+    "x": 0,
+    "y": 23,
+    "w": 8,
+    "h": 8
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "custom": {
+      "drawStyle": "line",
+      "lineWidth": 1,
+      "fillOpacity": 18,
+      "showPoints": "never",
+      "stacking": {
+       "mode": "normal",
+       "group": "A"
+      },
+      "spanNulls": true
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom",
+     "showLegend": true
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "desc"
+    }
+   }
+  },
+  {
+   "id": 15,
+   "type": "timeseries",
+   "title": "Prompt-cache hit ratio",
+   "description": "Share of input tokens read from a prompt cache. Stable sessions keep this high.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "expr": "(sum(rate(meritorder_tokens_total{kind=\"cache_read\"}[$__rate_interval])) or vector(0)) / clamp_min(sum(rate(meritorder_tokens_total{kind=~\"input|cache_read|cache_write\"}[$__rate_interval])), 1e-9)",
+     "legendFormat": "cached share of input",
+     "refId": "A",
+     "range": true
+    }
+   ],
+   "gridPos": {
+    "x": 8,
+    "y": 23,
+    "w": 8,
+    "h": 8
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "percentunit",
+     "custom": {
+      "drawStyle": "line",
+      "lineWidth": 1,
+      "fillOpacity": 6,
+      "showPoints": "never",
+      "stacking": {
+       "mode": "none",
+       "group": "A"
+      },
+      "spanNulls": true
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom",
+     "showLegend": true
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "desc"
+    }
+   }
+  },
+  {
+   "id": 16,
+   "type": "timeseries",
+   "title": "Backends available",
+   "description": "Enabled, running, and circuit breaker closed.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "expr": "min by (backend) (meritorder_backend_available)",
+     "legendFormat": "{{backend}}",
+     "refId": "A",
+     "range": true
+    }
+   ],
+   "gridPos": {
+    "x": 16,
+    "y": 23,
+    "w": 8,
+    "h": 8
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "bool_on_off",
+     "custom": {
+      "drawStyle": "line",
+      "lineWidth": 1,
+      "fillOpacity": 6,
+      "showPoints": "never",
+      "stacking": {
+       "mode": "none",
+       "group": "A"
+      },
+      "spanNulls": true
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom",
+     "showLegend": true
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "desc"
+    }
+   }
+  },
+  {
+   "id": 17,
+   "type": "row",
+   "title": "Latency",
+   "collapsed": false,
+   "gridPos": {
+    "x": 0,
+    "y": 31,
+    "w": 24,
+    "h": 1
+   },
+   "panels": []
+  },
+  {
+   "id": 18,
+   "type": "timeseries",
+   "title": "Time to first token (p50 / p95)",
+   "description": "",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "expr": "histogram_quantile(0.5, sum by (le, model) (rate(meritorder_time_to_first_token_seconds_bucket[$__rate_interval])))",
+     "legendFormat": "p50 {{model}}",
+     "refId": "A",
+     "range": true
+    },
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "expr": "histogram_quantile(0.95, sum by (le, model) (rate(meritorder_time_to_first_token_seconds_bucket[$__rate_interval])))",
+     "legendFormat": "p95 {{model}}",
+     "refId": "B",
+     "range": true
+    }
+   ],
+   "gridPos": {
+    "x": 0,
+    "y": 32,
+    "w": 12,
+    "h": 8
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "s",
+     "custom": {
+      "drawStyle": "line",
+      "lineWidth": 1,
+      "fillOpacity": 6,
+      "showPoints": "never",
+      "stacking": {
+       "mode": "none",
+       "group": "A"
+      },
+      "spanNulls": true
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom",
+     "showLegend": true
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "desc"
+    }
+   }
+  },
+  {
+   "id": 19,
+   "type": "timeseries",
+   "title": "Request duration (p50 / p95)",
+   "description": "",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "expr": "histogram_quantile(0.5, sum by (le, model) (rate(meritorder_request_duration_seconds_bucket[$__rate_interval])))",
+     "legendFormat": "p50 {{model}}",
+     "refId": "A",
+     "range": true
+    },
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "expr": "histogram_quantile(0.95, sum by (le, model) (rate(meritorder_request_duration_seconds_bucket[$__rate_interval])))",
+     "legendFormat": "p95 {{model}}",
+     "refId": "B",
+     "range": true
+    }
+   ],
+   "gridPos": {
+    "x": 12,
+    "y": 32,
+    "w": 12,
+    "h": 8
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "s",
+     "custom": {
+      "drawStyle": "line",
+      "lineWidth": 1,
+      "fillOpacity": 6,
+      "showPoints": "never",
+      "stacking": {
+       "mode": "none",
+       "group": "A"
+      },
+      "spanNulls": true
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom",
+     "showLegend": true
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "desc"
+    }
+   }
+  },
+  {
+   "id": 20,
+   "type": "row",
+   "title": "GPUs",
+   "collapsed": false,
+   "gridPos": {
+    "x": 0,
+    "y": 40,
+    "w": 24,
+    "h": 1
+   },
+   "panels": []
+  },
+  {
+   "id": 21,
+   "type": "timeseries",
+   "title": "Replicas",
+   "description": "",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "expr": "max by (backend) (meritorder_gpu_replicas)",
+     "legendFormat": "{{backend}}",
+     "refId": "A",
+     "range": true
+    }
+   ],
+   "gridPos": {
+    "x": 0,
+    "y": 41,
+    "w": 6,
+    "h": 8
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "custom": {
+      "drawStyle": "line",
+      "lineWidth": 1,
+      "fillOpacity": 18,
+      "showPoints": "never",
+      "stacking": {
+       "mode": "normal",
+       "group": "A"
+      },
+      "spanNulls": true
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom",
+     "showLegend": true
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "desc"
+    }
+   }
+  },
+  {
+   "id": 22,
+   "type": "timeseries",
+   "title": "Burn ($/h)",
+   "description": "",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "expr": "max by (backend) (meritorder_gpu_usd_per_hour)",
+     "legendFormat": "{{backend}}",
+     "refId": "A",
+     "range": true
+    }
+   ],
+   "gridPos": {
+    "x": 6,
+    "y": 41,
+    "w": 6,
+    "h": 8
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "currencyUSD",
+     "custom": {
+      "drawStyle": "line",
+      "lineWidth": 1,
+      "fillOpacity": 18,
+      "showPoints": "never",
+      "stacking": {
+       "mode": "normal",
+       "group": "A"
+      },
+      "spanNulls": true
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom",
+     "showLegend": true
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "desc"
+    }
+   }
+  },
+  {
+   "id": 23,
+   "type": "timeseries",
+   "title": "Utilization",
+   "description": "vLLM KV-cache use, pushed up by waiting requests. At 100% new work spills to other routes.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "expr": "max by (backend) (meritorder_gpu_utilization)",
+     "legendFormat": "{{backend}}",
+     "refId": "A",
+     "range": true
+    }
+   ],
+   "gridPos": {
+    "x": 12,
+    "y": 41,
+    "w": 6,
+    "h": 8
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "percentunit",
+     "custom": {
+      "drawStyle": "line",
+      "lineWidth": 1,
+      "fillOpacity": 6,
+      "showPoints": "never",
+      "stacking": {
+       "mode": "none",
+       "group": "A"
+      },
+      "spanNulls": true
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom",
+     "showLegend": true
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "desc"
+    }
+   }
+  },
+  {
+   "id": 24,
+   "type": "timeseries",
+   "title": "Waiting and in flight",
+   "description": "",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "expr": "max by (backend) (meritorder_gpu_waiting_requests)",
+     "legendFormat": "waiting in vLLM {{backend}}",
+     "refId": "A",
+     "range": true
+    },
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "expr": "sum by (backend) (meritorder_inflight_requests{backend=~\".+\"})",
+     "legendFormat": "in flight {{backend}}",
+     "refId": "B",
+     "range": true
+    }
+   ],
+   "gridPos": {
+    "x": 18,
+    "y": 41,
+    "w": 6,
+    "h": 8
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "custom": {
+      "drawStyle": "line",
+      "lineWidth": 1,
+      "fillOpacity": 6,
+      "showPoints": "never",
+      "stacking": {
+       "mode": "none",
+       "group": "A"
+      },
+      "spanNulls": true
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom",
+     "showLegend": true
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "desc"
+    }
+   }
+  },
+  {
+   "id": 25,
+   "type": "row",
+   "title": "Batches",
+   "collapsed": false,
+   "gridPos": {
+    "x": 0,
+    "y": 49,
+    "w": 24,
+    "h": 1
+   },
+   "panels": []
+  },
+  {
+   "id": 26,
+   "type": "timeseries",
+   "title": "Batch spend ($/h)",
+   "description": "What settled batch requests cost, from the worker that settles them (MERITORDER_WORKER_METRICS_PORT). Not in Spend above, which is live traffic: add the two for everything.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "expr": "sum by (model) (rate(meritorder_batch_cost_usd_total[$__rate_interval])) * 3600",
+     "legendFormat": "{{model}}",
+     "refId": "A",
+     "range": true
+    }
+   ],
+   "gridPos": {
+    "x": 0,
+    "y": 50,
+    "w": 8,
+    "h": 8
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "currencyUSD",
+     "custom": {
+      "drawStyle": "line",
+      "lineWidth": 1,
+      "fillOpacity": 18,
+      "showPoints": "never",
+      "stacking": {
+       "mode": "normal",
+       "group": "A"
+      },
+      "spanNulls": true
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom",
+     "showLegend": true
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "desc"
+    }
+   }
+  },
+  {
+   "id": 27,
+   "type": "timeseries",
+   "title": "Batch savings by cause ($/h)",
+   "description": "batch: the providers' batch discount; self_hosting: batch work run on GPUs below the batch price; routing: a cheaper model than the team's default.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "expr": "sum by (cause) (rate(meritorder_batch_savings_usd_total[$__rate_interval])) * 3600",
+     "legendFormat": "{{cause}}",
+     "refId": "A",
+     "range": true
+    }
+   ],
+   "gridPos": {
+    "x": 8,
+    "y": 50,
+    "w": 8,
+    "h": 8
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "currencyUSD",
+     "custom": {
+      "drawStyle": "line",
+      "lineWidth": 1,
+      "fillOpacity": 18,
+      "showPoints": "never",
+      "stacking": {
+       "mode": "normal",
+       "group": "A"
+      },
+      "spanNulls": true
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom",
+     "showLegend": true
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "desc"
+    }
+   }
+  },
+  {
+   "id": 28,
+   "type": "timeseries",
+   "title": "Batch requests by where they ran",
+   "description": "Settled batch requests by batch API (gpu: run on a self-hosted GPU) and status, and GPU batch work moved to a provider's batch API (deadline, stopped, failed).",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "expr": "sum by (api, status) (rate(meritorder_batch_requests_total[$__rate_interval]))",
+     "legendFormat": "{{api}} {{status}}",
+     "refId": "A",
+     "range": true
+    },
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${datasource}"
+     },
+     "expr": "sum by (why) (rate(meritorder_batch_handoffs_total[$__rate_interval]))",
+     "legendFormat": "handed from a GPU: {{why}}",
+     "refId": "B",
+     "range": true
+    }
+   ],
+   "gridPos": {
+    "x": 16,
+    "y": 50,
+    "w": 8,
+    "h": 8
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "reqps",
+     "custom": {
+      "drawStyle": "line",
+      "lineWidth": 1,
+      "fillOpacity": 6,
+      "showPoints": "never",
+      "stacking": {
+       "mode": "none",
+       "group": "A"
+      },
+      "spanNulls": true
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom",
+     "showLegend": true
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "desc"
+    }
+   }
+  }
+ ]
+}

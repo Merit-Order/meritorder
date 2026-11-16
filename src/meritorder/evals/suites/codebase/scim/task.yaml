@@ -1,0 +1,103 @@
+id: scim
+task: coding
+level: 5
+kind: agent
+commit: 28c649e
+summary: "A SCIM 2.0 provisioning service for Entra: Users and Groups with filters and PATCH, keyed by directory id, group membership recomputed into team and role through the sign-in mapping, deactivation cutting keys off at once"
+env: meritorder.evals.envs.codebase:CodebaseEnv
+env_args: {task: scim}
+max_turns: 120
+est_turns: 75
+est_tool_tokens: 5000    # new tokens per turn (tool results and the reply), from runs of this suite
+est_output_tokens: 2500
+preamble_file: ../PREAMBLE.md
+prompt: |
+  ## Issue: people who leave or change teams in Entra keep their access until they next sign in
+
+  Entra sign-in creates a person's record and sets their team and role from their groups, but only when they
+  sign in. Someone deactivated in Entra keeps using their issued keys until an admin notices; someone moved to
+  another group keeps the old team and role until their next login. The docs already promise SCIM as the fix.
+  Entra's automatic provisioning pushes users and groups to a SCIM 2.0 endpoint as they change; the gateway
+  needs to be that endpoint.
+
+  **Wanted**
+
+  A SCIM 2.0 service (RFC 7643/7644) under `/scim/v2`, covering the subset Entra uses: `ServiceProviderConfig`,
+  `ResourceTypes`, and `Users` and `Groups` with list (with `filter`), create, get, replace (PUT), PATCH and
+  delete. Responses are JSON (`application/scim+json`) and errors use the SCIM error schema with the status in
+  the body.
+
+  Switching it on: the environment variable `MERITORDER_SCIM_TOKEN`. Entra sends it as `Authorization: Bearer
+  <token>`. The variable is read when a request arrives, not once at startup, so turning provisioning on
+  doesn't need a restart. Without it every `/scim/v2` path is a 404;
+  with it, a missing or wrong bearer is a 401 (compare it in constant time).
+
+  **Users**
+
+  - A person's SCIM `id` is the directory object ID Entra sends as `externalId`, which is also the id of the
+    person's record and the id OIDC sign-in uses (the `oid` claim), so provisioning and sign-in meet on one
+    record. When a create carries no `externalId`, the `userName` is used instead. Neither: 400.
+  - Create (`POST /scim/v2/Users`) answers 201 with the resource; its `id` is the externalId. Creating an id
+    that exists is a 409 (scimType `uniqueness`). A new person gets the sign-in defaults, `auth.oidc.default_team`
+    (`default` when there is no OIDC config) and role `user`, unless a group they are already a member of says
+    otherwise (below). `userName` (or the primary entry of `emails`) is stored as the person's email,
+    `displayName` as their display name.
+  - The user resource carries `schemas`, `id`, `externalId`, `userName`, `displayName`, `active` (a boolean:
+    false when the person is disabled), `emails` and `meta` (resourceType `User`, location).
+  - List supports `filter` with a single `eq` on `userName`, `emails.value`, `externalId` or `id`, returning a
+    ListResponse (`totalResults`, `startIndex`, `itemsPerPage`, `Resources`); an unknown person gives
+    `totalResults` 0, not an error. Any other filter is a 400 with scimType `invalidFilter`. Without a filter,
+    every person is listed, honouring `startIndex` and `count`.
+  - PATCH takes `Operations`. Entra capitalises op names (`Replace`, `Add`, `Remove`), so match them case
+    insensitively. Support `path` set to `active`, `displayName`, `userName` or an `emails` path, and the form
+    with no `path` and a `value` object (`{"op": "replace", "value": {"active": true}}`). Entra sends `active` as
+    the strings `"True"` and `"False"` as often as booleans; treat them as booleans. The reply is the updated
+    resource, so `active` is `false` after a deactivation. PATCH, PUT, GET and DELETE on an unknown id: 404.
+  - Deactivating a person (`active` false) disables them: every key they already hold stops working at once on
+    this gateway (401 on the next request), and setting `active` true again restores it at once. DELETE answers
+    204 and disables the person the same way rather than erasing them: their spend history stays. Both must
+    take effect immediately, not after the authentication cache's minute.
+
+  **Groups**
+
+  - Create with `displayName` (required, else 400), optional `externalId`, optional `members` as
+    `[{"value": "<user id>"}, ...]`; 201 with the resource, whose `id` the server assigns. The group resource has
+    `schemas`, `id`, `externalId`, `displayName`, `members` (as `{"value": id}` entries) and `meta`.
+  - List supports `filter` with `eq` on `displayName`, `externalId` or `id`, and `excludedAttributes=members`
+    leaves `members` out of each resource (Entra asks that way when it only wants to find a group).
+  - PATCH `Operations`, case insensitive: `add` with path `members` and a list of `{"value": id}`; `remove` with
+    path `members[value eq "<id>"]`, or path `members` with a value list (no list: everyone); `replace` of
+    `members`, `displayName` or `externalId`, with a path or as a `value` object. PUT replaces the whole group.
+    DELETE answers 204.
+  - Membership drives team and role. Whenever a person's membership changes (a group is created with members,
+    patched, replaced or deleted), their team and role are recomputed with the sign-in mapping in the live
+    config, `auth.oidc.team_from_groups` and `auth.oidc.role_from_groups`, the same way sign-in does it: the
+    first team whose group matches, else `default_team`; the highest-ranking role among matching groups, else
+    `user`. A mapping key matches a group by the group's `externalId` (the Entra object ID, which is what the
+    groups claim carries at sign-in); accept its `displayName` or SCIM `id` too. Read the mapping and the team
+    list from the config as it is at that moment, not from a copy taken at startup: the config editor changes
+    both while the gateway runs. The existing rule that an admin's manual team or role assignment is kept over what the identity
+    provider says still holds here. The change applies to the person's next request.
+
+  **Discovery**
+
+  `GET /scim/v2/ServiceProviderConfig` reports `patch.supported` true and `filter.supported` true, and bulk,
+  sort, etag and changePassword unsupported, with a bearer-token authentication scheme. `GET /scim/v2/ResourceTypes`
+  lists User and Group.
+
+  **Stores**
+
+  Both stores need to hold groups (id, display name, external id, members) and find a person by email, case
+  insensitively. Groups must persist in Postgres across restarts, and an existing install must pick this up when
+  it upgrades, without anyone preparing the database by hand.
+
+  **Interface**
+
+  - Environment: `MERITORDER_SCIM_TOKEN` (read per request; unset: `/scim/v2/*` is 404; wrong bearer: 401).
+  - `GET /scim/v2/ServiceProviderConfig`, `GET /scim/v2/ResourceTypes`.
+  - `GET /scim/v2/Users[?filter=userName eq "..."]`, `POST /scim/v2/Users` (201, `id` = `externalId`; 409 on a
+    duplicate), `GET`/`PUT`/`PATCH`/`DELETE /scim/v2/Users/{id}` (DELETE: 204, disables).
+  - `GET /scim/v2/Groups[?filter=displayName eq "..."&excludedAttributes=members]`, `POST /scim/v2/Groups`
+    (201), `GET`/`PUT`/`PATCH`/`DELETE /scim/v2/Groups/{id}` (DELETE: 204).
+  - The person's record (`store.get_user(externalId)`) reflects the recomputed `team` and `role` right after a
+    group change; keys made for the person (`store.create_key`) are refused with 401 while they are disabled.

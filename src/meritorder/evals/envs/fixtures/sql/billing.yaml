@@ -1,0 +1,8 @@
+# a5-march-revenue. billing.sql is a static snapshot made by make_billing.py (seeded); regenerate both together.
+# Expected: March 2026 net revenue in EUR as the task prompt defines it. Each documented quirk moves the result:
+#   UTC month instead of Lisbon +208.60 | UTC+1 all month +119.00 | is_test = 0 (drops NULL legacy accounts) -2061.70
+#   inner join to customers (drops guest orders) -917.70 | no FX conversion -246.75 | refunds left out +404.00
+#   plus: legacy cents, NULL currency = EUR, upper/lower-case status, webhook duplicates (17 rows),
+#   dual-written 2026-03-15 payments (15), mixed timestamp formats, missing FX days (weekends, 2026-03-10).
+answer: 12535.90
+tolerance: 0.005

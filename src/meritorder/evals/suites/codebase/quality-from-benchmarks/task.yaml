@@ -1,0 +1,162 @@
+id: quality-from-benchmarks
+task: coding
+level: 5
+kind: agent
+commit: 7ecf219
+summary: "Quality scores from Epoch AI's benchmark data (or Artificial Analysis) instead of numbers typed in the config: a new data module with a logistic ability model, fallbacks and overrides, scores stored with the live catalog and reloaded by gateways, a daily worker refresh with alerts, CLI and admin API; touches config, catalog, live prices, worker, CLI and admin"
+env: meritorder.evals.envs.codebase:CodebaseEnv
+env_args: {task: quality-from-benchmarks}
+max_turns: 120
+est_turns: 75
+est_tool_tokens: 5000    # new tokens per turn (tool results and the reply), from runs of this suite
+est_output_tokens: 2500
+preamble_file: ../PREAMBLE.md
+prompt: |
+  ## Issue: quality scores are numbers typed into the config; take them from published benchmarks and keep them live
+
+  `auto` routes on each model's `quality` scores (1-5 per task type), and today those are typed by hand on each
+  model in the config. Our own eval suite can't separate the strongest models (every Claude model passed the same
+  48 of 56 tasks), so the numbers are guesses. Published benchmarks run the same way for every model can do
+  better. Epoch AI publishes its data (CC BY 4.0, no key needed); Artificial Analysis publishes an Intelligence
+  Index (free API key). Wanted: a configurable quality source, refreshed daily by the worker, stored with the
+  live price catalog so every gateway reloads with the scores, with the configured scores as the fallback.
+
+  ### Configuration
+
+  A new top-level `quality:` section (`Config.quality`, a `QualityConfig` model), all fields optional:
+
+  - `source`: `epoch` (default), `artificial_analysis` or `config` (the scores written on the models, as today).
+  - `scale`: `best` (default) or `range`, see below.
+  - `refresh_hours`: how often the worker refreshes; default 24.
+  - `reference`: per task type, the Epoch benchmark whose difficulty scores are measured against. Default
+    `{coding: FrontierSWE, general: FrontierSWE}`.
+  - `evidence`: per task type, the Epoch benchmarks whose results show a model's strength at that kind of work.
+    Default `{coding: [FrontierSWE, FrontierCode], general: []}`.
+
+  On each model: `quality` now allows decimals; new `quality_override` (same shape; a score set by hand that
+  always wins); new `benchmark_name` (the model's name in benchmark data, for a model whose route ids don't
+  match it); and `quality_sources`, filled when the configuration loads: for every task type the model has a
+  score for, where it came from: `"epoch"`, `"artificial_analysis"`, `"config"` or `"override"`.
+
+  ### Epoch's data
+
+  `https://epoch.ai/data/benchmark_data.zip` holds CSV files, in subfolders; find them by file name:
+
+  - `eci_scores.csv`: one row per model with columns `Model`, `Display name`, `eci` (and others). A model's
+    ability on Epoch's scale is `eci`, keyed by its `Display name`.
+  - `edi_scores.csv`: one row per benchmark: `benchmark_name`, `edi` (difficulty on the same scale) and
+    `estimated_slope_scaled` (slope).
+  - One results file per benchmark: `frontierswe_external.csv` for FrontierSWE, `frontiercode_external.csv`
+    for FrontierCode. Column `Model version` is the model's name with an effort suffix (`claude-top-1_high`,
+    `claude-mid-1_max`; the suffixes are `_max`, `_xhigh`, `_high`, `_medium`, `_low`, `_minimal`, `_none`,
+    `_unknown`; a name may have none). The score is in the first column present of `Score`, `Main score`,
+    `mean_score`, `Pass@1 score`, `Accuracy`. Rows whose score isn't a number are skipped. Several rows may
+    exist for one model (one per effort).
+
+  Names are matched after normalizing: lowercase, every run of characters other than a-z and 0-9 becomes one
+  hyphen, leading and trailing hyphens dropped. `Claude Mid 1`, `claude-mid-1-20260101`'s alias and
+  `claude-mid-1_max` (suffix removed) all give `claude-mid-1`.
+
+  The names a configured model may have in the data: its `benchmark_name`; each route's model id (or
+  `price_key`) without a provider prefix, that is the part after the last `/` (and for Bedrock ids such as
+  `anthropic.claude-x`, also the part after the first `.`); and its aliases that contain no wildcard, likewise
+  without a prefix. A model none of whose names appear in the data isn't guessed at. Only chat models are
+  scored.
+
+  Epoch's model: a model's chance of solving a benchmark's tasks is `sigmoid(slope * (ability - difficulty))`.
+  For each task type in `reference` whose reference benchmark is in the difficulty table:
+
+  1. Ability. If the model has results on any of the task type's `evidence` benchmarks (that have a difficulty
+     and slope), each result is turned into the ability it implies, `difficulty + logit(score) / slope`, and the
+     model's ability is the mean of those; the basis is `"results on "` plus the benchmark names joined by
+     `", "` in evidence order (`"results on FrontierSWE"`). Among a model's rows on one benchmark, use the one
+     at the effort passed in (the effort `auto` sends for level-5 work) when it was published, else the highest
+     score. Without evidence, ability is the model's `eci`, basis `"Epoch Capabilities Index"`. With neither,
+     the model isn't measured for that task type.
+  2. Chance: `sigmoid(slope_ref * (ability - difficulty_ref))` on the reference benchmark.
+
+  ### Scores
+
+  From the chances of the measured models, per task type: `best` gives `5 * chance / the best chance`, so the
+  best model is 5 and adding a weak model changes nobody else; `range` gives `1 + 4 * (chance - lowest) /
+  (highest - lowest)` (one model alone, or all equal: 5). One decimal; never below 1.0 (any model may take
+  level-1 work).
+
+  ### Artificial Analysis
+
+  `GET https://artificialanalysis.ai/api/v2/language/models/free`, one page at a time while `pagination.has_more`
+  is true: a GET with the page number (from 1) as the `page` query parameter and `x-api-key: <key>` as the only
+  request header, made with `httpx.get` (the parameters and headers passed as its `params` and `headers`
+  arguments) so that it can be replaced at runtime. Each `data` item has `slug`, `name` and
+  `evaluations.artificial_analysis_intelligence_index` (null for some: skip those). Models match by normalized
+  slug or name. The chance is the index / 100 for every task type; basis `"Artificial Analysis Intelligence
+  Index"`. The key comes from the environment variable `ARTIFICIAL_ANALYSIS_API_KEY` (CLI and worker). Without
+  a key the refresh fails with a `ValueError` whose message starts with `set ARTIFICIAL_ANALYSIS_API_KEY`.
+
+  ### The quality section and where it lives
+
+  A refresh produces one document, the quality section: `updated` (ISO time), `source`, `scale`, `reference`,
+  `status` (`{"ok": true, "fetched_at": ...}` or `{"ok": false, "fetched_at": ..., "error": "<ExceptionType>:
+  <message>"}`), `attribution` (a credit line; Epoch's starts with `Epoch AI`), `scores`
+  (`{model: {task: score}}`), `measures` (`{model: {task: {"chance", "ability", "basis", "evidence": {benchmark:
+  {"score", "variant", "ability"}}}}}`, `variant` being the effort suffix used, `""` when none) and `missing`
+  (configured chat models the source gave no measure for, sorted; mock models, whose names start with `mock-`,
+  are never listed). A failed fetch gives `ok` false, the error's
+  text (a connection error's message included), empty scores. Source `config` gives empty scores and missing.
+
+  It is stored under the key `quality` in the live catalog: in prices.json, and in the `prices` setting the
+  worker keeps in the store. A price refresh (the CLI's write of prices.json and the worker's stored prices)
+  keeps the quality section that's there; a quality refresh keeps the prices. The configuration token gateways
+  poll becomes `"<version or file>:<prices updated>:<quality updated>"` (empty parts when absent), so gateways
+  reload when either changes.
+
+  Loading a configuration (from prices.json, or from `prices_data`) applies the section: a model's score for a
+  task type is the section's, with source recorded, when the section's `source` and `scale` are the configured
+  ones and the source isn't `config`; otherwise the configured score, recorded as `config`; `quality_override`
+  wins over both, recorded as `override`. Scores worked out under other settings aren't used until redone.
+
+  ### Keeping them live
+
+  The worker refreshes on its first loop, then every `refresh_hours`, and right away when the quality settings
+  change (source, scale, reference, evidence, or the models and their names). A refresh with no stored prices
+  yet stores nothing (prices come first). Otherwise it stores the section, updates the configuration token, and
+  reports which scores moved as `"<model> <task> <old> -> <new>"` for changes of at least 0.1 (or a score that
+  appeared or disappeared), compared with the stored section when source, scale and reference are the same;
+  when any moved, an alert titled `Quality scores changed` (info, page `models`). A refresh whose fetch failed,
+  when scores from the same source are stored, keeps those scores (with the new status) and raises an alert
+  titled `Quality scores not refreshed` (warning). An exception in the refresh is logged; the worker goes on.
+
+  `meritorder prices refresh` also refreshes the scores: on success it writes the section into prices.json and
+  prints `Quality scores for <n> models from <source> (<scale> scale)`, listing uncovered models after it; on
+  failure it prints `Quality scores not refreshed: <error>` and leaves the previous section in prices.json.
+
+  `POST /v1/admin/quality/refresh` (admin; needs a durable store, with the same 409 rule as key management)
+  runs a refresh, reloads this gateway's configuration so the scores are in effect, and returns the refresh
+  result. `GET /v1/admin/config` gains `quality`: `source`, `scale`, `reference`, `refresh_hours`, and from the
+  stored section `updated`, `status`, `attribution`, `missing`, plus `stale` (true when a stored section's
+  source, scale or reference differ from the configured ones). Each model there gains `quality_sources` and
+  `quality_detail` (that model's `measures` from the stored section; `{}` if none).
+
+  **Interface** (new module `meritorder.quality_data`; `quality_data.fetch_epoch`, `quality_data.refresh_quality`
+  and the HTTP call it makes must be replaceable at runtime)
+
+  - `parse_epoch(zip_bytes: bytes) -> dict`: `{"eci": {name: float}, "difficulty": {benchmark: (edi, slope)},
+    "results": {benchmark: {name: [(variant, score), ...]}}}`, names normalized.
+  - `fetch_epoch() -> dict`: downloads and parses.
+  - `model_keys(model: ModelConfig) -> set[str]`: the normalized names above.
+  - `epoch_measures(cfg: Config, data: dict, effort: str | None) -> {model: {task: measure}}`.
+  - `scores(measures, scale: str) -> {model: {task: float}}` (only each measure's `"chance"` is needed).
+  - `refresh_quality(cfg, epoch: dict | None = None, aa: dict | None = None, aa_key: str | None = None) -> dict`:
+    the section; `epoch` is parsed Epoch data to use instead of fetching, `aa` likewise for Artificial Analysis.
+  - `async refresh_quality_once(cfg, store, state, fetch=refresh_quality) -> dict`: one refresh as above;
+    `fetch` is called as `fetch(cfg, None, None, key)` off the event loop. Returns the status fields (`ok`, ...)
+    plus `stored` (false with nothing stored yet), `changed` (the moved list) and `missing`.
+  - `class QualityRefresher` with `async maybe(cfg, store, state, now: float, fetch=refresh_quality) -> dict | None`
+    (`now` is a monotonic time in seconds; None when not due or on failure).
+  - `ATTRIBUTION: dict[str, str]`, source to credit line.
+  - `meritorder.config.apply_quality(cfg: Config, catalog: dict) -> None`: applies `catalog["quality"]` to
+    `cfg`'s models as described. A configuration built from a file (or from `prices_data`) already carries the
+    applied scores and `quality_sources`.
+  - `ModelConfig.quality: dict[str, float]`, `quality_override: dict[str, float]`, `benchmark_name: str | None`,
+    `quality_sources: dict[str, str]`; `Config.quality: QualityConfig`.
+  - The CLI output, endpoint, response fields, alert titles and token format above.

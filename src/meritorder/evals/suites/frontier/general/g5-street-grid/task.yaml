@@ -1,0 +1,7 @@
+id: g5-street-grid
+task: general
+level: 5
+kind: answer
+generate: meritorder.evals.generators.puzzles:logic_grid
+generate_args: {seed: 20, theme: street}
+summary: "Generated 6x5 logic grid, 26 irredundant clues dominated by either/or and west-of relations (one direct pairing); unique solution proven by solver, needs deep case analysis"

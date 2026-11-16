@@ -1,0 +1,10 @@
+# A stand-in for the vLLM image, for checking the Kubernetes provisioner on a cluster without GPUs (scripts/kind/).
+# The pods run `vllm serve <model> ...` as the provisioner writes it; this `vllm` is scripts/fake_vllm.py.
+#   docker build -f scripts/kind/Dockerfile.fake-vllm -t fake-vllm:dev .
+FROM python:3.12-alpine
+COPY scripts/fake_vllm.py /app/fake_vllm.py
+RUN printf '#!/bin/sh\nexec python /app/fake_vllm.py "$@"\n' > /usr/local/bin/vllm && chmod +x /usr/local/bin/vllm
+USER 10001
+EXPOSE 8000
+ENTRYPOINT ["vllm"]
+CMD ["serve", "Qwen/Qwen3-Coder-Next", "--host", "0.0.0.0", "--port", "8000"]

@@ -1,0 +1,11 @@
+id: c4-cron
+task: coding
+level: 4
+kind: code
+prompt_file: prompt.md
+code:
+  tests: tests.py
+  timeout: 30
+reference: reference.py
+wrong: wrong.py
+summary: "Cron next-run calculator: steps, names, 0/7 Sunday, macros, Vixie DOM/DOW OR-vs-AND rule, strict validation, impossible dates within a horizon"

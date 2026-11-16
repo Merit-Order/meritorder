@@ -1,0 +1,96 @@
+id: per-person-limits
+task: coding
+level: 5
+kind: agent
+commit: c314c9f
+summary: "A feature across the admin API, auth, admission, reports, alerts and both stores: each person's own monthly limit, set by API or config, enforced on every request, used by alerts"
+env: meritorder.evals.envs.codebase:CodebaseEnv
+env_args: {task: per-person-limits}
+max_turns: 80
+est_turns: 45
+est_tool_tokens: 5000    # new tokens per turn (tool results and the reply), from runs of this suite
+est_output_tokens: 1500
+preamble_file: ../PREAMBLE.md
+prompt: |
+  ## Issue: a person's monthly limit can only be their team's
+
+  The only per-person monthly spending limit is the team's `user_budget_usd_month`, the same number for everyone
+  on the team. Admins need to give one person more (someone running agents all day) or less (a contractor, or 0
+  to stop someone) without changing the team's default or moving them to another team.
+
+  **Wanted**
+
+  A person can have a monthly limit of their own, in USD. It replaces their team's per-person default, higher or
+  lower. The team's budget and the organization's budget still apply on top. A limit of 0 refuses every request
+  from that person. It can come from two places:
+
+  - an admin sets it on the person's record through the admin API;
+  - a static key in the config file carries one.
+
+  When both are set, the record's wins.
+
+  **Admin API**
+
+  - `PATCH /v1/admin/users/{id}` accepts `budget_usd_month`. A number of at least 0 sets it; `null` clears it
+    (the default applies again); a negative number or a non-number is a 422. The endpoint keeps its other rules:
+    only admins may call it (403 otherwise), an unknown user is a 404. A PATCH that doesn't mention
+    `budget_usd_month` leaves it as it is.
+  - Its reply, and every person in `GET /v1/admin/users`, carry two fields: `budget_usd_month` (the person's own
+    limit, or null) and `default_budget_usd_month` (what applies without one: the limit on their static key in
+    the config file when it has one, else their team's `user_budget_usd_month`).
+  - A change applies at once on the gateway that made it, for whoever signs in as that person, static key
+    included (and even when the person had no record the first time they were seen). Other gateways pick it up
+    within a minute.
+
+  **Config file**
+
+  A static key (`auth.static_keys`) may carry `budget_usd_month`, at least 0. A negative value is rejected when
+  the config loads, as other invalid config values are (a `ValueError`).
+
+  **Stores**
+
+  A user record has `budget_usd_month` (None when unset). `update_user` on both stores takes a `budget_usd_month`
+  keyword: a number sets it, `None` clears it, leaving it out leaves it unchanged. Limits set on a Postgres-backed
+  gateway persist and behave the same way, on existing installs too (an upgrade must not need a manual schema fix).
+
+  **Enforcing it**
+
+  - `Principal` gets `budget_usd_month: float | None = None` (None: the team default applies) and
+    `monthly_limit(team_default)`, which returns the person's own limit when set, else `team_default`.
+  - Every request is checked against the limit that applies to the person. The refusal is the existing one
+    (429, `monthly budget of $5.00 reached for alice (spent ...)`), with that limit in it.
+    `GET /v1/reports/me` reports it as `budget_usd`.
+  - People signed in with an issued key or OIDC get the limit from their record, as they get team and role.
+  - A static key's team and role still come from the config file, but a limit on that person's record applies
+    and wins over the file's. Static keys don't touch the store today; don't query it on every request (once a
+    minute per person is fine). If the store can't be reached (`get_user` raises), the static key must still
+    work, with the file's limit or none.
+  - `Authenticator.forget_user(user_id)` (what the admin API already calls after an edit) must also drop
+    whatever is remembered about that person's limit, so the next request sees the record.
+
+  **Alerts**
+
+  `check_budgets(cfg, store, state)` in `meritorder.alerts` warns each person at 80% and 100% of their team's
+  per-person default, per team, once per threshold per month. Change it so that:
+
+  - A person with a limit of their own (on their record, else on their static key) is warned at 80% and 100% of
+    that limit instead, and never against the team default. Their spend is their total across every team they
+    have been on this month, the same total the gateway checks before a request. A limit of 0 gets no warning
+    (their requests are refused outright). Everyone else keeps the team-default warnings.
+  - The message is `<user> (<team>) has used <percent> of their $<limit> monthly budget.`, where `<percent>` is
+    a whole number with a percent sign and `<limit>` has two decimals, for example
+    `bo (default) has used 112% of their $4.00 monthly budget.` `<team>` is the person's current team (their
+    record's, else their static key's). The team-default warnings use the same wording (`$10.00`, not `$10`).
+
+  **Interface**
+
+  - `PATCH /v1/admin/users/{id}`: body field `budget_usd_month` (number >= 0, or null); reply fields
+    `budget_usd_month`, `default_budget_usd_month`.
+  - `GET /v1/admin/users`: each user has `budget_usd_month` and `default_budget_usd_month`.
+  - `GET /v1/reports/me`: `budget_usd` is the limit that applies to the caller.
+  - Config: `auth.static_keys[].budget_usd_month` (float >= 0, optional).
+  - `Principal.budget_usd_month: float | None = None`; `Principal.monthly_limit(team_default) -> float | None`.
+  - `MemoryStore.update_user(user_id, ..., budget_usd_month=...)` and the same on `PostgresStore`; user records
+    carry `budget_usd_month`.
+  - `Authenticator.forget_user(user_id)` also forgets the person's cached limit.
+  - `check_budgets` messages as above.

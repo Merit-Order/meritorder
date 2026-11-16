@@ -1,0 +1,11 @@
+id: c3-config
+task: coding
+level: 3
+kind: code
+prompt_file: prompt.md
+code:
+  tests: tests.py
+  timeout: 30
+reference: reference.py
+wrong: wrong.py
+summary: "INI-like config parser: nested dotted sections, typed values (strings with escapes, strict number grammar, lists), comment rules, exact error line numbers"

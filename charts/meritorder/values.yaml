@@ -1,0 +1,209 @@
+image:
+  repository: ghcr.io/merit-order/meritorder
+  tag: ""            # defaults to the chart appVersion
+  pullPolicy: IfNotPresent
+
+# Secrets (provider keys, MERITORDER_DATABASE_URL, MERITORDER_REDIS_URL) reach every component as
+# environment variables from one Kubernetes Secret. Pick ONE way to provide it
+# (docs/07-deployment.md#secrets has recipes for AWS, GCP, and Azure):
+#
+# 1. Synced from your cloud's secret store by External Secrets Operator (recommended).
+externalSecret:
+  enabled: false
+  apiVersion: external-secrets.io/v1
+  refreshInterval: 1h          # how often ESO re-reads the cloud secret (rotations land within this)
+  secretStoreRef:
+    kind: ClusterSecretStore   # or SecretStore
+    name: ""                   # e.g. aws-secrets-manager, gcp-secret-manager, azure-key-vault
+  dataFrom: []                 # every key of one JSON secret:  - extract: {key: meritorder/prod}
+  data: []                     # or one cloud secret per variable:
+  #  - secretKey: ANTHROPIC_API_KEY
+  #    remoteRef: {key: meritorder-anthropic-api-key}
+#
+# 2. A Secret you create and manage yourself:
+existingSecret: ""
+#
+# 3. Created by the chart from these values. For trying it out only: the values are stored in
+#    Helm's release history (a Secret per revision) and in whatever file you passed with -f.
+secretEnv: {}
+#  MERITORDER_DATABASE_URL: postgresql://user:pass@postgres:5432/meritorder
+#  ANTHROPIC_API_KEY: ...
+
+secrets:
+  # Roll the pods when the Secret changes, so new values take effect. Needs Stakater Reloader in the
+  # cluster (https://github.com/stakater/Reloader); without it the annotation does nothing. Changes to
+  # secretEnv always roll the pods.
+  reloadOnChange: true
+  # Also mount the Secret as files (one per key) at mountPath. Kubernetes refreshes the files about a
+  # minute after the Secret changes, and backends configured with `value_file:` use the new key on the
+  # next request, with no restart. Use it with reloadOnChange: false for zero-restart key rotation.
+  mountAsFiles: false
+  mountPath: /run/secrets/meritorder
+
+env: {}              # non-secret environment, e.g. AWS_REGION: us-east-1
+
+# A ClickHouse copy of the ledger for very large deployments (docs/08-reporting.md, "Storage and scale"). The chart doesn't
+# run ClickHouse: point it at yours (ClickHouse Cloud, or one you run). Postgres stays the record; the worker copies new
+# ledger rows there, and long-range reports read them. Put the password in the env Secret as MERITORDER_CLICKHOUSE_PASSWORD
+# (with secrets.mountAsFiles, the shipped config also reads it from its file, so a rotation needs no restart).
+reporting:
+  clickhouse:
+    url: ""            # ClickHouse's HTTP interface, e.g. https://abc123.eu-west-1.aws.clickhouse.cloud:8443; empty: off
+    database: meritorder
+    user: default
+
+# Override config files shipped in the image (mounted over /app/config/<name>):
+#   helm install mo ./charts/meritorder --set-file configFiles.meritorder\.yaml=config/meritorder.yaml
+configFiles: {}
+
+gateway:
+  replicas: 2
+  resources:
+    requests: {cpu: 250m, memory: 256Mi}
+    limits: {memory: 1Gi}
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+  podDisruptionBudget:
+    minAvailable: 1
+
+worker:
+  enabled: true
+  # The batch requests the worker settles (and its batch work on GPUs), as Prometheus metrics on this port, with a
+  # Service the ServiceMonitor scrapes. 0 turns it off.
+  metricsPort: 9464
+  resources:
+    requests: {cpu: 50m, memory: 128Mi}
+    limits: {memory: 512Mi}
+
+controller:
+  enabled: false     # turn on when you have self-hosted backends with `serve:` sections
+  replicas: 1        # extras stand by (Postgres advisory lock)
+  imageSuffix: "-gpu"  # the image variant with SkyPilot installed (provisioning and catalog prices); "" for GPUs on Kubernetes alone
+  # SkyPilot (provisioner: skypilot) keeps its state in the home directory: ~/.sky holds its local API server, the SSH
+  # keys and per-cluster SSH configs it makes, and its record of the clusters it launched. The pods' root filesystem is
+  # read-only, so the controller gets a writable home here. Losing it isn't a runaway GPU: each replica stops by itself
+  # when its lease runs out (docs/05-gpu-autoscaling.md#the-lease). But with a claim, a restarted controller still sees
+  # and stops its clusters at once. Cloud credentials go in Secrets mounted read-only inside the home.
+  skypilot:
+    enabled: true      # false with GPUs on Kubernetes alone: no home volume
+    home:
+      existingClaim: ""  # a PersistentVolumeClaim of yours, mounted at /home/meritorder
+      persistence: false # true: the chart makes a claim of `size`; false and no existingClaim: an emptyDir
+      size: 1Gi
+      storageClass: ""   # blank: the cluster's default
+    # Secrets mounted at /home/meritorder/<path>, e.g. for Lambda (a Secret with a lambda_keys file: api_key = ...),
+    # AWS (credentials and config files) and GCP (application_default_credentials.json). Every cloud's path is in
+    # docs/07-deployment.md#skypilot-gpus. Mount only the clouds you launch on: SkyPilot copies each one to every replica.
+    #   - {secret: lambda-keys, path: .lambda_cloud}
+    #   - {secret: aws-files, path: .aws}
+    #   - {secret: gcloud-files, path: .config/gcloud}
+    #   - {secret: runpod-files, path: .runpod}
+    #   - {secret: sky-config, path: .sky-config}  # SkyPilot's config.yaml, with SKYPILOT_GLOBAL_CONFIG in the env Secret
+    # Or keep credentials out of the pod: workload identity on the controller's ServiceAccount (kubernetes.
+    # serviceAccountAnnotations, with kubernetes.enabled), or a SkyPilot API server you run
+    # (SKYPILOT_API_SERVER_ENDPOINT in the env Secret).
+    credentials: []
+  resources:
+    requests: {cpu: 50m, memory: 256Mi}
+    limits: {memory: 1Gi}
+  # GPUs on this cluster: backends with `serve: {provisioner: kubernetes}` run vLLM here through KServe or
+  # llm-d (docs/05-gpu-autoscaling.md#kubernetes). The controller then runs as its own ServiceAccount with a
+  # Role in each namespace below; the gateways and the worker get none of these rights.
+  kubernetes:
+    enabled: false
+    namespaces: []     # where GPU deployments run; empty: the release namespace. The first is the config's default
+                       # (MERITORDER_GPU_NAMESPACE). Use a namespace of their own: the Role can manage Deployments there.
+    apis: [kserve, llm-d]  # what the Role allows: KServe InferenceServices, llm-d model server Deployments, or both
+    readNodes: false   # a ClusterRole to read nodes: prices each replica at the node type it landed on, shows zone and spot
+    serviceAccountAnnotations: {}  # the controller's own ServiceAccount (e.g. a cloud identity SkyPilot needs too)
+
+# Model-based compression of tool results (LLMLingua-2, docs/04-caching-and-sessions.md): `meritorder compressor` on
+# the -compressor image, which has torch and llmlingua (no other image does). The model downloads when the pod starts.
+# Every component gets MERITORDER_COMPRESSOR_URL and MERITORDER_COMPRESSOR_MODEL; teams then turn on compression.model.
+# For a shared secret, put MERITORDER_COMPRESSOR_KEY in the Secret above: the compressor pod and every gateway get it from
+# there (the compressor checks it, the gateways send it as a bearer token).
+compressor:
+  enabled: false
+  imageSuffix: "-compressor"
+  replicas: 1          # each pod compresses one request at a time; add pods for more gateways
+  model: microsoft/llmlingua-2-xlm-roberta-large-meetingbank   # or microsoft/llmlingua-2-bert-base-multilingual-cased-meetingbank
+  revision: ""         # pin the model to a Hugging Face commit
+  device: auto         # cuda when the pod has a GPU: add nvidia.com/gpu: 1 to resources.limits, and a nodeSelector
+  port: 8090
+  # XLM-RoBERTa large is 560M parameters (2.2 GB of weights); multilingual BERT 178M (0.7 GB).
+  resources:
+    requests: {cpu: "2", memory: 4Gi}
+    limits: {memory: 6Gi}
+  cache:
+    existingClaim: ""  # a PersistentVolumeClaim for the model's files, so a restart doesn't download them again
+    sizeLimit: 10Gi    # the emptyDir used without one
+  nodeSelector: {}     # empty: the chart-wide nodeSelector and tolerations
+  tolerations: []
+
+migrations:
+  enabled: true      # run `meritorder migrate` as a pre-install/pre-upgrade hook
+
+service:
+  type: ClusterIP
+  port: 80
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  host: meritorder.example.com
+  tls: []            # - secretName: meritorder-tls
+
+serviceAccount:
+  create: true
+  # Cloud identity for keyless access to Bedrock, Vertex, and Azure OpenAI/Foundry (and, on GKE, to Google Groups:
+  # docs/06-auth-and-spend.md#google-groups), e.g.
+  #   eks.amazonaws.com/role-arn: arn:aws:iam::123456789012:role/meritorder          (AWS IRSA)
+  #   iam.gke.io/gcp-service-account: meritorder@PROJECT.iam.gserviceaccount.com     (GKE Workload Identity)
+  #   azure.workload.identity/client-id: 00000000-0000-0000-0000-000000000000        (AKS Workload Identity)
+  annotations: {}
+  labels: {}         # AKS Workload Identity also needs azure.workload.identity/use: "true" on pods: see podLabels
+podLabels: {}
+
+metrics:
+  serviceMonitor: false
+  # /metrics shows spend and traffic totals (no prompts or users). With a public ingress, require a
+  # token: put MERITORDER_METRICS_TOKEN in the env Secret and set tokenKey to that key, so the
+  # ServiceMonitor scrapes with it.
+  tokenKey: ""       # e.g. MERITORDER_METRICS_TOKEN
+  # A ConfigMap with the Grafana dashboard (dashboards/meritorder.json in this chart), for Grafana's
+  # sidecar to load. Or import the JSON by hand: Dashboards -> New -> Import.
+  grafanaDashboard:
+    enabled: false
+    labels: {grafana_dashboard: "1"}
+    annotations: {}   # e.g. grafana_folder: LLM
+
+# NetworkPolicies limiting who may connect to each component (docs/07-deployment.md, "Network policies"). Off by default:
+# it needs a CNI that enforces them (Calico, Cilium, the cloud's). Only inbound traffic is limited; outbound stays open,
+# since the gateway calls providers, the database, Redis and the GPU replicas wherever they are.
+networkPolicy:
+  enabled: false
+  # Who may reach the gateway's port (8080): NetworkPolicy peers, e.g. the ingress controller's namespace
+  #   - namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: ingress-nginx}}
+  # Empty: any source, on that port only.
+  gatewayFrom: []
+  # Who may scrape the worker's metrics port. Empty: any source, on that port only.
+  metricsFrom: []
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  fsGroup: 10001
+  seccompProfile: {type: RuntimeDefault}
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities: {drop: [ALL]}
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

@@ -1,0 +1,34 @@
+id: g4-robot-blocker
+task: general
+level: 4
+kind: answer
+prompt: |
+  Two robots, A and B, stand on a 6 x 6 grid. Rows are numbered 1 (top) to 6 (bottom) and columns 1 (left) to 6
+  (right). `#` is a wall square, `.` is an empty floor square, and `X` is the target, which is also empty floor.
+
+  ```
+      1 2 3 4 5 6
+  1   . . . . . .
+  2   A . . . . .
+  3   . . B . . .
+  4   . X . # . .
+  5   . . # . . .
+  6   . . # . . #
+  ```
+
+  Rules:
+  - A move picks one robot and one direction: U (up, towards row 1), D (down), L (left) or R (right).
+  - The robot slides in that direction until the next square is a wall, the edge of the grid, or the other robot,
+    and stops on the last free square. It cannot stop part-way.
+  - A move that would leave the robot where it is is not allowed.
+  - Robots slide over the target like any other floor square; it does not stop them.
+  - The goal is reached when robot A stops on the target X at the end of a move. B may end anywhere.
+
+  Find a sequence with the fewest possible moves that reaches the goal. Write each move as the robot letter followed
+  by the direction letter, with moves separated by single spaces. For example, a three-move answer might look like
+  `Final answer: BU AL AD`.
+
+  End your reply with a line `Final answer: <moves>`.
+checks:
+  - {final_one_of: ["AD BL BD AR AU BR AD", "AD, BL, BD, AR, AU, BR, AD", "AD,BL,BD,AR,AU,BR,AD"]}
+summary: "Sliding-robot plan whose unique 7-move optimum (BFS-proven) parks A high so B can be slid in as a blocker; A alone can never stop on X"

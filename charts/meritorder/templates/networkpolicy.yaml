@@ -1,0 +1,56 @@
+{{- /* Optional NetworkPolicies (networkPolicy.enabled). Inbound only: the gateway's port from gatewayFrom (default any
+     source), the worker's metrics port from metricsFrom, and the compressor and controller only from this release's
+     own pods. Outbound isn't limited. docs/07-deployment.md, "Network policies". */ -}}
+{{- if .Values.networkPolicy.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "meritorder.fullname" . }}-gateway
+  labels: {{- include "meritorder.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "meritorder.selector" . | nindent 6 }}
+      app.kubernetes.io/component: gateway
+  policyTypes: [Ingress]
+  ingress:
+    - ports: [{port: 8080, protocol: TCP}]
+      {{- with .Values.networkPolicy.gatewayFrom }}
+      from: {{- toYaml . | nindent 8 }}
+      {{- end }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "meritorder.fullname" . }}-internal
+  labels: {{- include "meritorder.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchExpressions:
+      - {key: app.kubernetes.io/instance, operator: In, values: [{{ .Release.Name | quote }}]}
+      - {key: app.kubernetes.io/component, operator: In, values: [worker, controller, compressor]}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels: {{- include "meritorder.selector" . | nindent 14 }}
+{{- if .Values.worker.metricsPort }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "meritorder.fullname" . }}-worker-metrics
+  labels: {{- include "meritorder.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "meritorder.selector" . | nindent 6 }}
+      app.kubernetes.io/component: worker
+  policyTypes: [Ingress]
+  ingress:
+    - ports: [{port: {{ .Values.worker.metricsPort }}, protocol: TCP}]
+      {{- with .Values.networkPolicy.metricsFrom }}
+      from: {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}
+{{- end }}

@@ -1,0 +1,1038 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Auth &amp; spend · Merit Order docs</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Source+Sans+3:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a design-notes reader. Sticky chapter rail on the left, one long readable column on the right; rail folds into a scrolling chip row on phones. */
+:root {
+  --bg: #f4f7f6;
+  --surface: #ffffff;
+  --fg: #142120;
+  --muted: #566866;
+  --line: #d6e0de;
+  --accent: #0b7566;
+  --accent-soft: #e0f0ec;
+  --code-bg: #ecf2f1;
+  --z1: #e3f3ea; --i1: #1d6a3a;
+  --z2: #fcf1d8; --i2: #865600;
+  --z3: #fbe4e3; --i3: #9a1f1c;
+  --curve: #2556c4; --over: #c0392b;
+  --font-display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Source Sans 3", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d1413; --surface: #141d1c; --fg: #e2ebe9; --muted: #92a6a2; --line: #253331;
+    --accent: #4fcab4; --accent-soft: #15302b; --code-bg: #17221f;
+    --z1: #132c1d; --i1: #82d6a0; --z2: #2f260e; --i2: #f0c566; --z3: #351817; --i3: #f39b95;
+    --curve: #7da4ff; --over: #ff7d6e;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0d1413; --surface: #141d1c; --fg: #e2ebe9; --muted: #92a6a2; --line: #253331;
+  --accent: #4fcab4; --accent-soft: #15302b; --code-bg: #17221f;
+  --z1: #132c1d; --i1: #82d6a0; --z2: #2f260e; --i2: #f0c566; --z3: #351817; --i3: #f39b95;
+  --curve: #7da4ff; --over: #ff7d6e;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 24px; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body {
+  background: var(--bg); color: var(--fg);
+  font-family: var(--font-body); font-size: 17px; line-height: 1.6;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+
+.hero { max-width: 1180px; margin: 0 auto; padding-block: 56px 36px; display: grid; gap: 14px; border-bottom: 1px solid var(--line); }
+.eyebrow { font-family: var(--font-mono); font-size: 12.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+.hero h1 { font-family: var(--font-display); font-weight: 700; font-size: clamp(2.1rem, 5vw, 3.4rem); line-height: 1.05; letter-spacing: -.02em; margin: 0; text-wrap: balance; }
+.hero .lede { max-width: 68ch; color: var(--fg); }
+.hero .lede p { margin: 0 0 .7em; }
+.hero .lede ol { margin: 0 0 .7em; padding-left: 1.3em; display: grid; gap: 4px; }
+.hero .lede strong { color: var(--accent); }
+.also { color: var(--muted); font-size: 15.5px; }
+.contents { margin-top: 6px; max-width: 68ch; }
+.contents summary { cursor: pointer; font-family: var(--font-mono); font-size: 12.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+.contents ol { margin: 10px 0 0; padding-left: 1.3em; columns: 2 260px; column-gap: 32px; }
+.contents li { break-inside: avoid; margin: 0 0 4px; }
+h2[id], h3[id], h4[id] { scroll-margin-top: 72px; }
+
+.layout { max-width: 1180px; margin: 0 auto; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 56px; padding-block: 36px 96px; }
+.rail { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 24px); align-self: start; }
+.rail p { font-family: var(--font-mono); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0 0 10px; }
+.rail ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.rail a { display: flex; gap: 10px; align-items: baseline; padding: 6px 10px; border-radius: 6px; color: var(--fg); text-decoration: none; font-size: 15.5px; line-height: 1.3; }
+.rail a:hover { background: var(--accent-soft); }
+.rail a.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.rail a:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.n { font-family: var(--font-mono); font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.rail a.active .n { color: var(--accent); }
+
+main { min-width: 0; max-width: 860px; }
+section { padding-bottom: 56px; margin-bottom: 56px; border-bottom: 1px solid var(--line); }
+section:last-child { border-bottom: 0; }
+.sec-head { display: flex; align-items: baseline; gap: 14px; margin-bottom: 18px; }
+.sec-head .n { font-size: 14px; color: var(--accent); }
+h2 { font-family: var(--font-display); font-weight: 700; font-size: clamp(1.7rem, 3.4vw, 2.3rem); letter-spacing: -.015em; line-height: 1.1; margin: 0; text-wrap: balance; }
+h3 { font-family: var(--font-display); font-weight: 600; font-size: 1.3rem; letter-spacing: -.01em; margin: 2.2em 0 .5em; text-wrap: balance; }
+h4 { font-family: var(--font-body); font-weight: 600; font-size: 1.05rem; margin: 1.6em 0 .4em; }
+p, ul, ol { max-width: 68ch; }
+ul, ol { padding-left: 1.3em; }
+li { margin: .25em 0; }
+a { color: var(--accent); text-underline-offset: 3px; }
+strong { font-weight: 600; }
+
+code { font-family: var(--font-mono); font-size: .84em; background: var(--code-bg); padding: .1em .35em; border-radius: 4px; }
+pre:not(.mermaid) { background: var(--code-bg); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; overflow-x: auto; font-size: 14px; line-height: 1.5; }
+pre:not(.mermaid) code { background: none; padding: 0; font-size: inherit; }
+
+.table-wrap { overflow-x: auto; margin: 1em 0 1.4em; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 15.5px; }
+th, td { text-align: left; vertical-align: top; padding: 9px 14px; border-bottom: 1px solid var(--line); }
+tr:last-child td { border-bottom: 0; }
+th { font-family: var(--font-mono); font-size: 12px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); background: var(--code-bg); }
+td { font-variant-numeric: tabular-nums; }
+
+figure { margin: 1.4em 0 1.8em; }
+.diagram { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px; overflow-x: auto; }
+.diagram pre.mermaid { margin: 0; display: flex; justify-content: center; background: none; }
+
+.chart { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px; overflow-x: auto; }
+.chart svg { display: block; width: 100%; min-width: 520px; max-width: 720px; height: auto; margin: 0 auto; font-family: var(--font-body); }
+.chart figcaption { color: var(--muted); font-size: 15px; margin-top: 10px; max-width: 68ch; }
+.chart .z1 { fill: var(--z1); } .chart .z2 { fill: var(--z2); } .chart .z3 { fill: var(--z3); }
+.chart .t { font-size: 13px; font-weight: 600; }
+.chart .i1 { fill: var(--i1); } .chart .i2 { fill: var(--i2); } .chart .i3 { fill: var(--i3); }
+.chart .lbl { font-size: 13px; fill: var(--fg); }
+.chart .tick { font-size: 12px; fill: var(--muted); }
+.chart .tick.i3 { fill: var(--i3); }
+.chart .axis { stroke: var(--fg); stroke-width: 1.5; fill: none; }
+.chart .ref { stroke: var(--muted); stroke-width: 1.5; stroke-dasharray: 6 5; fill: none; }
+.chart .curve { stroke: var(--curve); stroke-width: 3.5; fill: none; }
+.chart .over { stroke: var(--over); stroke-width: 3.5; fill: none; }
+.chart .dot { fill: var(--over); }
+
+@media (max-width: 860px) {
+  .layout { grid-template-columns: minmax(0, 1fr); gap: 20px; padding-top: 20px; }
+  .rail { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); margin-inline: calc(-1 * max(16px, env(safe-area-inset-left, 0px))); padding: 10px max(16px, env(safe-area-inset-left, 0px)); border-bottom: 1px solid var(--line); }
+  .rail p { display: none; }
+  .rail ol { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; }
+  .rail a { white-space: nowrap; border: 1px solid var(--line); background: var(--surface); }
+  body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+  .hero { padding-block: 36px 24px; }
+  body { font-size: 16px; }
+}
+</style>
+</head>
+<body>
+
+
+<header class="hero">
+  <div class="eyebrow">Merit Order docs · 06</div>
+  <h1>Auth &amp; spend</h1>
+  <div class="lede"><p class="also"><a href="index.html">All docs on one page</a> · <a href="how-it-all-works.html">How it all works</a></p><details class="contents"><summary>On this page</summary><ol><li><a href="#getting-a-key-into-pi-and-claude-code">Getting a key into pi and Claude Code</a></li><li><a href="#people-and-teams">People and teams</a></li><li><a href="#signing-in-with-google">Signing in with Google</a></li><li><a href="#stored-responses-who-holds-them-and-who-can-read-them">Stored responses: who holds them and who can read them</a></li><li><a href="#secrets-in-a-saved-configuration">Secrets in a saved configuration</a></li><li><a href="#where-budgets-and-limits-are-set">Where budgets and limits are set</a></li><li><a href="#budgets">Budgets</a></li><li><a href="#limits-that-stop-runaway-spend">Limits that stop runaway spend</a></li><li><a href="#organization-wide-safeguards">Organization-wide safeguards</a></li><li><a href="#what-gets-charged">What gets charged</a></li><li><a href="#the-savings-ledger">The savings ledger</a></li></ol></details></div>
+</header>
+
+<div class="layout">
+  <nav class="rail" aria-label="Chapters">
+    <p>Docs</p>
+    <ol><li><a href="overview.html"><span class="n">&nbsp;&nbsp;</span>Overview</a></li><li><a href="how-it-all-works.html"><span class="n">00</span>How it all works (start here)</a></li><li><a href="architecture.html"><span class="n">01</span>Architecture</a></li><li><a href="request-flow.html"><span class="n">02</span>Request flow</a></li><li><a href="routing.html"><span class="n">03</span>Routing</a></li><li><a href="caching-and-sessions.html"><span class="n">04</span>Caching &amp; sessions</a></li><li><a href="gpu-autoscaling.html"><span class="n">05</span>GPU autoscaling</a></li><li><a href="auth-and-spend.html" class="active" aria-current="page"><span class="n">06</span>Auth &amp; spend</a></li><li><a href="deployment.html"><span class="n">07</span>Deployment</a></li><li><a href="reporting.html"><span class="n">08</span>Reporting</a></li><li><a href="decisions.html"><span class="n">09</span>Decisions</a></li><li><a href="how-it-decides.html"><span class="n">10</span>How it decides</a></li><li><a href="evals.html"><span class="n">11</span>Evals: measuring model quality</a></li><li><a href="feature-sheet.html"><span class="n"></span>Merit Order feature sheet</a></li></ol>
+  </nav>
+  <main>
+    
+    <section id="doc"><p>This doc covers who can call the gateway (keys, sign-in, teams and roles) and how spend is limited
+(budgets, caps, safeguards) and recorded (the ledger).</p>
+<p><strong>What's been checked.</strong> Token verification runs in CI with a real signing key: expired, forged,
+wrong audience or issuer, algorithm confusion, and tokens shaped like Google's. Budgets, limits and
+safeguards are tested in CI against both in-memory storage and real Redis and Postgres. Sign-in,
+group mapping and SCIM have <strong>not</strong> been run against a real Entra tenant, and Google sign-in and
+Google Groups have not been run against a real Workspace domain. Those calls are written from the
+providers' docs and tested against mocks.</p>
+<h2 id="getting-a-key-into-pi-and-claude-code">Getting a key into pi and Claude Code</h2>
+<p>Harnesses can't do interactive SSO, so people log in once with the CLI and get a short-lived
+<strong>virtual key</strong> tied to their identity. The harness sends it like any API key.</p>
+<figure class="diagram"><pre class="mermaid">sequenceDiagram
+    autonumber
+    actor U as User
+    participant CLI as meritorder CLI
+    participant E as Entra ID or Google (OIDC)
+    participant G as Gateway
+    participant P as Postgres
+
+    U-&gt;&gt;CLI: meritorder login
+    CLI-&gt;&gt;E: Device-code flow
+    E--&gt;&gt;U: &quot;Go to microsoft.com/devicelogin (or google.com/device), enter code&quot;
+    U-&gt;&gt;E: Signs in (MFA, conditional access)
+    E--&gt;&gt;CLI: ID token (user, groups or verified email)
+    CLI-&gt;&gt;G: POST /auth/exchange
+    G-&gt;&gt;G: Verify JWT signature, issuer, audience (Google: domain, verified email)
+    opt Google Groups on
+        G-&gt;&gt;E: Which groups is this person in? (Cloud Identity API)
+    end
+    G-&gt;&gt;P: Map groups or email → team and role
+    G-&gt;&gt;P: Create virtual key (expires in 30 days)
+    G--&gt;&gt;CLI: Virtual key
+    CLI-&gt;&gt;CLI: Save to ~/.config/meritorder/api_key (mode 600)
+    U-&gt;&gt;CLI: meritorder setup pi / setup claude-code</pre></figure>
+<pre><code class="language-bash">meritorder login --gateway https://llm.example.com    # or: meritorder use-key &lt;key from an admin&gt;
+meritorder setup pi            # adds a &quot;meritorder&quot; provider to ~/.pi/agent/models.json
+meritorder setup claude-code   # points Claude Code at the gateway, starting sessions on auto
+meritorder setup claude-code --config-dir ~/.claude-meritorder   # …in a separate Claude Code profile
+</code></pre>
+<p>The key is saved to <code>~/.config/meritorder/api_key</code> (under <code>$XDG_CONFIG_HOME</code> when that's set), with
+mode 600, next to <code>credentials.json</code>, which also records the gateway URL. Both harness configs read
+the key file at request time (<code>!cat ...</code> for pi, <code>apiKeyHelper</code> for Claude Code), so logging in again
+rotates the key without touching them. pi is configured to send its session ID as <code>x-session-id</code> and
+to add cache breakpoints, which Merit Order uses for sticky routing and caching. <code>setup pi</code> keeps the
+previous <code>models.json</code> as <code>models.json.bak</code>.</p>
+<p><code>setup claude-code</code> writes to Claude Code's settings file: <code>$CLAUDE_CONFIG_DIR/settings.json</code> when that's
+set, else <code>~/.claude/settings.json</code>, or the folder given with <code>--config-dir</code> (then start Claude Code
+with <code>CLAUDE_CONFIG_DIR=&lt;folder&gt; claude</code>). It sets:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>env.ANTHROPIC_BASE_URL</code></td>
+<td>the gateway</td>
+</tr>
+<tr>
+<td><code>apiKeyHelper</code></td>
+<td><code>cat ~/.config/meritorder/api_key</code></td>
+</tr>
+<tr>
+<td><code>model</code></td>
+<td><code>auto</code> (<code>--model &lt;name&gt;</code> for another model <code>/v1/models</code> lists for your key; <code>--model none</code> leaves Claude Code's choice)</td>
+</tr>
+<tr>
+<td><code>env.CLAUDE_CODE_MAX_CONTEXT_TOKENS</code></td>
+<td>the gateway's context window for that model (from <code>/v1/models</code>; for <code>auto</code>, the largest among the models <code>auto</code> can pick for your key), so Claude Code doesn't assume 200,000 for a name it doesn't know</td>
+</tr>
+<tr>
+<td><code>env.ANTHROPIC_CUSTOM_MODEL_OPTION</code>, <code>…_NAME</code></td>
+<td><code>auto</code>, "auto (Merit Order)": adds it to the <code>/model</code> picker</td>
+</tr>
+<tr>
+<td><code>env.CLAUDE_CODE_GATEWAY_HINT_HEADERS</code></td>
+<td><code>1</code>: Claude Code labels side requests and compaction summaries only when asked; Merit Order caps their level (<code>routing.request_class_levels</code>)</td>
+</tr>
+</tbody>
+</table></div>
+<p>For a Claude model name (<code>claude-…</code>) the window and picker entries are left out (Claude Code knows those
+models) and removed if an earlier setup added them. The previous file is kept as <code>settings.json.bak</code>.
+With the Merit Order key, Claude Code's requests don't use a claude.ai login: subscription limits don't
+apply, and spend is counted here like any other key's.</p>
+<p>How the gateway knows who's calling: every request carries a key (<code>Authorization: Bearer</code> or
+<code>x-api-key</code>). The gateway hashes it, looks it up (cached for a minute), and gets the user, team,
+and role, which drive budgets, policy, and reports. Unknown, revoked, or expired keys get a 401.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Client</th>
+<th>Auth</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>People with harnesses</td>
+<td><code>meritorder login</code> → virtual key (above)</td>
+</tr>
+<tr>
+<td>Services / apps</td>
+<td>An Entra token directly as the bearer token, or a key from <code>meritorder keys create</code></td>
+</tr>
+<tr>
+<td>Local dev / quickstart</td>
+<td><code>MERITORDER_DEV_KEY</code> (static admin key from the environment)</td>
+</tr>
+</tbody>
+</table></div>
+<p>Sign-in switches on when <code>MERITORDER_OIDC_ISSUER</code> and <code>MERITORDER_OIDC_CLIENT_ID</code> are set. With Entra,
+map group IDs to teams and roles in <code>auth.oidc</code> in the config; SCIM provisioning (below) disables
+people when they leave. Google needs a little more: see <a href="#signing-in-with-google">Signing in with Google</a>,
+and <a href="#google-groups">Google Groups</a> to map Google groups the same way.</p>
+<h2 id="people-and-teams">People and teams</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>What</th>
+<th>Where it's managed</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Who exists, and their group membership</td>
+<td>Your identity provider (Entra or Google). People are created in Merit Order the first time they sign in with <code>meritorder login</code>, when they're issued a key, or when Entra provisions them through SCIM.</td>
+</tr>
+<tr>
+<td>Teams, with budgets, limits, and model policy</td>
+<td>Merit Order: Config → Teams. An IdP has no notion of "$5,000 a month, these models only".</td>
+</tr>
+<tr>
+<td>Which team and role someone gets</td>
+<td>Entra groups, or with Google, Google groups (read by the gateway) and verified email addresses and domains, mapped to teams and roles in Config → Access. Re-read at each sign-in; Google groups also while people use the gateway.</td>
+</tr>
+<tr>
+<td>Exceptions</td>
+<td>The People page: an admin can move someone or change their role (either pins team and role, so later sign-ins and SCIM don't override them), hand them back to the sign-in mappings (Follow sign-in), set a monthly limit, or disable them.</td>
+</tr>
+</tbody>
+</table></div>
+<p>The user record decides a person's team, and it can lower what a key acts as but never raise it: a key
+acts as the lower of the role it was issued with and the role on its person's record (<code>ROLE_RANK</code>: user,
+team lead, finance, admin). Moving, demoting or disabling someone takes effect within a minute on every
+gateway, including keys they already have and static keys from the config file. Promoting someone applies to
+keys issued after it: their next <code>meritorder login</code>, or a key an admin issues. So a <code>user</code> key a team lead
+issued for someone who hasn't signed in yet stays a user key when that person turns out to be an admin. The
+Keys page shows each key's role and, where the person's record outranks it, what the key acts as.</p>
+<p>A team lead issues and revokes keys only for themselves, for new people, or for people on their own team with
+the user role; keys for anyone else (another team, a lead, an admin) need an admin. Their keys expire within
+<code>expires_days</code> (default 90, at most 3650); only an admin can issue a key that never expires. A disabled person
+can't sign in: <code>POST /auth/exchange</code> answers 403 and issues no key.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Role</th>
+<th>Sees</th>
+<th>Can change</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>user</td>
+<td>Their own usage</td>
+<td>Nothing (<code>meritorder login</code> gets them a new key)</td>
+</tr>
+<tr>
+<td>team lead</td>
+<td>Their team: reports, requests, ledger export</td>
+<td>Keys on their team (they issue only <code>user</code> keys)</td>
+</tr>
+<tr>
+<td>finance</td>
+<td>Every team, aggregated: no per-request rows, exports or live request feed (<code>/v1/reports/requests</code> and <code>/v1/console/feed</code> answer 403)</td>
+<td>Nothing</td>
+</tr>
+<tr>
+<td>admin</td>
+<td>Everything, except the content of other people's stored responses</td>
+<td>Everything</td>
+</tr>
+</tbody>
+</table></div>
+<p>No role reads another person's stored responses (<a href="#stored-responses-who-holds-them-and-who-can-read-them">below</a>)
+unless their team lists that role in <code>stored_responses.readers</code>.</p>
+<p><strong>SCIM provisioning</strong> (<code>/scim/v2</code>, enabled by <code>MERITORDER_SCIM_TOKEN</code>): Entra pushes people and
+group changes as they happen. Group membership recomputes team and role with the same mappings as
+sign-in (an admin's pin still wins), and anyone deactivated or removed in Entra is disabled at once:
+their keys stop working within a minute (spend history is kept), and anything they kept in the Responses
+API's stored mode is deleted. SCIM's <code>active</code> flag works both ways: if Entra later sends the person as active
+again, they are enabled again, even if an admin disabled them on the People page. To keep someone out, disable
+or remove them in Entra too.</p>
+<p><strong>Entra group overage.</strong> A person in more than 200 groups gets a token without the <code>groups</code> claim (Entra
+puts a pointer to Microsoft Graph in <code>_claim_names</code> instead). The gateway doesn't call Graph, so their group
+mappings don't apply: they get the email mappings and <code>default_team</code>, and the gateway logs a warning naming
+them. Configure the app registration to send only groups assigned to the application ("Groups assigned to the
+application" in Token configuration), or map them by email, or provision them with SCIM.
+Setup: Entra → Enterprise applications → your app → Provisioning → Automatic; Tenant URL
+<code>https://&lt;gateway&gt;/scim/v2</code>, Secret token = <code>MERITORDER_SCIM_TOKEN</code>.</p>
+<h2 id="signing-in-with-google">Signing in with Google</h2>
+<p>Google sign-in uses the same <code>meritorder login</code> (device code) and the same <code>/auth/exchange</code> as Entra.
+Google's tokens and login flow differ in a few ways, and the gateway handles each:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th></th>
+<th>Entra</th>
+<th>Google</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Who can get a token</td>
+<td>Members of your tenant: the issuer is per tenant</td>
+<td>Anyone with a Google account: one issuer for everyone. <code>hosted_domains</code> limits sign-in to your Workspace domains, checked against the token's <code>hd</code> claim. It's required: the gateway won't start with the Google issuer and no domains</td>
+</tr>
+<tr>
+<td>Groups in the token</td>
+<td>Yes (<code>groups</code>)</td>
+<td>None. The gateway can read them from Google (<a href="#google-groups">Google Groups</a>); verified addresses and whole domains map too (<code>team_from_emails</code>, <code>role_from_emails</code>), and exceptions go on the People page</td>
+</tr>
+<tr>
+<td>Email</td>
+<td><code>preferred_username</code>; not verified, so never used for mapping</td>
+<td><code>email</code> with <code>email_verified</code>. A token whose address isn't verified is refused</td>
+</tr>
+<tr>
+<td>Who the person is</td>
+<td><code>oid</code></td>
+<td><code>sub</code> (Google says addresses can change and be reused; <code>sub</code> never is)</td>
+</tr>
+<tr>
+<td>Device login</td>
+<td>A public client with no secret</td>
+<td>An OAuth client of type "TVs and Limited Input devices". Its secret goes with every poll; Google treats it as public for that client type, so the gateway hands it to <code>meritorder login</code></td>
+</tr>
+<tr>
+<td>Scopes</td>
+<td><code>openid profile email offline_access</code></td>
+<td><code>openid email profile</code>, set automatically (Google refuses <code>offline_access</code>, and its device login allows only these)</td>
+</tr>
+<tr>
+<td>Issuer in tokens</td>
+<td>As discovered</td>
+<td><code>https://accounts.google.com</code> or <code>accounts.google.com</code>; both are accepted</td>
+</tr>
+</tbody>
+</table></div>
+<p>Setup:</p>
+<ol>
+<li>In the Google Cloud console, open <strong>Google Auth Platform</strong> (APIs &amp; Services → OAuth consent screen) and
+   set the audience to <strong>Internal</strong>, so only accounts in your Workspace can sign in at all.</li>
+<li><strong>Clients → Create client</strong>, application type <strong>TVs and Limited Input devices</strong>. Copy the client
+   ID and secret.</li>
+<li>On the gateways (<code>.env</code>, or the Helm secret):</li>
+</ol>
+<p><code>bash
+   MERITORDER_OIDC_ISSUER=https://accounts.google.com
+   MERITORDER_OIDC_CLIENT_ID=123456789012-abc.apps.googleusercontent.com
+   MERITORDER_OIDC_CLIENT_SECRET=GOCSPX-...
+   MERITORDER_OIDC_HOSTED_DOMAINS=example.com          # comma-separated if you have several</code></p>
+<p>The shipped config reads all four. If your configuration was already saved from the console
+   before these fields existed, fill in the client secret and domains on Config → Access. The
+   secret must stay a reference (<code>${MERITORDER_OIDC_CLIENT_SECRET}</code>), since secrets aren't stored.</p>
+<ol>
+<li>Map teams and roles in <code>auth.oidc</code> (or Config → Access):</li>
+</ol>
+<p><code>yaml
+   auth:
+     oidc:
+       team_from_emails:
+         "@example.com": platform            # everyone in the domain
+         "@research.example.com": research
+         "bob@example.com": data-science     # one person
+       role_from_emails:
+         "carol@example.com": admin
+         "dana@example.com": finance
+       key_ttl_days: 7                       # see "Leavers" below</code></p>
+<p>A key with <code>@</code> in the middle is one address; <code>@example.com</code> or <code>example.com</code> is a whole domain.
+   Team: the entry for the exact address, else a mapped group (<a href="#google-groups">Google Groups</a>), else
+   the address's domain, else <code>default_team</code>. Role: the highest any of them gives; everyone else is a
+   user. Matching ignores case. These lists apply only to an <code>email</code> the token marks verified, which
+   Google's are and Entra's aren't: with Entra, map groups.</p>
+<ol>
+<li>People run <code>meritorder login</code>. It prints <code>https://www.google.com/device</code> and a code; they sign in
+   with their Workspace account, and the gateway issues a key as with Entra.</li>
+</ol>
+<p>Refusals: an account outside <code>hosted_domains</code> (a personal Gmail account, say) gets 403 "sign-in is
+limited to accounts in example.com", and an unverified address gets 403 "this account's email address
+isn't verified". Both checks also apply to a Google ID token sent directly as a bearer token. A Google
+service account's ID token has no <code>hd</code>, so services use a key from <code>meritorder keys create</code>. If the issuer is
+written another way (<code>https://accounts.google.com:443</code>, say) the start-up check doesn't see Google, so the gateway
+also refuses every token Google's issuer signed while <code>hosted_domains</code> is empty.</p>
+<p><strong>Leavers.</strong> Google Workspace doesn't provision custom apps over SCIM, so a suspended account isn't
+disabled here at once. It can't sign in again, and its keys stop when they expire (<code>key_ttl_days</code>,
+30 by default; 7 is a reasonable choice with Google). To cut someone off now, disable them on the
+People page. With Google Groups on, taking someone out of their groups also takes away the team and
+role those groups gave, at the next refresh, while their keys still work.</p>
+<h3 id="google-groups">Google Groups</h3>
+<p>Google's ID tokens never include groups, so the gateway can read them itself from Google's Cloud
+Identity Groups API (v1, as documented in November 2026) and map them as it maps Entra groups:
+<code>team_from_groups</code> and <code>role_from_groups</code>, keyed by the group's address.</p>
+<pre><code class="language-yaml">auth:
+  oidc:
+    issuer: https://accounts.google.com
+    # client_id, public_client_secret, hosted_domains as above
+    google_groups:
+      enabled: true          # the shipped config: MERITORDER_GOOGLE_GROUPS=true
+      credentials_env: MERITORDER_GOOGLE_GROUPS_CREDENTIALS   # the service account's JSON key (or credentials_file)
+    team_from_groups:        # the first group in this list someone is in sets their team
+      &quot;platform-team@example.com&quot;: platform
+      &quot;research@example.com&quot;: research
+    role_from_groups:
+      &quot;gateway-admins@example.com&quot;: admin
+      &quot;finance@example.com&quot;: finance
+    team_from_emails:
+      &quot;bob@example.com&quot;: data-science   # an exact address still wins over a group
+      &quot;@example.com&quot;: general           # the domain catches everyone in no mapped group
+</code></pre>
+<p><strong>Which mapping wins.</strong> The team comes from, in order:</p>
+<ol>
+<li>the person's exact address in <code>team_from_emails</code>;</li>
+<li>the first group in <code>team_from_groups</code> they're in, directly or through nested groups;</li>
+<li>their domain in <code>team_from_emails</code>;</li>
+<li><code>default_team</code>.</li>
+</ol>
+<p>The role is the highest that any of their groups, their address or their domain gives; everyone else
+is a user. Addresses match ignoring case. A team or role an admin set on the People page wins over all
+of them. Map only groups whose membership your admins control: a group anyone in the organization can
+join, mapped to a role, lets anyone take that role.</p>
+<p><strong>Setup.</strong> You need a Google Cloud project and a Google Workspace super admin.</p>
+<ol>
+<li>Google Cloud console → <strong>APIs &amp; Services → Library</strong> → <strong>Cloud Identity API</strong> → <strong>Enable</strong>.</li>
+<li><strong>IAM &amp; Admin → Service Accounts → Create service account</strong>, for example <code>meritorder-groups</code>. It
+   needs no IAM roles in the project. Copy its email address.</li>
+<li>Give the gateways a way to act as it, one of:</li>
+<li>
+<p><strong>GKE Workload Identity</strong> (no key to keep): let the gateways' Kubernetes service account act as it,</p>
+<p><code>bash
+ gcloud iam service-accounts add-iam-policy-binding meritorder-groups@PROJECT.iam.gserviceaccount.com \
+   --role roles/iam.workloadIdentityUser --member "serviceAccount:PROJECT.svc.id.goog[NAMESPACE/KSA]"</code></p>
+<p>and annotate it in the Helm values: <code>serviceAccount.annotations: {iam.gke.io/gcp-service-account:
+ meritorder-groups@PROJECT.iam.gserviceaccount.com}</code>. Leave <code>MERITORDER_GOOGLE_GROUPS_CREDENTIALS</code>
+ unset. A pod has one Google identity, so if the gateways already use a service account for Vertex,
+ give that one the role in step 4 instead. Compute Engine and Cloud Run work the same way, through
+ the service account attached to the VM or service.
+   - <strong>A key</strong>: the service account → <strong>Keys → Add key → Create new key → JSON</strong>. Put the file's
+ contents on one line (<code>jq -c . key.json</code>) in <code>MERITORDER_GOOGLE_GROUPS_CREDENTIALS</code>, in <code>.env</code> or
+ the gateways' Secret. With <code>secrets.mountAsFiles</code> in Helm, also set <code>credentials_file:
+ /run/secrets/meritorder/MERITORDER_GOOGLE_GROUPS_CREDENTIALS</code>, so a rotated key is used without a
+ restart. If your organization blocks key creation (<code>iam.disableServiceAccountKeyCreation</code>), use
+ Workload Identity.
+4. In the Google Admin console (admin.google.com), signed in as a super admin: <strong>Menu → Account →
+   Admin roles</strong>. Point to <strong>Groups Reader</strong>, click <strong>Assign admin</strong>, then <strong>Assign service
+   accounts</strong>. Enter the service account's email address, click <strong>Add</strong>, then <strong>Assign role</strong>. To
+   limit the role to security groups, choose that while assigning it and set
+   <code>security_groups_only: true</code>. If multi-party approval is on for role changes, another admin
+   approves it.
+5. Set <code>MERITORDER_GOOGLE_GROUPS=true</code> (or switch on <strong>Read Google Groups</strong> on Config → Access) and map
+   groups by address. <code>meritorder check</code> shows which key or identity the gateway will call Google as,
+   without calling it; the first sign-in shows whether Google answers (People page, and an alert if not).</p>
+</li>
+</ol>
+<p>That's all: no domain-wide delegation and no scopes to authorize in the Admin console. The gateway asks
+Google for one read-only scope, <code>https://www.googleapis.com/auth/cloud-identity.groups.readonly</code>. If
+the metadata server gives a token with the broader <code>cloud-platform</code> scope instead (GKE Workload
+Identity does), the Cloud Identity API accepts that too, and the service account can still only read
+groups: that's all its role allows. Keys and tokens are never logged or stored.</p>
+<p><strong>When groups are read.</strong> At sign-in, and again for people using the gateway: anyone who made a
+request since their groups were last read is read again once <code>refresh_seconds</code> (60) have passed, by
+one gateway at a time. A removal reaches the user record then, and every gateway's key cache within a
+minute after, as when SCIM brings an Entra group change: about two minutes in all by default. People
+who stop using the gateway aren't read until they're back. Each reading is one call to Google per
+person (and a page per 1,000 groups). People who signed in with Google before groups were turned on
+are read the first time they use the gateway after that.</p>
+<p><strong>Nested groups.</strong> Google's transitive search (<code>searchTransitiveGroups</code>) lists every group someone is
+in, through nested groups too, in one call. Google offers it on Workspace Enterprise Standard and
+Plus, Enterprise for Education, and Cloud Identity Premium; other editions get a 403. The gateway then
+lists direct groups (<code>searchDirectGroups</code>) and follows the nesting itself, one call per group, keeping
+each group's parents for a refresh period. A group the service account can't see into (another
+organization's, say) is left out and logged.</p>
+<p><strong>When Google can't be reached.</strong> Each person keeps the groups last read for them for
+<code>keep_last_known_hours</code> (24). After that, their team and role come from the email and domain rules
+alone, until Google answers again. Each step raises an alert on the console's attention list and the
+webhook: Google Groups unavailable (for a setup problem, such as a missing role, scope or API, the
+alert says what to fix), the fallback to the email rules, and the recovery. The last groups read live
+in Redis with the rest of the gateways' shared state.</p>
+<p><strong>On the People page</strong>, a Google groups column shows each person's mapped groups (the one that set
+their team filled, nested ones marked), the rest on hover, which mapping set their team and role, and
+whether Google answered last time. Team leads see only the groups the mappings use. <strong>Follow sign-in</strong>
+reads the person's groups at once and applies them.</p>
+<h2 id="stored-responses-who-holds-them-and-who-can-read-them">Stored responses: who holds them and who can read them</h2>
+<p>A team can turn on stored mode for OpenAI's Responses API (Config → Teams → Stored responses;
+<a href="caching-and-sessions.html#stateful-apis">04</a>, decision 51). <strong>Then the gateway holds conversation content</strong>:
+each response's input and output, and each conversation's items, sealed with <code>MERITORDER_RESPONSES_KEY</code>, for the
+<code>retention_days</code> the operator set (required; there is no default). Elsewhere the gateway keeps none.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Who</th>
+<th>Can</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>The person whose key made it, on the team it was made in</td>
+<td>Read it, list its input items, chain from it, cancel it (background), delete it</td>
+</tr>
+<tr>
+<td>A role listed in the team's <code>stored_responses.readers</code></td>
+<td>Read and chain from it: admins from any team, the other roles on the same team. Not delete it</td>
+</tr>
+<tr>
+<td>Anyone else, admins included</td>
+<td>Nothing: it's 404 to them, as if it didn't exist</td>
+</tr>
+</tbody>
+</table></div>
+<ul>
+<li><strong>A response belongs to its person and team.</strong> Someone moved to another team can't read or chain from what they
+  stored on the old one; it expires with the old team's retention.</li>
+<li><strong>Removing someone deletes what they stored.</strong> Disabling them on the People page, or deactivating or deleting them
+  through SCIM, deletes their stored responses and conversations at once, and the providers' copies (backends with
+  <code>responses_store</code>). Enabling them again doesn't bring them back. Their ledger rows stay, as for anyone.</li>
+<li><strong>Spend is as for any request.</strong> Each stored turn is one ledger row, checked against the organization, team, person
+  and session budgets, rate limits and the per-request cost limit before it's sent. A chained turn is priced on the
+  whole conversation it's rebuilt into, which is what the provider bills.</li>
+<li><strong>The console shows sizes, never content.</strong> Config → Teams and the Teams page show, per team, how many responses,
+  conversations and items are stored, their sealed size, for how many people, and since when. No page shows what
+  they say.</li>
+</ul>
+<h2 id="secrets-in-a-saved-configuration">Secrets in a saved configuration</h2>
+<p>An admin who saves a configuration from the console chooses both where a backend's key comes from and the
+backend's <code>base_url</code>, and the backend sends its key to that URL. So a saved configuration may read only what the
+operator allows (the YAML file on disk is the operator's and isn't checked; <code>configstore.secret_problems</code>):</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Field</th>
+<th>May read</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A backend's or bill source's <code>auth.value_env</code>, or <code>${NAME}</code> in its <code>auth.value</code></td>
+<td>A provider's key variable the shipped configs use (<code>ANTHROPIC_API_KEY</code>, <code>OPENAI_API_KEY</code>, <code>OPENROUTER_API_KEY</code>, <code>GEMINI_API_KEY</code>, <code>AZURE_OPENAI_API_KEY</code>, <code>AZURE_FOUNDRY_API_KEY</code>, <code>XAI_API_KEY</code>, <code>DEEPSEEK_API_KEY</code>, <code>MISTRAL_API_KEY</code>, <code>MOONSHOT_API_KEY</code>, <code>ZAI_API_KEY</code>, <code>MINIMAX_API_KEY</code>, <code>ANTHROPIC_ADMIN_KEY</code>, <code>OPENAI_ADMIN_KEY</code>, <code>AZURE_EXPORT_SAS</code>), or any <code>MERITORDER_BACKEND_&lt;NAME&gt;</code></td>
+</tr>
+<tr>
+<td>The gateway's own secret fields</td>
+<td>Only their own variable: <code>reporting.clickhouse.auth</code> <code>MERITORDER_CLICKHOUSE_PASSWORD</code>, <code>compressor.api_key_env</code> <code>MERITORDER_COMPRESSOR_KEY</code>, <code>auth.oidc.google_groups.credentials_env</code> <code>MERITORDER_GOOGLE_GROUPS_CREDENTIALS</code>, <code>auth.oidc.public_client_secret</code> <code>MERITORDER_OIDC_CLIENT_SECRET</code>, <code>batches.key_env</code> <code>MERITORDER_BATCH_KEY</code> (and <code>_PREVIOUS</code>), <code>response_store.key_env</code> <code>MERITORDER_RESPONSES_KEY</code> (and <code>_OLD_KEYS</code>). A static key's <code>key_env</code> may name any variable: its value is only compared with callers' keys</td>
+</tr>
+<tr>
+<td>Any <code>*_file</code> field (<code>value_file</code>, <code>key_file</code>, <code>credentials_file</code>, ...)</td>
+<td>A file inside <code>MERITORDER_SECRETS_DIR</code> (default <code>/run/secrets/meritorder</code>, the chart's <code>secrets.mountAsFiles</code>), with <code>..</code> refused and symlinks resolved, named for a variable the field may read</td>
+</tr>
+<tr>
+<td><code>${NAME}</code> anywhere else (a <code>base_url</code>, a region, a budget)</td>
+<td>Only the variables the shipped config uses there (<code>AZURE_OPENAI_ENDPOINT</code>, <code>AWS_REGION</code>, <code>MERITORDER_ORG_BUDGET_USD</code>, ...; <code>configstore.PLAIN_ENVS</code>)</td>
+</tr>
+</tbody>
+</table></div>
+<p>Anything else (<code>MERITORDER_DATABASE_URL</code>, <code>MERITORDER_SCIM_TOKEN</code>, <code>MERITORDER_ALERT_WEBHOOK_URL</code>, any file
+elsewhere) is refused with a message saying what the field may read. The operator adds names in the gateways'
+environment: <code>MERITORDER_CONFIG_SECRET_ENVS</code> for secret fields and <code>MERITORDER_CONFIG_ENVS</code> for <code>${NAME}</code> elsewhere
+(comma-separated, a trailing <code>*</code> for a prefix). Restoring an old version applies the same rules.</p>
+<h2 id="where-budgets-and-limits-are-set">Where budgets and limits are set</h2>
+<p>Every budget and limit below is a field in the configuration. There are two places a configuration
+can come from, and only one is in effect at a time:</p>
+<ol>
+<li><strong>The YAML file</strong>, <code>config/meritorder.yaml</code> (or <code>MERITORDER_CONFIG</code>), with its <code>include:</code> files.
+   It is in effect only until someone saves a configuration from the console.</li>
+<li><strong>The newest version saved in Postgres.</strong> The console saves one when an admin saves on the
+   Controls page (<strong>Save as new config version</strong>) or the Config page (<strong>Save and apply</strong>), restores
+   an old version (Config → History), or applies an eval run's scores. Once any version exists,
+   every gateway, the worker and the controller use the newest one and ignore the YAML file.
+   Editing the file after that has no effect, so make later changes on the console (the Config
+   page's YAML tab takes the whole document).</li>
+</ol>
+<p><strong>Two saves never undo each other.</strong> Every save names the version it was made to (<code>base_version</code>: the
+<code>version</code> that <code>GET /v1/admin/config/source</code> returned, <code>null</code> while the file is in effect). If someone
+saved another version since, the gateway refuses with 409 ("someone else saved the configuration
+(version N) since you opened version M; reload to see their change, then make yours again") and saves
+nothing. The check and the insert are one step in Postgres (an advisory lock), so of two admins saving
+together exactly one wins. Every console save sends it: Config (<strong>Save and apply</strong>, <strong>Restore</strong> in
+History) and Controls. Changes the gateway or the worker writes for you (an eval run's scores, a level
+from the outcome report, the worker's <code>auto_apply</code>) are made to the newest version, read just before
+saving, and checked the same way; the worker skips a recommendation that loses the race and tries it on
+its next pass. <code>base_version</code> is optional on <code>PUT /v1/admin/config</code> and
+<code>POST /v1/admin/config/versions/{id}/restore</code>: a script that leaves it out saves over whatever version
+is newest, as before.</p>
+<p>The first save copies the whole running document into Postgres (the file with its <code>include:</code> files
+merged in), with the fields you changed set to their new values. <code>${NAME}</code> references are copied as
+written, not as their values. Each process fills them in from its own environment every time it
+loads the configuration.</p>
+<figure class="diagram"><pre class="mermaid">flowchart TD
+    L[&quot;A gateway, the worker or the controller&lt;br/&gt;loads the configuration&quot;] --&gt; Q{&quot;Any version saved&lt;br/&gt;in Postgres?&quot;}
+    Q -- no --&gt; F[&quot;YAML file&lt;br/&gt;config/meritorder.yaml + includes&quot;]
+    Q -- yes --&gt; D[&quot;Newest stored version&lt;br/&gt;(the YAML file is ignored)&quot;]
+    F --&gt; R{&quot;Does the field hold&lt;br/&gt;a ${NAME} reference?&quot;}
+    D --&gt; R
+    R -- yes --&gt; E[&quot;Value of NAME in this process&#x27;s environment,&lt;br/&gt;else the default after :-, else no limit&quot;]
+    R -- no --&gt; V[&quot;The number written there&quot;]</pre></figure>
+<p>So the environment variables in the shipped file (<code>MERITORDER_ORG_BUDGET_USD</code> and the others under
+<a href="#organization-wide-safeguards">Organization-wide safeguards</a>) set a field only while that field
+still holds its <code>${...}</code> reference. That is true of the file, and of stored versions in which nobody
+has changed that field. When an admin sets the field on the Controls page, the saved version holds
+the number instead, and the variable no longer has any effect on it. Clearing a field on the
+Controls page removes it from the document, which means no limit, not the variable's value.</p>
+<p>Saving needs Postgres (<code>MERITORDER_DATABASE_URL</code>). Without it the console can edit and validate,
+but not save, and the YAML file stays in effect. If a stored version can't be loaded when a gateway starts, the
+gateway logs the error and runs on the YAML file. The worker and the controller log it and keep
+the configuration they already had (the YAML file, if they had just started).</p>
+<figure class="diagram"><pre class="mermaid">sequenceDiagram
+    actor A as Admin
+    participant C as Console (Controls page)
+    participant G as Gateway that gets the save
+    participant P as Postgres
+    participant R as Redis
+    participant O as Other gateways
+    participant W as Worker and controller
+
+    A-&gt;&gt;C: Change the org budget, click Save
+    C-&gt;&gt;G: GET /v1/admin/config/source (the document in effect)
+    C-&gt;&gt;C: Set safeguards.org_budget_usd_month in it
+    C-&gt;&gt;G: POST /v1/admin/config/validate
+    C-&gt;&gt;G: PUT /v1/admin/config (base_version N-1)
+    G-&gt;&gt;P: Save as version N (author, comment), unless another was saved since: 409
+    G-&gt;&gt;G: Apply version N
+    G-&gt;&gt;R: Publish a new config token
+    loop every 5 seconds
+        O-&gt;&gt;R: Has the token changed?
+        O-&gt;&gt;P: If so, load version N
+    end
+    W-&gt;&gt;P: On each pass (every minute by default), load the newest version if it changed</pre></figure>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Where to change it</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Organization budget, GPU budget, GPU burn rate and replica caps, per-request cost limit</td>
+<td><strong>Controls</strong> page (admins; finance can view it), or <code>safeguards:</code> in the file</td>
+</tr>
+<tr>
+<td>Team budget, per-person default, per-session cap</td>
+<td><strong>Controls</strong> page or <strong>Config → Teams</strong>, or <code>teams:</code> in the file</td>
+</tr>
+<tr>
+<td>Rate limits, model and backend policy, exploration</td>
+<td><strong>Config → Teams</strong>, or <code>teams:</code> in the file</td>
+</tr>
+<tr>
+<td>A level moved by the outcome report (<code>routing.level_map</code>)</td>
+<td><strong>Reports → Levels</strong> → <em>Apply</em> (admins), <strong>Config → YAML</strong>, or <code>routing:</code> in the file</td>
+</tr>
+<tr>
+<td>One person's own monthly limit</td>
+<td><strong>People</strong> page, or <code>PATCH /v1/admin/users/{id}</code>. Kept on the user record in Postgres, not in the configuration</td>
+</tr>
+</tbody>
+</table></div>
+<p>Each save is a new version with its author, time and comment. <strong>Config → History</strong> lists them and
+restores any of them, which saves it again as the newest version.</p>
+<h2 id="budgets">Budgets</h2>
+<figure class="diagram"><pre class="mermaid">flowchart TD
+    ORG[&quot;Org budget&lt;br/&gt;$/month&quot;] --&gt; T1[&quot;Team: platform&lt;br/&gt;$/month&quot;]
+    ORG --&gt; T2[&quot;Team: data-science&lt;br/&gt;$/month&quot;]
+    T1 --&gt; U1[&quot;User budget&quot;]
+    T1 --&gt; U2[&quot;User budget&quot;]
+    T2 --&gt; U3[&quot;User budget&quot;]
+    U1 --&gt; K1[&quot;Key&quot;]
+    U1 --&gt; K2[&quot;Key&quot;]</pre></figure>
+<ul>
+<li>A request must fit <strong>every</strong> level above it: organization, team, and person.</li>
+<li><strong>Each person can have their own monthly limit.</strong> Without one, the team's per-person default
+  (<code>user_budget_usd_month</code>) applies. A person's own limit replaces that default, higher or lower;
+  the team and organization budgets still apply on top. <code>$0</code> stops their requests. Set it in either
+  place below; the People page wins when both are set, and changes apply within a minute on every
+  gateway, keys already issued included:</li>
+<li>The console's <strong>People</strong> page (admins), or <code>PATCH /v1/admin/users/{id}</code> with
+    <code>{"budget_usd_month": 250}</code>. Send <code>null</code> to clear it and go back to the default.</li>
+<li><code>budget_usd_month</code> on a static key in the config file, for people who use one.</li>
+<li>A person's limit counts everything they spent this month, on whichever team they were on.</li>
+<li>Spend is checked before a request is sent and counted when it finishes (Redis counters seeded
+  from the Postgres ledger, which stays the source of truth). A request that finishes after Redis lost a month's
+  counter (a flush, a failover, eviction) doesn't start it again: the next request seeds it from the ledger. One that
+  finishes while the ledger is being read for a seed is kept aside and added to it, so it isn't lost.</li>
+<li><strong>The worker checks the counters against the ledger</strong> every cycle (a minute): this month's for the organization, each
+  team and each person, recomputed from the ledger plus running batches' reservations, the same sum a seed uses. A
+  counter that's off by the same amount on two cycles running is corrected by that amount (a request finishing between
+  writing its counter and its ledger row makes a difference that's gone the next cycle). That covers a Redis restored
+  from an old snapshot, whose counters exist but are behind; the compose file runs Redis without persistence so that
+  doesn't happen (<a href="deployment.html">07</a>).</li>
+<li><strong>A batch</strong> is checked once, against its estimated cost at batch prices, and refused if that doesn't fit what's left of
+  any budget it counts against. The estimate is reserved in the same counters (so live requests see it) until the worker
+  settles each result at what it cost. A request sent to a GPU reserves its fallback provider's estimate, since it may end
+  up there, and settles at the GPU time it took. Rate limits and <code>max_session_usd</code> don't apply to batches
+  (<a href="request-flow.html#batches-work-that-can-wait">02</a>). A reservation counts in every month it's outstanding: a batch made
+  on the 31st that settles on the 1st is charged in the new month, so the new month's budgets hold room for it. A batch
+  that can't be stored takes its reservation back at once.</li>
+<li><strong>Judged labels</strong> (opt-in per team, <a href="routing.html#judged-labels">03</a>) spend as an internal client of the team,
+  <code>judged-labels:&lt;team&gt;</code>, which shows as its own line in reports by person. Its requests count against the team's and
+  the organization's budgets and are refused at 100% like anyone's; no per-person limit applies to it. Its monthly cap
+  (<code>judged_labels.max_usd_month</code>, required, no default) is checked when each sample starts: none starts once it's spent,
+  and one that started finishes. The worker alerts at 80% and 100% of the cap.</li>
+<li><strong>Exploration</strong> (opt-in per team, <code>teams.&lt;name&gt;.exploration</code>, Config → Teams → Exploration;
+  <a href="routing.html#exploration">03</a>) sends a few of the team's <code>auto</code> task starts a level down or up, while the learned
+  router is on (shadow mode at least). A task explored up
+  costs more, so exploring up stops once any budget that applies to the request (the organization's, the person's, the
+  team's, the session's) is 90% spent; exploring down goes on. It never goes past the team's <code>allowed_models</code> or
+  <code>allowed_backends</code>, or the per-request cost limit. Explored requests are ordinary requests of the person: they count
+  against every budget, and the ledger tags them <code>explore</code> and <code>explore_from</code>.</li>
+<li>Alerts go out at 80% and 100%; at 100% requests are refused with a 429 that says which budget
+  was reached.</li>
+<li>Policy lives alongside budgets, per team: <code>allowed_models</code> and <code>allowed_backends</code>, glob lists
+  with <code>!</code> exclusions. For example <code>allowed_backends: ["*", "!deepseek"]</code> keeps a team's requests off
+  the <code>deepseek</code> backend (DeepSeek's own API).</li>
+</ul>
+<h2 id="limits-that-stop-runaway-spend">Limits that stop runaway spend</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Setting (per team)</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>budget_usd_month</code>, <code>user_budget_usd_month</code></td>
+<td>Monthly caps for the team, and the default for each person on it; requests are refused at 100% (alerts at 80%). A person's own limit replaces the per-person default (<a href="#budgets">Budgets</a>)</td>
+</tr>
+<tr>
+<td><code>max_session_usd</code></td>
+<td>Stops one session (typically an agent stuck in a loop) once it has spent this much. A Claude Code session's subagents and side requests count toward it</td>
+</tr>
+<tr>
+<td><code>rate_limits: {user_rpm, user_tpm, team_rpm, team_tpm}</code></td>
+<td>Requests and prompt tokens per minute; 429 with <code>Retry-After</code></td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="organization-wide-safeguards">Organization-wide safeguards</h2>
+<p>Hard limits for everyone. The console's <strong>Controls</strong> page shows each one next to this month's
+spend and the pace it's on. An admin changes them there, which saves a new config version in
+Postgres that every gateway picks up within seconds
+(<a href="#where-budgets-and-limits-are-set">Where budgets and limits are set</a>).</p>
+<p>The shipped <code>config/meritorder.yaml</code> fills them from environment variables, so a new install can
+set its starting values in <code>.env</code> without editing the file:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Variable in the shipped file</th>
+<th>If the variable is unset or blank</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>org_budget_usd_month</code></td>
+<td><code>MERITORDER_ORG_BUDGET_USD</code></td>
+<td>no limit</td>
+</tr>
+<tr>
+<td><code>gpu_budget_usd_month</code></td>
+<td><code>MERITORDER_GPU_BUDGET_USD</code></td>
+<td>no limit</td>
+</tr>
+<tr>
+<td><code>max_gpu_usd_per_hour</code></td>
+<td><code>MERITORDER_MAX_GPU_USD_PER_HOUR</code></td>
+<td>no limit</td>
+</tr>
+<tr>
+<td><code>max_gpu_replicas</code></td>
+<td><code>MERITORDER_MAX_GPU_REPLICAS</code></td>
+<td>no limit</td>
+</tr>
+<tr>
+<td><code>max_request_usd</code></td>
+<td><code>MERITORDER_MAX_REQUEST_USD</code></td>
+<td>25</td>
+</tr>
+</tbody>
+</table></div>
+<p>A variable is read only while its field still holds the <code>${...}</code> reference. Once an admin sets that
+field on the Controls page, the stored number wins and the variable is ignored.</p>
+<p>These are the fastest stop there is: they act on the gateway's own ledger, request by request.</p>
+<p><strong>What "spent" means for a budget.</strong> One total, <code>spend.budget_spend(store, cfg, kind, ident)</code>, is what every surface
+shows for a budget: admission seeds its counters from it, and Controls, the console's attention panel and the budget
+alerts show it. It is the month's ledger (from Postgres) plus what running batches have reserved (shown on its own as
+"reserved by running batches"), and for the organization the GPU time no request paid for. A person's spend is across
+every team they were on this month, as admission counts it. A team's and a person's GPU requests count at their shares
+of the GPU's time; the idle time is the organization's alone, so a team's budget can't be used up by GPUs it didn't
+start. Each gateway reads the organization's GPU time at most once a minute (the controller adds to it once a cycle).
+Cloud budgets (AWS Budgets, Azure Cost Management) see spend hours later, and on their own only
+send email, so treat them as a backstop for anything that doesn't go through the gateway.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>org_budget_usd_month</code></td>
+<td>All LLM spend: the ledger, what running batches have reserved, and GPU time no request paid for (idle, starting, draining), so GPUs count at what they cost to run (<a href="reporting.html#gpu-time-in-spend">08</a>). At 100% every request is refused until the month ends or it's raised</td>
+</tr>
+<tr>
+<td><code>gpu_budget_usd_month</code></td>
+<td>GPU time alone (replicas × hourly price), a cap of its own; the same time also counts in the org budget. At 100% running GPUs drain and none start, pins included</td>
+</tr>
+<tr>
+<td><code>max_gpu_usd_per_hour</code></td>
+<td>Burn-rate cap for the whole GPU fleet; deployments whose demand best covers their cost get capacity first. Each replica counts at its expected (cheapest) price, or, while it runs, at what it really burns when that's more (a pricier region, a spot price that moved). A GPU with no price is never started, so nothing escapes the cap</td>
+</tr>
+<tr>
+<td><code>max_gpu_replicas</code></td>
+<td>Replica cap across all deployments</td>
+</tr>
+<tr>
+<td><code>max_request_usd</code></td>
+<td>Per request. One that sets <code>max_tokens</code> is checked at its worst case (input tokens × input price + <code>max_tokens</code> × output price; self-hosted routes count as $0): cheaper candidates are used instead, and if none fit it's refused (400) with what it would have cost. One without <code>max_tokens</code> may write as much as the model can, less whatever wouldn't fit under the limit (the reply's <code>x-meritorder-max-tokens</code> header says how much it got, and <code>x-meritorder-max-tokens-source: cost limit</code> that it was trimmed); it's refused only if its input alone costs more</td>
+</tr>
+<tr>
+<td><code>alert_at</code></td>
+<td>Fractions of the org and GPU budgets that send alerts (default 80% and 100%)</td>
+</tr>
+</tbody>
+</table></div>
+<p>GPUs can also be stopped, pinned, or stopped all at once from the console; see
+<a href="gpu-autoscaling.html#controls-and-safeguards">05</a>.</p>
+<h2 id="what-gets-charged">What gets charged</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Backend</th>
+<th>Charged to the user's budget</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>API</td>
+<td>Provider cost of the cached, uncached, and output tokens at the route's live list price (OpenRouter's catalog or LiteLLM's price list, refreshed every 15 minutes) or its <code>price:</code> override. OpenRouter picks among providers whose prices differ, so for OpenRouter the ledger records what it billed (<code>usage.cost</code>; with your own provider key, its fee plus the provider's charge). Set <code>billed_cost: reported</code> or <code>catalog</code> on a backend to choose</td>
+</tr>
+<tr>
+<td>Self-hosted</td>
+<td>Chargeback: the GPU time the request's tokens take at <code>capacity_tokens_per_second</code>, at the replica's hourly price (SkyPilot's catalog price for the running replicas, or on Kubernetes their node type's configured price, else <code>gpu_cost_per_hour</code>), so it's not $0. Idle GPU time isn't charged to anyone; the GPU budget covers all GPU time</td>
+</tr>
+<tr>
+<td>Server-side tools</td>
+<td>Anthropic web search at $10 per 1,000 searches (<code>price.web_search_per_1k</code>), on top of tokens. Web fetch adds only tokens; code-execution container time isn't modeled</td>
+</tr>
+<tr>
+<td>Batch requests</td>
+<td>The route's batch price: the live list's batch price, else the provider's published discount (half; Moonshot 40%, xAI 20%), or the route's <code>price.batch</code>. On a GPU, the GPU time it took, like live GPU work</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>An unknown price is never served as free.</strong> A route with no price (none in the live list yet, no <code>price:</code> override)
+on an API backend can't be used: <code>auto</code> passes it by, and a request that names its model, an embedding request and a
+batch request get a 503 that says so ("no price known for this route yet; set <code>price:</code> or wait for the price list"),
+unless the model has another, priced route. The worker raises a critical alert for each such route, once a day. A
+self-hosted route is charged by its GPU time, so a named request may use one without a price. Mock backends stand in for
+an API and follow the same rule: give their routes a <code>price:</code> (the shipped config's mocks have one).</p>
+<p><strong>OpenRouter's <code>usage.cost</code></strong> comes back on every response without asking: OpenRouter's usage accounting docs (November
+2026) say <code>usage: {include: true}</code> is deprecated and has no effect, so the gateway doesn't send it. Streams ask for
+usage with <code>stream_options.include_usage</code>, as for every OpenAI-format backend. A response without <code>usage.cost</code> is
+charged at the catalog price.</p>
+<p>Some <code>anthropic-beta</code> features change pricing (for example 1M-token context) in ways the cost model
+doesn't track. To keep them off, list the betas a backend may forward: <code>anthropic_betas: [...]</code>
+(prefix match; unset forwards everything the client sends).</p>
+<p>Budgets use chargeback; the router uses marginal cost. They answer different questions.</p>
+<p>These are computed costs. Reports → Bills checks them against each provider's own cost data (Anthropic's and
+OpenAI's admin APIs, AWS Cost Explorer or its CUR 2.0 export, the Google Cloud billing export, Azure Cost Management
+or its exports) and alerts when a day's bill and ledger drift apart; see
+<a href="reporting.html#checking-costs-against-the-bills">08</a>.</p>
+<h2 id="the-savings-ledger">The savings ledger</h2>
+<p>One row per request, written async:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>user, team, key, session</td>
+<td></td>
+</tr>
+<tr>
+<td>model requested / floor / served</td>
+<td><code>auto</code> / <code>coding:3</code> / <code>qwen3-coder-next</code></td>
+</tr>
+<tr>
+<td>backend</td>
+<td><code>gpu-qwen-coder</code></td>
+</tr>
+<tr>
+<td>tokens: uncached in / cache read / cache write / out</td>
+<td>2,100 / 118,000 / 0 / 640</td>
+</tr>
+<tr>
+<td><strong>actual cost</strong> (<code>actual_cost</code>)</td>
+<td>what budgets are charged: chargeback on a self-hosted backend</td>
+</tr>
+<tr>
+<td><strong>served model at API prices</strong> (<code>served_api_cost</code>)</td>
+<td>the same tokens on the model's API route</td>
+</tr>
+<tr>
+<td><strong>baseline cost</strong> (<code>baseline_cost</code>)</td>
+<td>the team's <code>baseline_model</code> at API prices, without caching Merit Order added</td>
+</tr>
+<tr>
+<td><strong>list cost</strong> (<code>list_cost</code>)</td>
+<td>the served model at list price, no caching</td>
+</tr>
+<tr>
+<td>savings by cause</td>
+<td>routing, caching, self-hosting, batch discount, compression by the rules, compression by the model, response cache</td>
+</tr>
+<tr>
+<td>service tier, batch</td>
+<td><code>batch</code> and the batch's id, for a request sent through a provider's batch API</td>
+</tr>
+<tr>
+<td>upgraded for free?</td>
+<td>yes</td>
+</tr>
+</tbody>
+</table></div>
+<p>Reports add these rows up: what was spent, what it would have cost, savings by cause, and how many
+requests were upgraded for free. How savings are calculated and reported is in
+<a href="reporting.html">08, Reporting</a>.</p></section>
+  </main>
+</div>
+
+<script>
+(function () {
+  // Only the all-in-one page: its rail links to sections of the page. One-doc pages mark their own link.
+  var links = Array.prototype.slice.call(document.querySelectorAll('.rail a')).filter(function (a) {
+    return a.getAttribute('href').charAt(0) === '#';
+  });
+  if (!links.length) {
+    var here = document.querySelector('.rail a.active');
+    if (here && here.scrollIntoView && window.matchMedia('(max-width: 860px)').matches) {
+      here.scrollIntoView({ block: 'nearest', inline: 'center' });
+      window.scrollTo(0, 0);
+    }
+    return;
+  }
+  var byId = {};
+  links.forEach(function (a) { byId[a.getAttribute('href').slice(1)] = a; });
+  function setActive(id) {
+    links.forEach(function (a) { a.classList.toggle('active', a === byId[id]); });
+    var a = byId[id];
+    if (a && a.scrollIntoView && window.matchMedia('(max-width: 860px)').matches) {
+      a.scrollIntoView({ block: 'nearest', inline: 'center' });
+    }
+  }
+  if ('IntersectionObserver' in window) {
+    var obs = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) { if (e.isIntersecting) setActive(e.target.id); });
+    }, { rootMargin: '-20% 0px -70% 0px' });
+    document.querySelectorAll('main section').forEach(function (s) { obs.observe(s); });
+  }
+  setActive((location.hash || '#overview').slice(1));
+})();
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js"></script>
+<script>
+(function () {
+  var t = document.documentElement.getAttribute('data-theme');
+  var dark = t ? t === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+  mermaid.initialize({ startOnLoad: true, theme: dark ? 'dark' : 'default', securityLevel: 'strict' });
+})();
+</script>
+</body>
+</html>

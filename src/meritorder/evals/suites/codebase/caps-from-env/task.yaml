@@ -1,0 +1,69 @@
+id: caps-from-env
+task: coding
+level: 4
+kind: agent
+commit: 91d34d1
+summary: "Spending caps from environment variables, where an unset variable now reaches the config as a blank string, plus a .env reader that follows Docker Compose's comment and quote rules"
+env: meritorder.evals.envs.codebase:CodebaseEnv
+env_args: {task: caps-from-env}
+max_turns: 80
+est_turns: 25
+est_tool_tokens: 5000    # new tokens per turn (tool results and the reply), from runs of this suite
+est_output_tokens: 1200
+preamble_file: ../PREAMBLE.md
+prompt: |
+  ## Issue: the spending caps can only be set by editing the shared config file
+
+  The organization-wide hard limits (`safeguards:` in `config/meritorder.yaml`) are fixed in the shipped config
+  file. Every install that wants its own caps has to edit that file and carry the change through upgrades. The
+  rest of an install's settings (database, keys, webhook) live in `.env`; the caps should too.
+
+  **1. The shipped config takes its caps from environment variables.**
+
+  The config syntax already allows `${VAR}` and `${VAR:-default}` in values. In `config/meritorder.yaml`, each
+  of these safeguards must take its value from the variable named here, with the default shown when the
+  variable is unset or blank:
+
+  | safeguard | variable | unset or blank |
+  |---|---|---|
+  | `org_budget_usd_month` | `MERITORDER_ORG_BUDGET_USD` | no limit |
+  | `gpu_budget_usd_month` | `MERITORDER_GPU_BUDGET_USD` | no limit |
+  | `max_gpu_usd_per_hour` | `MERITORDER_MAX_GPU_USD_PER_HOUR` | no limit |
+  | `max_gpu_replicas` | `MERITORDER_MAX_GPU_REPLICAS` | no limit |
+  | `max_request_usd` | `MERITORDER_MAX_REQUEST_USD` | 25 (as today) |
+
+  Today a reference like `${MERITORDER_ORG_BUDGET_USD:-}` with the variable unset turns into an empty string,
+  and an empty string isn't a valid number, so loading the config fails. For these five fields, in any config
+  (not only the shipped one), an empty or all-whitespace value must mean no limit (`None`). Everything else
+  stays as strict as now: a value that isn't a number (`"lots"`) or is out of range (`"-1"` for a budget) is
+  still rejected with a `ValueError`. With the variables unset, loading `config/meritorder.yaml` must give
+  `org_budget_usd_month` None, `gpu_budget_usd_month` None and `max_request_usd` 25; with
+  `MERITORDER_ORG_BUDGET_USD=50`, `MERITORDER_GPU_BUDGET_USD=25` and `MERITORDER_MAX_GPU_USD_PER_HOUR=5` set,
+  those three caps are 50, 25 and 5.
+
+  **2. `.env` is read the way Docker Compose reads it.**
+
+  `meritorder serve` loads `.env` with `load_dotenv(path)` in `meritorder.cli`. It keeps a trailing comment as
+  part of the value: `MERITORDER_ORG_BUDGET_USD=50  # all spend` sets the variable to `50  # all spend`, which
+  isn't a number, while a container started by Docker Compose from the same file reads `50`. Make `load_dotenv`
+  follow Compose's rules:
+
+  - Unquoted value: a `#` at the start of the value, or preceded by whitespace, starts a comment; the value is
+    what comes before it, with surrounding whitespace removed. A `#` with no whitespace before it is part of the
+    value: `MO_URL=https://x.example/#frag` gives `https://x.example/#frag`.
+  - Quoted value (`"..."` or `'...'`): the value is everything between the opening quote and the next matching
+    quote, `#` included; anything after the closing quote is ignored. `MO_Q="a # b"  # note` gives `a # b`.
+    With no closing quote, the value is everything after the opening quote: `MO_OPEN="unclosed` gives
+    `unclosed`.
+  - A line whose value is empty once its comment is removed (`MO_ONLY=   # nothing`) sets nothing, like
+    `MO_EMPTY=` today.
+
+  Everything else about `load_dotenv` stays: blank lines, `#` lines and lines without `=` are skipped, a variable
+  already in the environment is not overridden, and a missing file is fine.
+
+  **Interface**
+
+  - `config/meritorder.yaml`: the five `safeguards` values reference the variables in the table.
+  - Safeguards fields `org_budget_usd_month`, `gpu_budget_usd_month`, `max_gpu_usd_per_hour`,
+    `max_gpu_replicas`, `max_request_usd`: a blank or whitespace-only string means `None`.
+  - `meritorder.cli.load_dotenv(path)`: comment and quote handling as above.

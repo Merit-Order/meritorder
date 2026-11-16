@@ -1,0 +1,34 @@
+id: g5-lipogram-notice
+task: general
+level: 5
+kind: answer
+prompt: |
+  Write a notice for the residents of a housing co-op inviting everyone to a potluck. Details: it is on Sunday at
+  14:30 in the courtyard; everyone should bring a dish to share; if it rains, the potluck moves to the community
+  room on the ground floor; kids and dogs are welcome; volunteers are needed to tidy up afterwards.
+
+  The notice is checked automatically. Follow every rule exactly:
+  1. It must not contain the letter "e" anywhere, in upper or lower case: not in any word, name, number written as a
+     word, or sign-off. (So no "the", "we", "here", "please" and so on.)
+  2. Use only lowercase letters. Digits and punctuation are fine.
+  3. Between 100 and 140 words in total.
+  4. Exactly three paragraphs separated by single blank lines, with no bullet points, headings or lists. The greeting
+     below begins the first paragraph and the sign-off below ends the third paragraph, with no blank line before it.
+  5. Start with exactly `hi all,`
+  6. End with exactly `with warm thanks, kai`
+  7. Include `potluck`, `courtyard`, `sunday`, `14:30` and the phrase `bring a dish`.
+  8. No more than 900 characters in total.
+
+  Check every word before you answer. Reply with the notice only: no preamble, no notes.
+checks:
+  - constraints:
+      must_not_include: ["e"]
+      all_lowercase: true
+      words: [100, 140]
+      paragraphs: 3
+      bullets: 0
+      starts_with: "hi all,"
+      ends_with: "with warm thanks, kai"
+      must_include: ["potluck", "courtyard", "sunday", "14:30", "bring a dish"]
+      max_chars: 900
+summary: "100-140 word lipogram (no letter e at all) that also meets case, paragraph, opener, closer, phrase and length rules; one slip anywhere fails"

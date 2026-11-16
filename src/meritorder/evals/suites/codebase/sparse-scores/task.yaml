@@ -1,0 +1,81 @@
+id: sparse-scores
+task: coding
+level: 4
+kind: agent
+commit: b89ada8
+summary: "Two gaps found adding Mistral's API and open models: Mistral's typed content chunks must be flattened to OpenAI's string (JSON and streamed) in the HTTP backend, and Epoch quality scores need Hugging Face names, ordered matching and older coding benchmarks as a fallback for models with neither results nor an index"
+env: meritorder.evals.envs.codebase:CodebaseEnv
+env_args: {task: sparse-scores}
+max_turns: 80
+est_turns: 30
+est_tool_tokens: 5000    # new tokens per turn (tool results and the reply), from runs of this suite
+est_output_tokens: 1500
+preamble_file: ../PREAMBLE.md
+prompt: |
+  ## Issue: Mistral's replies reach clients as chunk lists, and open models Epoch barely covers get no coding score
+
+  Two problems found while adding Mistral's own API and more open models.
+
+  ### 1. Mistral's content chunks
+
+  Mistral's API speaks OpenAI's format, but sends a message's `content` as a list of typed chunks rather than a
+  string, with the model's thinking in it:
+
+  ```
+  [{"type": "thinking", "thinking": [{"type": "text", "text": "Need OK."}], "closed": true}, {"type": "text", "text": "OK"}]
+  ```
+
+  In a stream, each `delta.content` is such a list too. Clients expect a string and break. Wanted: every reply
+  from an OpenAI-format backend, as the backend's `send` returns it, has this content flattened the way the
+  gateway already presents Claude's thinking in OpenAI's format: the text chunks joined become `content`, and
+  the thinking (a string, or a list of chunks with `text`) joined becomes `reasoning_content` (appended to any
+  `reasoning_content` already there). Only content made entirely of `text` and `thinking` chunks is touched;
+  a list with any other kind of chunk (a reference, say) is left exactly as it was, and content that is already a
+  string is untouched. Everything else in the message or delta stays.
+
+  - Non-streaming: a message with no text but with `tool_calls` gets `"content": null`, as OpenAI's own replies
+    have; otherwise `content` is the text (`""` if there was none).
+  - Streaming: a delta whose chunks carry no text loses its `content` key altogether (so a thinking-only chunk
+    becomes `{"reasoning_content": "Need"}`); otherwise `content` is the text. The chunk's other top-level keys
+    survive re-encoding.
+
+  New function `meritorder.formats.assemble.plain_content(body: dict) -> dict`: applies the rule to every choice's
+  `message` and `delta` in a Chat Completions body (or stream chunk), changing it in place and returning it. For
+  example `{"choices": [{"message": {"content": [{"type": "thinking", "thinking": "hm"}], "tool_calls": [{"id": "t"}]}}]}`
+  becomes `{"choices": [{"message": {"content": null, "tool_calls": [{"id": "t"}], "reasoning_content": "hm"}}]}`.
+
+  ### 2. Quality scores for models Epoch barely covers
+
+  The Epoch quality source (`quality_data`) misses some open models:
+
+  - Epoch names some open models by their Hugging Face repository (`Qwen3-Coder-480B-A35B-Instruct`), which
+    matches neither the route id nor the aliases. A model's `hf_id` should count as one of its names: the part
+    after the last `/`, normalized like the others.
+  - The names should be tried in a fixed order, most specific first, and the first one with data used:
+    `benchmark_name`, then the route ids (as today), then the Hugging Face name, then the aliases. Duplicates
+    are dropped keeping the first. `model_keys` therefore returns a list: for a model with route
+    `org/open-coder` and `hf_id: Org/Open-Coder-480B`, `["open-coder", "open-coder-480b"]`.
+  - Some models have neither results on the task type's evidence benchmarks nor an ECI, so they get no score at
+    all. For those, and only those, use older benchmarks of the kind: a new `quality.fallback` setting, per task
+    type, default `{coding: ["Terminal Bench", "GSO-Bench", "MirrorCode"], general: []}`. The model's ability is
+    then the mean of the abilities its fallback results imply (the same inversion, the same effort preference as
+    for evidence), its `evidence` holds those benchmarks' entries, and its basis is `"results on <names> (no
+    index or newer results)"`, for example `"results on Terminal Bench (no index or newer results)"`. A model with
+    an ECI keeps the index even when it has fallback results (checked against models with FrontierSWE or
+    FrontierCode results, none of the older benchmarks predicts them better than the index). A task type with an
+    empty fallback list, or `fallback: {}`, leaves such a model unmeasured for that task type. Changing the
+    fallback counts as a settings change for the worker's refresher.
+  - Epoch's files for them: Terminal Bench is `terminalbench_external.csv`, GSO-Bench `gso_external.csv`,
+    MirrorCode `mirrorcode.csv`. Terminal Bench scores are in a column `Accuracy mean`, with several rows per
+    `Model version` (one per agent harness); the usual variant rule applies (the given effort if published, else
+    the best). `Score OPT@1` is another score column to accept.
+
+  **Interface**
+
+  - `meritorder.formats.assemble.plain_content(body: dict) -> dict`, as above; applied by the OpenAI-format HTTP
+    backend to JSON replies and to each stream event.
+  - `QualityConfig.fallback: dict[str, list[str]]` with the default above.
+  - `quality_data.model_keys(model) -> list[str]`, ordered and de-duplicated as above.
+  - `quality_data.epoch_measures(cfg, data, effort)` returns the fallback-based measures described, with the
+    same per-task shape as today (`chance`, `ability`, `basis`, `evidence[benchmark]` with `score`, `variant`,
+    `ability`).

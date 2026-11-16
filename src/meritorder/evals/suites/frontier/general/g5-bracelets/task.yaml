@@ -1,0 +1,19 @@
+id: g5-bracelets
+task: general
+level: 5
+kind: answer
+prompt: |
+  A jeweller makes bracelets from exactly ten beads strung on a closed loop. Each bead is one of four colours: amber,
+  blue, coral or jade. Two rules apply to every bracelet:
+  - Beads that are next to each other on the loop must have different colours.
+  - All four colours must appear at least once.
+
+  A bracelet can be rotated and can be turned over, so two colourings count as the same bracelet if one can be
+  rotated and/or flipped to give the other.
+
+  How many different bracelets can the jeweller make?
+
+  End your reply with a line `Final answer: <number>`.
+checks:
+  - {final_number: 2904}
+summary: "Burnside count of proper, surjective 4-colourings of a 10-bead bracelet (2,904); rotation-by-5 and vertex-axis reflections contribute and are easy to miscount"

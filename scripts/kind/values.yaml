@@ -1,0 +1,24 @@
+# Merit Order's chart on kind (scripts/kind/setup.sh): one gateway, the worker, and the controller with GPUs on this
+# cluster, in the namespace `gpus`, with both APIs and node reads. Postgres and Redis are the throwaway ones setup.sh runs.
+image: {pullPolicy: Never}
+secretEnv:
+  MERITORDER_DATABASE_URL: postgresql://postgres:kind@postgres:5432/meritorder
+  MERITORDER_REDIS_URL: redis://redis:6379/0
+  MERITORDER_DEV_KEY: mo-kind-check-key-not-a-secret
+secrets: {reloadOnChange: false}
+gateway:
+  replicas: 1
+  autoscaling: {enabled: false}
+  podDisruptionBudget: null
+  resources: {requests: {cpu: 50m, memory: 128Mi}, limits: {memory: 512Mi}}
+worker:
+  resources: {requests: {cpu: 20m, memory: 96Mi}, limits: {memory: 384Mi}}
+controller:
+  enabled: true
+  imageSuffix: ""
+  resources: {requests: {cpu: 20m, memory: 96Mi}, limits: {memory: 384Mi}}
+  kubernetes:
+    enabled: true
+    namespaces: [gpus]
+    apis: [kserve, llm-d]
+    readNodes: true

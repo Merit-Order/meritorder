@@ -1,0 +1,85 @@
+id: responses-api
+task: coding
+level: 5
+kind: agent
+commit: d5bd9bf
+summary: "Let an OpenAI backend speak the Responses API while the gateway keeps seeing Chat Completions: convert requests out, replies and SSE streams back, with usage intact"
+env: meritorder.evals.envs.codebase:CodebaseEnv
+env_args: {task: responses-api}
+max_turns: 80
+est_turns: 40
+est_tool_tokens: 5000    # new tokens per turn (tool results and the reply), from runs of this suite
+est_output_tokens: 2500
+preamble_file: ../PREAMBLE.md
+prompt: |
+  ## Issue: GPT-5.6 rejects function tools on Chat Completions; let OpenAI backends use the Responses API
+
+  Found with a live OpenAI key. GPT-5.6 models refuse function tools together with reasoning on
+  `/chat/completions` ("use /v1/responses or set reasoning_effort to 'none'"), so every agent request with tools
+  to a GPT model fails. The Responses API takes them. The gateway already accepts the Responses API from clients
+  and turns it into Chat Completions internally; what's missing is the other direction, towards the provider.
+
+  The rest of the gateway (routing, the Anthropic translation, failover, usage, the ledger) must not notice. An
+  OpenAI-format backend should be able to send each Chat Completions request to the Responses API and hand back a
+  Chat Completions reply or stream.
+
+  ### Behaviour wanted
+
+  **Config.** An OpenAI-format backend gets `api: "chat" | "responses"`, default `"chat"`. With `responses`, the
+  backend posts the converted request to `<base_url>/responses` (where it would otherwise post to
+  `/chat/completions`), streamed or not, and converts what comes back before anything else sees it. The shipped
+  config's `openai` backend should switch to it. Usage must reach the ledger as for any OpenAI reply (input tokens
+  excluding the cached ones, cache reads, output tokens), from unstreamed replies and from streams, for OpenAI and
+  Anthropic clients alike.
+
+  **A converter module, `meritorder/formats/responses_upstream.py`.** You're expected to know the Responses API's
+  request, response and streaming formats; what follows are the choices this gateway makes on top of them.
+
+  Requests, `chat_to_responses_request(body: dict) -> dict`:
+  - Stateless: `store: false`, always. Merit Order keeps no conversations.
+  - Everything Chat Completions has that Responses also has goes across in Responses' own form: the token limit
+    (the request's `max_completion_tokens` or `max_tokens`, whichever it carries) as `max_output_tokens`, the
+    reasoning effort, sampling parameters, `prompt_cache_key`, tools and tool choice, the response format,
+    `stream`. The result has no `messages` and no Chat token-limit field. `stop`, which Responses lacks, is dropped.
+  - Function tools are sent non-strict: each carries `"strict": false` explicitly. Most clients' schemas aren't
+    strict-ready, and Responses treats tools as strict unless told otherwise.
+  - Messages become `input` items in message order. A `system` (or `developer`) message becomes a `developer`
+    message whose content is the plain string. A user message's string content stays a string; content parts are
+    converted, and an image part carries `detail` (the part's own, else `"auto"`). An assistant message becomes a
+    message item with its text as `output_text`, followed by one `function_call` item per tool call, whose
+    `call_id` is the Chat tool call's `id` and which carries no item `id`. A tool message becomes a
+    `function_call_output` whose `output` is its text as one string (content parts joined).
+
+  Replies, `responses_to_chat_completion(resp: dict) -> dict`, a `chat.completion` with one choice:
+  - `id` is the response's id. The message's `content` is the text of every `output_text` part of every message
+    item, joined in order, or `None` when there is none. A `refusal` part becomes the message's `refusal`. Each
+    `function_call` item becomes a tool call whose `id` is the item's `call_id` (not its item id). Reasoning items
+    are dropped.
+  - `finish_reason` is `tool_calls` when there are function calls; else `length` when the response is
+    `incomplete` because of `max_output_tokens`; else `stop`.
+  - `usage` is present only when the reply has one, and is exactly `{"prompt_tokens": <input_tokens>,
+    "completion_tokens": <output_tokens>, "total_tokens": ..., "prompt_tokens_details": {"cached_tokens": ...},
+    "completion_tokens_details": {"reasoning_tokens": ...}}`, no other keys.
+
+  Streams, `ResponsesToChatStream`, built with no arguments, with `feed(ev: SSEEvent) -> list[SSEEvent]`. It takes
+  one Responses stream event at a time (an `SSEEvent` from `formats/sse.py`, as `iter_sse` yields them) and returns
+  the Chat Completions chunk events to send in its place, zero or more:
+  - Every chunk carries the response's `id` (learned from `response.created`) and a `choices` list, empty on the
+    usage chunk. `response.created` itself produces one chunk whose delta is exactly
+    `{"role": "assistant", "content": ""}`.
+  - Output text deltas become content deltas. A `function_call` output item being added starts a tool call (its
+    `call_id` as the id, its name, a tool index); its argument deltas, matched by `item_id`, extend that call.
+    Argument deltas for an item that was never added, and reasoning summary deltas, produce nothing.
+  - `response.completed` (or `response.incomplete`) ends the stream: a chunk with the finish reason, decided as
+    above, then, when the response carries usage, a separate chunk with `usage` (the shape above) and empty
+    `choices`, then `[DONE]`. Anything fed after that produces nothing.
+  - `response.failed` and `error` events produce exactly `{"error": {"message": <message>, "type": "api_error"}}`
+    followed by `[DONE]`. For `response.failed` the message is the response's `error.message`; for `error` it is
+    the event's own `message`.
+  - An event whose data isn't a JSON object produces nothing.
+
+  **Interface**
+  - `BackendConfig.api: Literal["chat", "responses"] = "chat"` (config key `api` on a backend).
+  - `meritorder.formats.responses_upstream.chat_to_responses_request(body: dict) -> dict`
+  - `meritorder.formats.responses_upstream.responses_to_chat_completion(resp: dict) -> dict`
+  - `meritorder.formats.responses_upstream.ResponsesToChatStream()` with `feed(ev: SSEEvent) -> list[SSEEvent]`

@@ -1,0 +1,109 @@
+# Merit Order on a kind cluster without GPUs (scripts/kind/setup.sh): mock APIs, and vLLM stand-ins (scripts/fake_vllm.py) that
+# the controller runs through KServe and llm-d. The last four start only to fail or wait, each for a different reason.
+baseline_model: small
+
+backends:
+  mock-openai: {kind: mock, format: openai}
+
+  gpu-kserve:                        # an InferenceService per deployment
+    kind: self_hosted
+    format: openai
+    gpu_cost_per_hour: 2.0
+    capacity_tokens_per_second: 1000
+    serve:
+      provisioner: kubernetes
+      model: tiny-coder
+      accelerators: "L4:1"
+      image: ${FAKE_VLLM_IMAGE:-meritorder-kind-fake-vllm:dev}
+      max_replicas: 3
+      drain_minutes: 1
+      provision_timeout_minutes: 10
+      kubernetes: {api: kserve, node_type: g6.12xlarge, cpu: 100m, memory: 128Mi}   # the stand-in needs little; vLLM, far more
+
+  gpu-llmd:                          # model server pods behind the InferencePool tiny-pool
+    kind: self_hosted
+    format: openai
+    gpu_cost_per_hour: 2.0
+    capacity_tokens_per_second: 1000
+    serve:
+      provisioner: kubernetes
+      model: tiny-coder
+      accelerators: "L4:1"
+      image: ${FAKE_VLLM_IMAGE:-meritorder-kind-fake-vllm:dev}
+      max_replicas: 3
+      drain_minutes: 1
+      provision_timeout_minutes: 10
+      kubernetes: {api: llm-d, inference_pool: tiny-pool, endpoint: "http://tiny-gateway.gpus.svc.cluster.local/v1", node_type: g6.12xlarge}
+
+  gpu-no-secret:                     # its HF token Secret doesn't exist: CreateContainerConfigError
+    kind: self_hosted
+    format: openai
+    gpu_cost_per_hour: 2.0
+    serve:
+      provisioner: kubernetes
+      model: tiny-coder
+      accelerators: "L4:1"
+      image: ${FAKE_VLLM_IMAGE:-meritorder-kind-fake-vllm:dev}
+      kubernetes: {api: kserve, hf_token_secret: hf-token-that-isnt-there, cpu: 100m, memory: 128Mi}
+
+  gpu-bad-image:                     # an image that doesn't exist: ErrImagePull, repository does not exist
+    kind: self_hosted
+    format: openai
+    gpu_cost_per_hour: 2.0
+    serve:
+      provisioner: kubernetes
+      model: tiny-coder
+      accelerators: "L4:1"
+      image: docker.io/meritorder/no-such-image-anywhere:v0
+      kubernetes: {api: kserve, cpu: 100m, memory: 128Mi}
+
+  gpu-crash:                         # vLLM exits at start (as with a bad argument): CrashLoopBackOff
+    kind: self_hosted
+    format: openai
+    gpu_cost_per_hour: 2.0
+    serve:
+      provisioner: kubernetes
+      model: tiny-coder
+      accelerators: "L4:1"
+      image: ${FAKE_VLLM_IMAGE:-meritorder-kind-fake-vllm:dev}
+      vllm_args: "--fake-exit 3"
+      kubernetes: {api: llm-d, inference_pool: tiny-pool, endpoint: "http://tiny-gateway.gpus.svc.cluster.local/v1"}
+
+  gpu-too-big:                       # more GPUs than any node has: it waits for one (a cluster autoscaler might add it)
+    kind: self_hosted
+    format: openai
+    gpu_cost_per_hour: 2.0
+    serve:
+      provisioner: kubernetes
+      model: tiny-coder
+      accelerators: "L4:16"
+      image: ${FAKE_VLLM_IMAGE:-meritorder-kind-fake-vllm:dev}
+      kubernetes: {api: kserve, cpu: 100m, memory: 128Mi}
+
+kubernetes:
+  node_types:
+    g6.12xlarge: {usd_per_hour: 4.60, gpus: 4}   # the label scripts/kind/setup.sh puts on the kind node
+
+models:
+  small:
+    quality: {coding: 2, general: 2}
+    routes:
+      - {backend: mock-openai, model: mock-small, price: {input: 0.2, output: 0.8}}
+  tiny-coder:
+    hf_id: Qwen/Qwen3-Coder-Next
+    quality: {coding: 3, general: 2}
+    routes:
+      - {backend: gpu-kserve, model: tiny-coder, price: {input: 0.12, output: 0.80}}
+      - {backend: gpu-llmd, model: tiny-coder, price: {input: 0.12, output: 0.80}}
+      - {backend: gpu-no-secret, model: tiny-coder, price: {input: 0.12, output: 0.80}}
+      - {backend: gpu-bad-image, model: tiny-coder, price: {input: 0.12, output: 0.80}}
+      - {backend: gpu-crash, model: tiny-coder, price: {input: 0.12, output: 0.80}}
+      - {backend: gpu-too-big, model: tiny-coder, price: {input: 0.12, output: 0.80}}
+      - {backend: mock-openai, model: mock-small, price: {input: 0.5, output: 2.0}}
+
+quality: {source: config}
+teams:
+  default: {}
+auth:
+  static_keys:
+    - {key_env: MERITORDER_DEV_KEY, user: dev, team: default, role: admin}   # scripts/kind/values.yaml sets it

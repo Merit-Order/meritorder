@@ -1,0 +1,7 @@
+id: g5-filing-log-4hop
+task: general
+level: 5
+kind: answer
+generate: meritorder.evals.generators.records:multi_hop
+generate_args: {seed: 11, words: 45000, hops: 4}
+summary: "45k-word effective-dated log, state as of a past date: ticket -> project -> lead -> office -> site head; rescinded and scheduled transfers, a retroactive correction filed later, a scheduled move, a rescinded look-alike appointee"

@@ -1,0 +1,12 @@
+id: c5-regex
+task: coding
+level: 5
+kind: code
+prompt_file: prompt.md
+code:
+  tests: tests.py
+  timeout: 30
+  forbid: [re, sre_compile, sre_parse, _sre, fnmatch]
+reference: reference.py
+wrong: wrong.py
+summary: "Backtracking regex engine (no re) that must reproduce Python's exact spans and captures: lazy/greedy priority, sre's empty-repetition rule, capture persistence across iterations, fullmatch backtracking, findall/sub empty-match rules, class and brace parsing quirks"

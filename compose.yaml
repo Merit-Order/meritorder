@@ -1,0 +1,190 @@
+# Merit Order: `docker compose up -d` runs the gateway, worker, Postgres, and Redis.
+# Optional profiles:  --profile gpu (capacity controller)   --profile tls (Caddy HTTPS)
+#                     --profile compressor (LLMLingua-2 for model-based compression; set MERITORDER_COMPRESSOR_URL too)
+#                     --profile clickhouse (a ClickHouse copy of the ledger; set MERITORDER_CLICKHOUSE_URL=http://clickhouse:8123 in .env)
+
+x-meritorder: &meritorder
+  # MERITORDER_IMAGE names the images this checkout builds (default meritorder:dev, :gpu, :compressor). Give a second
+  # checkout on the same machine its own (and its own COMPOSE_PROJECT_NAME and MERITORDER_PORT), or each build
+  # replaces the other's image.
+  image: ${MERITORDER_IMAGE:-meritorder}:dev
+  build:
+    context: .
+    # SkyPilot in its own environment: the gateway prices GPUs from its catalog (Models → GPU break-even), which needs
+    # no cloud's extras beyond these. Empty (SKYPILOT_VERSION= docker compose build) leaves it out.
+    args: {SKYPILOT: "${SKYPILOT_VERSION-0.14.2}", SKYPILOT_EXTRAS: "aws,gcp,kubernetes,lambda"}
+  env_file:
+    - path: .env
+      required: false
+  environment:
+    MERITORDER_DATABASE_URL: postgresql://meritorder:meritorder@postgres:5432/meritorder
+    MERITORDER_REDIS_URL: redis://redis:6379/0
+    # ClickHouse (profile clickhouse): used only when MERITORDER_CLICKHOUSE_URL is set in .env; the profile's server has this user
+    MERITORDER_CLICKHOUSE_USER: ${MERITORDER_CLICKHOUSE_USER:-meritorder}
+    MERITORDER_CLICKHOUSE_PASSWORD: ${MERITORDER_CLICKHOUSE_PASSWORD:-meritorder}
+    # Vertex AI: the service-account file named in .env, mounted read-only (unset: nothing is mounted that matters)
+    GOOGLE_APPLICATION_CREDENTIALS: ${GOOGLE_APPLICATION_CREDENTIALS:+/run/secrets/google-credentials.json}
+  volumes:
+    - ./config:/app/config:ro
+    - ${GOOGLE_APPLICATION_CREDENTIALS:-/dev/null}:/run/secrets/google-credentials.json:ro
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: meritorder
+      POSTGRES_PASSWORD: meritorder
+      POSTGRES_DB: meritorder
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U meritorder"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+
+  redis:
+    image: redis:7-alpine
+    # No persistence: a Redis that restarts empty has its spend counters seeded again from the ledger, while one restored
+    # from an old snapshot would have counters behind it (docs/07-deployment.md). Nothing else in it needs to outlive it.
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+
+  migrate:
+    <<: *meritorder
+    command: ["meritorder", "migrate"]
+    healthcheck: {disable: true}
+    restart: "no"
+    depends_on:
+      postgres: {condition: service_healthy}
+
+  gateway:
+    <<: *meritorder
+    ports:
+      - "${MERITORDER_BIND:-127.0.0.1}:${MERITORDER_PORT:-8080}:8080"   # MERITORDER_BIND=0.0.0.0 to open it to your network
+    restart: unless-stopped
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+      redis: {condition: service_healthy}
+
+  worker:
+    <<: *meritorder
+    command: ["meritorder", "worker"]
+    environment:
+      MERITORDER_DATABASE_URL: postgresql://meritorder:meritorder@postgres:5432/meritorder
+      MERITORDER_REDIS_URL: redis://redis:6379/0
+      MERITORDER_GATEWAY_URL: http://gateway:8080   # eval runs from the console call the gateway like any client
+      MERITORDER_WORKER_METRICS_PORT: ${MERITORDER_WORKER_METRICS_PORT:-9464}   # the batch requests it settles, for Prometheus
+      MERITORDER_CLICKHOUSE_USER: ${MERITORDER_CLICKHOUSE_USER:-meritorder}   # the worker copies the ledger there
+      MERITORDER_CLICKHOUSE_PASSWORD: ${MERITORDER_CLICKHOUSE_PASSWORD:-meritorder}
+    healthcheck: {disable: true}  # the image's check probes the gateway's HTTP port
+    restart: unless-stopped
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+
+  controller:
+    <<: *meritorder
+    image: ${MERITORDER_IMAGE:-meritorder}:gpu
+    build:
+      context: .
+      # SkyPilot in its own environment, with every cloud a replica can run on (the Dockerfile's SKYPILOT_EXTRAS; Azure's
+      # CLI is half of it: e.g. SKYPILOT_EXTRAS: "aws,gcp,kubernetes,lambda" for a smaller image).
+      args: {SKYPILOT: "0.14.2"}
+    profiles: ["gpu"]
+    # SkyPilot needs your cloud credentials and keeps its state in ~/.sky (its API server, the SSH keys and configs of
+    # its clusters). Each replica stops by itself when its lease runs out, so losing ~/.sky leaves nothing billing for
+    # long, but keep it on a volume so a restarted controller sees its clusters at once (docs/07-deployment.md#skypilot-gpus).
+    # Mount only the clouds you launch on: SkyPilot copies every cloud credential it finds here to every replica, and
+    # on most clouds the replica deletes itself with it (docs/05-gpu-autoscaling.md#which-clouds). A key made for
+    # SkyPilot alone, which you can revoke, is the safest. The config load warns about each one it finds.
+    # volumes:
+    #   - ./config:/app/config:ro
+    #   - sky-state:/home/meritorder/.sky
+    #   - ~/.lambda_cloud:/home/meritorder/.lambda_cloud:ro          # Lambda
+    #   - ~/.aws:/home/meritorder/.aws:ro                            # AWS
+    #   - ~/.config/gcloud:/home/meritorder/.config/gcloud:ro        # GCP
+    #   - ~/.azure:/home/meritorder/.azure                           # Azure (az writes to it; a service principal's login)
+    #   - ~/.runpod:/home/meritorder/.runpod:ro                      # RunPod
+    #   - ~/.nebius:/home/meritorder/.nebius:ro                      # Nebius
+    #   - ~/.kube:/home/meritorder/.kube:ro                          # Kubernetes, CoreWeave
+    #   - ~/.config/vastai:/home/meritorder/.config/vastai:ro        # Vast.ai
+    #   - ~/.fluidstack:/home/meritorder/.fluidstack:ro              # Fluidstack
+    #   - ~/.paperspace:/home/meritorder/.paperspace:ro              # Paperspace
+    #   - ~/.config/doctl:/home/meritorder/.config/doctl:ro          # DigitalOcean
+    #   - ~/.config/mithril:/home/meritorder/.config/mithril:ro      # Mithril
+    #   - ~/.seeweb_cloud:/home/meritorder/.seeweb_cloud:ro          # Seeweb
+    #   - ./sky-config.yaml:/home/meritorder/.sky-config/config.yaml:ro  # SkyPilot's own config, with SKYPILOT_GLOBAL_CONFIG
+    # Replicas whose port can't be reached get an SSH tunnel from this container (on Vast and Mithril, always): put
+    # MERITORDER_TUNNEL_HOST=controller in .env so the gateways reach the tunnels here.
+    command: ["meritorder", "controller"]
+    healthcheck: {disable: true}
+    restart: unless-stopped
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+
+  # Model-based compression of tool results (docs/04-caching-and-sessions.md). Its own image: torch and the model stay
+  # out of the gateway's. The model (2.2 GB for XLM-RoBERTa, 0.7 GB for multilingual BERT) downloads on first start into
+  # the hf-cache volume. Then set MERITORDER_COMPRESSOR_URL=http://compressor:8090 in .env and turn it on per team.
+  # A shared secret, MERITORDER_COMPRESSOR_KEY, goes in .env too: this service and the gateways both read .env.
+  compressor:
+    <<: *meritorder
+    image: ${MERITORDER_IMAGE:-meritorder}:compressor
+    build:
+      context: .
+      args: {SKYPILOT: "", EXTRAS: "--extra otel --extra compressor"}
+    profiles: ["compressor"]
+    command: ["meritorder", "compressor", "--host", "0.0.0.0", "--port", "8090"]
+    environment:
+      MERITORDER_COMPRESSOR_MODEL: ${MERITORDER_COMPRESSOR_MODEL:-microsoft/llmlingua-2-xlm-roberta-large-meetingbank}
+      MERITORDER_COMPRESSOR_DEVICE: ${MERITORDER_COMPRESSOR_DEVICE:-auto}
+      MERITORDER_COMPRESSOR_THREADS: ${MERITORDER_COMPRESSOR_THREADS:-}
+    volumes:
+      - hf-cache:/home/meritorder/.cache/huggingface
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8090/healthz').status==200 else 1)"]
+      interval: 15s
+      timeout: 3s
+      start_period: 600s   # the first start downloads the model
+    restart: unless-stopped
+    # On an NVIDIA GPU (with the NVIDIA Container Toolkit):
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices: [{driver: nvidia, count: 1, capabilities: [gpu]}]
+
+  # The ledger's copy for very large deployments (docs/08-reporting.md, "Storage and scale"). Postgres stays the record:
+  # the worker copies new rows here, and long-range reports read them. Turn it on with MERITORDER_CLICKHOUSE_URL in .env.
+  clickhouse:
+    image: clickhouse/clickhouse-server:26.3
+    profiles: ["clickhouse"]
+    environment:
+      CLICKHOUSE_USER: ${MERITORDER_CLICKHOUSE_USER:-meritorder}
+      CLICKHOUSE_PASSWORD: ${MERITORDER_CLICKHOUSE_PASSWORD:-meritorder}
+    ulimits:
+      nofile: {soft: 262144, hard: 262144}
+    volumes:
+      - chdata:/var/lib/clickhouse
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8123/ping || exit 1"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+
+  caddy:
+    image: caddy:2-alpine
+    profiles: ["tls"]
+    command: ["caddy", "reverse-proxy", "--from", "${MERITORDER_DOMAIN:-localhost}", "--to", "gateway:8080"]
+    ports:
+      - "443:443"
+      - "80:80"
+    depends_on: [gateway]
+
+volumes:
+  pgdata: {}
+  hf-cache: {}
+  chdata: {}
+  sky-state: {}  # the controller's ~/.sky, when its SkyPilot volumes are uncommented

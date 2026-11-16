@@ -1,0 +1,15 @@
+# Use your local AWS profile (including SSO) inside the containers:
+#   docker compose -f compose.yaml -f compose.aws.yaml up -d
+x-aws: &aws
+  volumes:
+    - ./config:/app/config:ro
+    - ${HOME}/.aws:/home/meritorder/.aws
+  environment:
+    MERITORDER_DATABASE_URL: postgresql://meritorder:meritorder@postgres:5432/meritorder
+    MERITORDER_REDIS_URL: redis://redis:6379/0
+    AWS_PROFILE: ${AWS_PROFILE:-}
+    AWS_REGION: ${AWS_REGION:-us-east-1}
+
+services:
+  gateway: *aws
+  worker: *aws

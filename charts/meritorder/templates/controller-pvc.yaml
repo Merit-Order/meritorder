@@ -1,0 +1,20 @@
+{{- /* The controller's home for SkyPilot (~/.sky), when the chart makes the claim (controller.skypilot.home.persistence). */}}
+{{- $sky := .Values.controller.skypilot }}
+{{- if and .Values.controller.enabled $sky.enabled $sky.home.persistence (not $sky.home.existingClaim) }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "meritorder.fullname" . }}-skypilot-home
+  labels: {{- include "meritorder.labels" . | nindent 4 }}
+    app.kubernetes.io/component: controller
+  annotations:
+    helm.sh/resource-policy: keep  # SkyPilot's record of running clusters outlives an uninstall
+spec:
+  accessModes: [ReadWriteOnce]
+  {{- with $sky.home.storageClass }}
+  storageClassName: {{ . }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ $sky.home.size }}
+{{- end }}

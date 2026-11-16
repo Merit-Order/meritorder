@@ -1,0 +1,18 @@
+Merit Order is installed.
+
+Gateway:  {{ if .Values.ingress.enabled }}https://{{ .Values.ingress.host }}{{ else }}kubectl port-forward svc/{{ include "meritorder.fullname" . }} 8080:{{ .Values.service.port }}{{ end }}
+Reports UI: <gateway>/ui/
+
+Create an admin key:
+  kubectl exec deploy/{{ include "meritorder.fullname" . }}-gateway -- meritorder keys create --user you@example.com --role admin
+
+{{- if .Values.compressor.enabled }}
+
+Model-based compression: the compressor ({{ .Values.compressor.model }}) downloads its model on first start
+(kubectl logs deploy/{{ include "meritorder.fullname" . }}-compressor). Teams turn it on in Config → Teams.
+{{- end }}
+{{- if and .Values.ingress.enabled (not .Values.metrics.tokenKey) }}
+
+Note: /metrics (spend and traffic totals) is reachable through the ingress. Set MERITORDER_METRICS_TOKEN
+in the env Secret and metrics.tokenKey to require a token.
+{{- end }}

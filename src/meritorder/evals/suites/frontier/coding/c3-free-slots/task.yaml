@@ -1,0 +1,11 @@
+id: c3-free-slots
+task: coding
+level: 3
+kind: code
+prompt_file: prompt.md
+code:
+  tests: tests.py
+  timeout: 30
+reference: reference.py
+wrong: wrong.py
+summary: "Calendar free-slot finder: half-open interval merging with buffers, multi-day busy blocks, weekends, 24:00 workday end, strict timestamp validation"

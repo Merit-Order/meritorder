@@ -1,0 +1,81 @@
+id: provider-limits
+task: coding
+level: 5
+kind: agent
+commit: 96a7d8d
+summary: "Two layers: the gateway retries a credit refusal on the same route at what the account can afford, and the eval runner waits out rate limits and doesn't grade billing failures"
+env: meritorder.evals.envs.codebase:CodebaseEnv
+env_args: {task: provider-limits}
+max_turns: 80
+est_turns: 40
+est_tool_tokens: 5000    # new tokens per turn (tool results and the reply), from runs of this suite
+est_output_tokens: 1500
+preamble_file: ../PREAMBLE.md
+prompt: |
+  ## Issue: an eval run counted provider credit refusals and rate limits as model failures
+
+  The last eval run counted 16 of Gemini 4 Carbon's tasks as failures because OpenRouter refused them with HTTP
+  402: it reserves credit for a request's whole `max_tokens` up front, and the account's balance couldn't cover
+  the 600,000 tokens the gateway asked for. Gemini Flash and Argon had 68 tasks skipped because of OpenRouter's
+  new-account rate limit of 20 requests a minute. None of that says anything about the models. Two changes, one
+  in the gateway and one in the eval runner.
+
+  ### 1. Gateway: ask for what the account can afford
+
+  OpenRouter's 402 says what it could cover, in the error message of its JSON body:
+  "This request requires more credits, or fewer max_tokens. You requested up to 16000 tokens, but can only
+  afford 9000." Today a 402 from a backend ends the request and the error goes back to the client.
+
+  Wanted:
+
+  - When a backend refuses a route with a 402 that names a figure like that, send the same route one more
+    request with `max_tokens` set to exactly that figure (9000 above). This is the same attempt, not a failover:
+    the reply carries no `x-meritorder-failed-over` header for it. The reply's `x-meritorder-max-tokens` header
+    is the figure (`9000`) and `x-meritorder-max-tokens-source` is `provider credit`, a new source alongside the
+    existing ones (`client`, `model`, `cost limit`, ...). Everything else about the request stays as the first
+    try sent it, including a first try that sent no `max_tokens` at all.
+  - If the client set `max_tokens` itself, never change it: the route is not retried, and the request moves on
+    to the next backend as below.
+  - If the retried request is refused again, move on to the next backend (the route has then been asked twice).
+  - Any other 402 (nothing to go on, such as `{"error": {"message": "Insufficient credits"}}`) moves on to the
+    next backend after one request, the way a 401, 403 or 404 does today, and shows in `x-meritorder-failed-over`
+    like those (for example `up-a/m-a 402`).
+
+  ### 2. Eval runner: wait out "wait", and don't grade what the provider couldn't pay for
+
+  In the eval runner, a request to the gateway that gets a 429 or 5xx is skipped at once with the error
+  `HTTP <status>: <start of the reply text>`.
+
+  Wanted:
+
+  - A reply with status 429, 503 or 529 means wait, not skip. Wait as long as its `Retry-After` header asks
+    (seconds, at least 1); without one, 5 seconds the first time, doubling for each further wait without a
+    header (10, 20, ..., at most 60). A wait that followed a `Retry-After` doesn't advance that doubling: a 429
+    with `Retry-After: 30` and then a 529 without one wait 30 and then 5 seconds. Then send the same request
+    again.
+  - The waits add up to at most `RETRY_FOR` seconds (a module-level float in `meritorder.evals.runner`,
+    `600.0`, read when a request is made so a change to it takes effect at once). A wait is never longer than
+    what's left of the budget: with `RETRY_FOR = 12.0` and a 429 every time, the waits are 5 and then 7
+    seconds. When the budget is used up, the task is skipped with the error it has today (for example
+    `HTTP 429: slow down`). With a budget of 0 the first such reply skips the task at once.
+  - Waits must go through `asyncio.sleep` looked up on the runner module when the wait happens, so they can be
+    replaced, and don't count as the model's time (`model_ms`).
+  - A 402 skips the task (not graded), with an error starting
+    `not graded: the provider's account can't pay for it (HTTP 402; add credit and run again): ` followed by the
+    start of the reply's text.
+  - A reply that stopped at its length limit (`finish_reason` `length`, or `stop_reason` `max_tokens`) because
+    the gateway lowered `max_tokens` to what the provider's credit covered (its `x-meritorder-max-tokens-source`
+    header is `provider credit`) skips the task too, with the error
+    `not graded: the provider's account could pay for only 538,612 output tokens and the model needed more (add credit)`,
+    the figure being the `x-meritorder-max-tokens` header with thousands separators. The other sources keep the
+    messages they have today.
+  - Everything else about a task result is unchanged: a 200 is graded, a wrong answer fails, and a reply with
+    status 429 or 5xx that isn't waited out is skipped as today.
+
+  **Interface**
+
+  - `meritorder.evals.runner.RETRY_FOR: float = 600.0`, read at request time, and waits through
+    `asyncio.sleep` on that module.
+  - `meritorder.evals.runner.run_task(...)` as today; results carry `skipped` and `error` as described.
+  - Gateway reply headers: `x-meritorder-max-tokens`, `x-meritorder-max-tokens-source` (new value
+    `provider credit`), `x-meritorder-failed-over` (now listing 402s that moved on, as `backend/model 402`).

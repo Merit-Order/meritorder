@@ -1,0 +1,623 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Architecture · Merit Order docs</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Source+Sans+3:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a design-notes reader. Sticky chapter rail on the left, one long readable column on the right; rail folds into a scrolling chip row on phones. */
+:root {
+  --bg: #f4f7f6;
+  --surface: #ffffff;
+  --fg: #142120;
+  --muted: #566866;
+  --line: #d6e0de;
+  --accent: #0b7566;
+  --accent-soft: #e0f0ec;
+  --code-bg: #ecf2f1;
+  --z1: #e3f3ea; --i1: #1d6a3a;
+  --z2: #fcf1d8; --i2: #865600;
+  --z3: #fbe4e3; --i3: #9a1f1c;
+  --curve: #2556c4; --over: #c0392b;
+  --font-display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Source Sans 3", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d1413; --surface: #141d1c; --fg: #e2ebe9; --muted: #92a6a2; --line: #253331;
+    --accent: #4fcab4; --accent-soft: #15302b; --code-bg: #17221f;
+    --z1: #132c1d; --i1: #82d6a0; --z2: #2f260e; --i2: #f0c566; --z3: #351817; --i3: #f39b95;
+    --curve: #7da4ff; --over: #ff7d6e;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0d1413; --surface: #141d1c; --fg: #e2ebe9; --muted: #92a6a2; --line: #253331;
+  --accent: #4fcab4; --accent-soft: #15302b; --code-bg: #17221f;
+  --z1: #132c1d; --i1: #82d6a0; --z2: #2f260e; --i2: #f0c566; --z3: #351817; --i3: #f39b95;
+  --curve: #7da4ff; --over: #ff7d6e;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 24px; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body {
+  background: var(--bg); color: var(--fg);
+  font-family: var(--font-body); font-size: 17px; line-height: 1.6;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+
+.hero { max-width: 1180px; margin: 0 auto; padding-block: 56px 36px; display: grid; gap: 14px; border-bottom: 1px solid var(--line); }
+.eyebrow { font-family: var(--font-mono); font-size: 12.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+.hero h1 { font-family: var(--font-display); font-weight: 700; font-size: clamp(2.1rem, 5vw, 3.4rem); line-height: 1.05; letter-spacing: -.02em; margin: 0; text-wrap: balance; }
+.hero .lede { max-width: 68ch; color: var(--fg); }
+.hero .lede p { margin: 0 0 .7em; }
+.hero .lede ol { margin: 0 0 .7em; padding-left: 1.3em; display: grid; gap: 4px; }
+.hero .lede strong { color: var(--accent); }
+.also { color: var(--muted); font-size: 15.5px; }
+.contents { margin-top: 6px; max-width: 68ch; }
+.contents summary { cursor: pointer; font-family: var(--font-mono); font-size: 12.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+.contents ol { margin: 10px 0 0; padding-left: 1.3em; columns: 2 260px; column-gap: 32px; }
+.contents li { break-inside: avoid; margin: 0 0 4px; }
+h2[id], h3[id], h4[id] { scroll-margin-top: 72px; }
+
+.layout { max-width: 1180px; margin: 0 auto; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 56px; padding-block: 36px 96px; }
+.rail { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 24px); align-self: start; }
+.rail p { font-family: var(--font-mono); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0 0 10px; }
+.rail ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.rail a { display: flex; gap: 10px; align-items: baseline; padding: 6px 10px; border-radius: 6px; color: var(--fg); text-decoration: none; font-size: 15.5px; line-height: 1.3; }
+.rail a:hover { background: var(--accent-soft); }
+.rail a.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.rail a:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.n { font-family: var(--font-mono); font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.rail a.active .n { color: var(--accent); }
+
+main { min-width: 0; max-width: 860px; }
+section { padding-bottom: 56px; margin-bottom: 56px; border-bottom: 1px solid var(--line); }
+section:last-child { border-bottom: 0; }
+.sec-head { display: flex; align-items: baseline; gap: 14px; margin-bottom: 18px; }
+.sec-head .n { font-size: 14px; color: var(--accent); }
+h2 { font-family: var(--font-display); font-weight: 700; font-size: clamp(1.7rem, 3.4vw, 2.3rem); letter-spacing: -.015em; line-height: 1.1; margin: 0; text-wrap: balance; }
+h3 { font-family: var(--font-display); font-weight: 600; font-size: 1.3rem; letter-spacing: -.01em; margin: 2.2em 0 .5em; text-wrap: balance; }
+h4 { font-family: var(--font-body); font-weight: 600; font-size: 1.05rem; margin: 1.6em 0 .4em; }
+p, ul, ol { max-width: 68ch; }
+ul, ol { padding-left: 1.3em; }
+li { margin: .25em 0; }
+a { color: var(--accent); text-underline-offset: 3px; }
+strong { font-weight: 600; }
+
+code { font-family: var(--font-mono); font-size: .84em; background: var(--code-bg); padding: .1em .35em; border-radius: 4px; }
+pre:not(.mermaid) { background: var(--code-bg); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; overflow-x: auto; font-size: 14px; line-height: 1.5; }
+pre:not(.mermaid) code { background: none; padding: 0; font-size: inherit; }
+
+.table-wrap { overflow-x: auto; margin: 1em 0 1.4em; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 15.5px; }
+th, td { text-align: left; vertical-align: top; padding: 9px 14px; border-bottom: 1px solid var(--line); }
+tr:last-child td { border-bottom: 0; }
+th { font-family: var(--font-mono); font-size: 12px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); background: var(--code-bg); }
+td { font-variant-numeric: tabular-nums; }
+
+figure { margin: 1.4em 0 1.8em; }
+.diagram { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px; overflow-x: auto; }
+.diagram pre.mermaid { margin: 0; display: flex; justify-content: center; background: none; }
+
+.chart { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px; overflow-x: auto; }
+.chart svg { display: block; width: 100%; min-width: 520px; max-width: 720px; height: auto; margin: 0 auto; font-family: var(--font-body); }
+.chart figcaption { color: var(--muted); font-size: 15px; margin-top: 10px; max-width: 68ch; }
+.chart .z1 { fill: var(--z1); } .chart .z2 { fill: var(--z2); } .chart .z3 { fill: var(--z3); }
+.chart .t { font-size: 13px; font-weight: 600; }
+.chart .i1 { fill: var(--i1); } .chart .i2 { fill: var(--i2); } .chart .i3 { fill: var(--i3); }
+.chart .lbl { font-size: 13px; fill: var(--fg); }
+.chart .tick { font-size: 12px; fill: var(--muted); }
+.chart .tick.i3 { fill: var(--i3); }
+.chart .axis { stroke: var(--fg); stroke-width: 1.5; fill: none; }
+.chart .ref { stroke: var(--muted); stroke-width: 1.5; stroke-dasharray: 6 5; fill: none; }
+.chart .curve { stroke: var(--curve); stroke-width: 3.5; fill: none; }
+.chart .over { stroke: var(--over); stroke-width: 3.5; fill: none; }
+.chart .dot { fill: var(--over); }
+
+@media (max-width: 860px) {
+  .layout { grid-template-columns: minmax(0, 1fr); gap: 20px; padding-top: 20px; }
+  .rail { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); margin-inline: calc(-1 * max(16px, env(safe-area-inset-left, 0px))); padding: 10px max(16px, env(safe-area-inset-left, 0px)); border-bottom: 1px solid var(--line); }
+  .rail p { display: none; }
+  .rail ol { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; }
+  .rail a { white-space: nowrap; border: 1px solid var(--line); background: var(--surface); }
+  body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+  .hero { padding-block: 36px 24px; }
+  body { font-size: 16px; }
+}
+</style>
+</head>
+<body>
+
+
+<header class="hero">
+  <div class="eyebrow">Merit Order docs · 01</div>
+  <h1>Architecture</h1>
+  <div class="lede"><p class="also"><a href="index.html">All docs on one page</a> · <a href="how-it-all-works.html">How it all works</a></p><details class="contents"><summary>On this page</summary><ol><li><a href="#the-processes">The processes</a></li><li><a href="#inside-the-gateway">Inside the gateway</a></li><li><a href="#what-each-box-owns">What each box owns</a></li><li><a href="#why-its-split-this-way">Why it&#x27;s split this way</a></li><li><a href="#backend-adapters-pass-through-first">Backend adapters: pass-through first</a></li><li><a href="#building-blocks">Building blocks</a></li></ol></details></div>
+</header>
+
+<div class="layout">
+  <nav class="rail" aria-label="Chapters">
+    <p>Docs</p>
+    <ol><li><a href="overview.html"><span class="n">&nbsp;&nbsp;</span>Overview</a></li><li><a href="how-it-all-works.html"><span class="n">00</span>How it all works (start here)</a></li><li><a href="architecture.html" class="active" aria-current="page"><span class="n">01</span>Architecture</a></li><li><a href="request-flow.html"><span class="n">02</span>Request flow</a></li><li><a href="routing.html"><span class="n">03</span>Routing</a></li><li><a href="caching-and-sessions.html"><span class="n">04</span>Caching &amp; sessions</a></li><li><a href="gpu-autoscaling.html"><span class="n">05</span>GPU autoscaling</a></li><li><a href="auth-and-spend.html"><span class="n">06</span>Auth &amp; spend</a></li><li><a href="deployment.html"><span class="n">07</span>Deployment</a></li><li><a href="reporting.html"><span class="n">08</span>Reporting</a></li><li><a href="decisions.html"><span class="n">09</span>Decisions</a></li><li><a href="how-it-decides.html"><span class="n">10</span>How it decides</a></li><li><a href="evals.html"><span class="n">11</span>Evals: measuring model quality</a></li><li><a href="feature-sheet.html"><span class="n"></span>Merit Order feature sheet</a></li></ol>
+  </nav>
+  <main>
+    
+    <section id="doc"><figure class="diagram"><pre class="mermaid">flowchart TB
+    clients[&quot;Harnesses + apps&lt;br/&gt;pi · Claude Code · Codex CLI · SDKs&quot;]
+    admins[&quot;Admins, finance, team leads&lt;br/&gt;web console at /ui/&quot;]
+    idp[&quot;Entra ID, Google, OIDC&lt;br/&gt;(login, SCIM, Google Groups)&quot;]
+    gw[&quot;&lt;b&gt;Gateway&lt;/b&gt; (meritorder serve)&lt;br/&gt;data plane + console + APIs&lt;br/&gt;stateless, N replicas&quot;]
+    worker[&quot;&lt;b&gt;Worker&lt;/b&gt; (meritorder worker)&lt;br/&gt;rollups, alerts, digests, live prices,&lt;br/&gt;quality scores, bills, eval runs,&lt;br/&gt;learned router, batch jobs&quot;]
+    comp[&quot;Compressor (optional)&lt;br/&gt;meritorder compressor&lt;br/&gt;LLMLingua-2&quot;]
+    redis[(&quot;Redis&lt;br/&gt;sessions, spend counters,&lt;br/&gt;rate limits, GPU state,&lt;br/&gt;compression decisions&quot;)]
+    pg[(&quot;Postgres&lt;br/&gt;people, keys, config versions,&lt;br/&gt;prices + quality scores,&lt;br/&gt;ledger, batches, GPU cost + activity&quot;)]
+    ch[(&quot;ClickHouse (optional)&lt;br/&gt;copy of the ledger&quot;)]
+
+    subgraph apis[&quot;API backends: always available&quot;]
+        direction LR
+        bedrock[&quot;AWS Bedrock&quot;]
+        vertex[&quot;GCP Vertex AI&quot;]
+        foundry[&quot;Azure Foundry&quot;]
+        direct[&quot;Anthropic / OpenAI /&lt;br/&gt;OpenRouter / others&quot;]
+    end
+
+    subgraph ctl[&quot;Control plane&quot;]
+        controller[&quot;&lt;b&gt;Capacity controller&lt;/b&gt; (meritorder controller)&lt;br/&gt;one active at a time:&lt;br/&gt;break-even, controls, safeguards&quot;]
+        sky[&quot;SkyPilot: a cluster per replica&lt;br/&gt;+ price catalog&quot;]
+        kube[&quot;Kubernetes API&lt;br/&gt;KServe or llm-d&quot;]
+        controller --&gt; sky
+        controller --&gt; kube
+    end
+
+    subgraph gpu[&quot;Self-hosted GPU pool: optional&quot;]
+        lb[&quot;The gateway itself (SkyPilot, static),&lt;br/&gt;KServe Service, or llm-d endpoint picker&quot;]
+        r1[&quot;vLLM / SGLang replica&quot;]
+        r2[&quot;vLLM / SGLang replica&quot;]
+        lb --&gt; r1
+        lb --&gt; r2
+    end
+
+    clients --&gt; gw
+    admins --&gt; gw
+    idp --- gw
+    gw --- redis
+    gw --- pg
+    gw -- &quot;tool results to compress&quot; --&gt; comp
+    worker --- pg
+    worker --- redis
+    worker -- &quot;copies new rows&quot; --&gt; ch
+    worker -- &quot;batch jobs, bills&quot; --&gt; apis
+    gw -- &quot;requests&quot; --&gt; apis
+    gw -- &quot;requests: the session&#x27;s replica,&lt;br/&gt;else the endpoint&quot; --&gt; gpu
+    controller -- &quot;publishes GPU state + prices&quot; --- redis
+    controller -- &quot;reads demand from the ledger&quot; --- pg
+    gpu -. &quot;vLLM metrics, KV events&quot; .-&gt; controller
+    sky -- &quot;provisions / tears down&quot; --&gt; gpu
+    kube -- &quot;creates / scales / deletes&quot; --&gt; gpu</pre></figure>
+<h2 id="the-processes">The processes</h2>
+<p>Every process is the same <code>meritorder</code> command (and the same image, except the compressor's). The gateway, worker and
+controller follow the stored configuration in Postgres, so a change saved on the console reaches all of them; the
+compressor takes only its command-line flags.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Process</th>
+<th>Command</th>
+<th>Needs</th>
+<th>How many</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Gateway</td>
+<td><code>meritorder serve</code> (port 8080; <code>MERITORDER_PORT</code>)</td>
+<td>Nothing for a trial (in-memory storage); Postgres and Redis for anything shared</td>
+<td>As many as you like; <code>--workers N</code> (or <code>MERITORDER_WORKERS</code>) for more processes on one machine, which needs Postgres and Redis</td>
+</tr>
+<tr>
+<td>Migrations</td>
+<td><code>meritorder migrate</code></td>
+<td>Postgres</td>
+<td>Once per upgrade (Compose's <code>migrate</code> service; the chart's migrate Job, <code>migrations.enabled</code>)</td>
+</tr>
+<tr>
+<td>Worker</td>
+<td><code>meritorder worker</code> (a cycle every 60 s, <code>--interval</code>; <code>--metrics-port</code>, or <code>MERITORDER_WORKER_METRICS_PORT</code>, for its <code>/metrics</code>)</td>
+<td>Postgres (it refuses to start without it), Redis</td>
+<td>One or more: batch jobs and eval runs are claimed with a lease, so several share them</td>
+</tr>
+<tr>
+<td>Capacity controller</td>
+<td><code>meritorder controller</code> (every 60 s; <code>--interval</code>)</td>
+<td>Postgres (it refuses to start without it), Redis; SkyPilot or a Kubernetes cluster for the GPUs it runs</td>
+<td>One active: the others wait on a Postgres advisory lock. Compose's <code>gpu</code> profile; the chart's <code>controller.enabled</code></td>
+</tr>
+<tr>
+<td>Compressor</td>
+<td><code>meritorder compressor</code> (port 8090)</td>
+<td>The <code>compressor</code> extra (LLMLingua-2, torch); its own image</td>
+<td>Optional. Compose's <code>compressor</code> profile, the chart's <code>compressor.enabled</code>; gateways call it at <code>MERITORDER_COMPRESSOR_URL</code></td>
+</tr>
+</tbody>
+</table></div>
+<p>Without Postgres there's no worker. A gateway on in-memory storage then checks its own batches every 15 seconds and
+deletes stored responses past their retention itself.</p>
+<h2 id="inside-the-gateway">Inside the gateway</h2>
+<p>Every request passes through the same pipeline (the code is <code>Gateway.handle</code> and <code>Gateway._handle</code> in <code>proxy.py</code>):</p>
+<figure class="diagram"><pre class="mermaid">flowchart LR
+    a[&quot;API surface&lt;br/&gt;OpenAI Chat + Responses,&lt;br/&gt;Anthropic Messages,&lt;br/&gt;embeddings&quot;] --&gt; b[&quot;Auth&lt;br/&gt;key or sign-in token&quot;]
+    b --&gt; c[&quot;Admit&lt;br/&gt;budgets, rate limits,&lt;br/&gt;session cap, session state&lt;br/&gt;(one Redis round trip)&quot;]
+    c --&gt; d[&quot;Level&lt;br/&gt;rules (+ learned&lt;br/&gt;router, opt-in)&quot;]
+    d --&gt; e[&quot;Router&lt;br/&gt;marginal cost +&lt;br/&gt;switching cost&quot;]
+    e --&gt; f[&quot;Per-request cost limit,&lt;br/&gt;response cache (opt-in),&lt;br/&gt;compression&quot;]
+    f --&gt; g[&quot;Backend adapter&lt;br/&gt;translation, cache markers,&lt;br/&gt;effort, output limit&quot;]
+    g --&gt; h[&quot;Send; on failure&lt;br/&gt;the next candidate&quot;]
+    h --&gt; i[&quot;Metering&lt;br/&gt;usage + savings ledger&lt;br/&gt;(after the response)&quot;]</pre></figure>
+<p>A <code>/v1/responses</code> request is converted to Chat Completions first (in a team's stored mode, rebuilt from the stored
+chain), so everything after the API surface sees one shape. <a href="request-flow.html">02: Request flow</a> follows one request
+through these steps.</p>
+<h2 id="what-each-box-owns">What each box owns</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Component</th>
+<th>Owns</th>
+<th>Does <strong>not</strong> own</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Harness</strong></td>
+<td>The conversation, history, compaction (except Responses API clients in a team's stored mode)</td>
+<td>Which backend serves it</td>
+</tr>
+<tr>
+<td><strong>Gateway</strong></td>
+<td>Auth, policy, routing decisions, prompt shaping, metering; splitting batches across the providers' batch APIs and running GPUs, and joining their results; in a team's opt-in stored mode, the Responses API conversations its clients chain, sealed, for the team's retention</td>
+<td>Conversation content otherwise (never stored, except in the opt-in response cache, batch uploads until they're submitted, and batch work for GPUs until it runs and its results until retention ends, all sealed, in Postgres or the operator's bucket)</td>
+</tr>
+<tr>
+<td><strong>Redis</strong></td>
+<td>Session metadata, spend and rate-limit counters, published GPU state and controls, each gateway's in-flight counts, backend health, the live feed, compression decisions (by content hash), notes on which GPU replica holds a session's cache, people's Google groups as last read, opt-in response cache</td>
+<td>Anything that must survive a flush (a missing spend counter is seeded again from the ledger)</td>
+</tr>
+<tr>
+<td><strong>Postgres</strong></td>
+<td>People, keys, SCIM groups, config versions, admin GPU controls, live prices and quality scores, token calibration per model, the ledger (partitioned by month) and hourly rollups, providers' bill lines, GPU cost per hour, GPU activity log, eval runs, the learned router's request features (hashed, no content) and models, batches (their provider jobs and one metadata row a request), stored responses and conversations of teams in the Responses API's stored mode (content sealed with AES-GCM)</td>
+<td>Hot-path lookups (cached in-process / Redis)</td>
+</tr>
+<tr>
+<td><strong>ClickHouse</strong> (optional)</td>
+<td>A copy of the ledger and its hourly rollup, for reports over long ranges and tag breakdowns at very large scale</td>
+<td>The record: Postgres has every row first, and budgets read Postgres</td>
+</tr>
+<tr>
+<td><strong>Worker</strong></td>
+<td>Rollups for reports, monthly partitions, budget and spike alerts, weekly digests, price refreshes (every 15 min), quality-score refreshes (daily), providers' bills to check the ledger against (every 6 hours), eval runs started on the console, training the learned router (when asked or scheduled), the providers' batch jobs (polled until they end, then settled into the ledger), batch work on running GPUs (in their headroom, at low priority; its own <code>/metrics</code> for the batch requests it settles), stored responses past their team's retention (deleted every minute) and sealing them again after a key rotation, the ledger's copy in ClickHouse (every 30 s, when set up)</td>
+<td>Requests</td>
+</tr>
+<tr>
+<td><strong>Capacity controller</strong></td>
+<td>"Should model X be running on GPUs right now, and how many replicas?", admin controls, GPU safeguards, GPU cost</td>
+<td>Per-request routing</td>
+</tr>
+<tr>
+<td><strong>Compressor</strong> (optional)</td>
+<td>Running LLMLingua-2 on the tool results a gateway sends it (<code>POST /v1/compress</code>)</td>
+<td>Which results to compress, and remembering the cuts: the gateway decides and keeps them in Redis</td>
+</tr>
+<tr>
+<td><strong>SkyPilot</strong></td>
+<td>Launching one cluster per replica on any cloud, failing over across regions and clouds for capacity, setting the machine up (image, port, disk, labels), autostop, teardown, catalog prices</td>
+<td>How many replicas run, which one gets a request, replica health, cost decisions</td>
+</tr>
+<tr>
+<td><strong>KServe or llm-d</strong> (on your cluster)</td>
+<td>Running the vLLM pods Merit Order asks for, replacing failed ones</td>
+<td>How many to run, prices (configured per node type)</td>
+</tr>
+<tr>
+<td><strong>KServe's Service, or llm-d's endpoint picker</strong></td>
+<td>Which replica gets a request when the gateways can't address pods (llm-d's: the one with the most of the prompt cached). SkyPilot replicas have none in front: the gateway picks</td>
+<td>Which model</td>
+</tr>
+<tr>
+<td><strong>Web console</strong></td>
+<td>Watching and controlling everything (served by the gateway at <code>/ui/</code>)</td>
+<td>Anything the APIs can't do: it's built only on them</td>
+</tr>
+<tr>
+<td><strong>vLLM / SGLang</strong></td>
+<td>Inference, continuous batching, prefix (KV) cache</td>
+<td>Anything else</td>
+</tr>
+<tr>
+<td><strong>API backends</strong></td>
+<td>Inference + their own prompt caches; batch jobs and their results until they're deleted</td>
+<td>Which of them gets a request</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="why-its-split-this-way">Why it's split this way</h2>
+<ul>
+<li><strong>Gateway is stateless</strong> so it scales horizontally behind any load balancer and can be restarted freely.</li>
+<li><strong>Controller is separate</strong> because its decisions are slow (minutes) and the gateway's are fast (milliseconds).
+  The controller only changes <em>what exists</em>; the router only chooses <em>among what exists</em>.</li>
+<li><strong>GPU pool is optional.</strong> With no GPUs configured, the system is a cost-aware API gateway, and still useful.
+  A vLLM/SGLang server you already run can be added without SkyPilot (<code>provisioner: static</code>), and a Kubernetes
+  cluster with GPUs can run vLLM through KServe or llm-d (<code>provisioner: kubernetes</code>).</li>
+</ul>
+<h2 id="backend-adapters-pass-through-first">Backend adapters: pass-through first</h2>
+<p>Merit Order has its own adapter layer instead of depending on LiteLLM (see
+<a href="decisions.html">09: Decisions</a>, decision 2). It stays small because almost every backend speaks one of two formats:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Format</th>
+<th>Backends</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Anthropic Messages</strong></td>
+<td>Anthropic, Claude on Bedrock (its Anthropic-compatible endpoint), Claude on Vertex, Claude on Foundry</td>
+</tr>
+<tr>
+<td><strong>OpenAI-compatible</strong></td>
+<td>OpenAI (through its Responses API: <code>api: responses</code>), Azure OpenAI, Gemini on Vertex AI (its OpenAI-compatible endpoint, or Gemini's native API: <code>api: gemini</code>), the Gemini API (native: <code>api: gemini</code>), OpenRouter, xAI, DeepSeek, Mistral, Moonshot, Z.ai, MiniMax, vLLM, SGLang, most others</td>
+</tr>
+<tr>
+<td>Later, if needed</td>
+<td>Bedrock Converse</td>
+</tr>
+</tbody>
+</table></div>
+<figure class="diagram"><pre class="mermaid">flowchart LR
+    oa[&quot;Client speaks&lt;br/&gt;OpenAI format&quot;] --&gt; same{&quot;Backend speaks&lt;br/&gt;the same format?&quot;}
+    an[&quot;Client speaks&lt;br/&gt;Anthropic format&quot;] --&gt; same
+    same -- &quot;yes (common case)&quot; --&gt; pass[&quot;Pass through untouched&lt;br/&gt;except model id, output limit,&lt;br/&gt;effort, cache markers&quot;]
+    same -- &quot;no&quot; --&gt; tr[&quot;Translate&lt;br/&gt;OpenAI ⇄ Anthropic&quot;]
+    pass --&gt; auth[&quot;Provider auth&lt;br/&gt;API key, AWS SigV4,&lt;br/&gt;Google, Entra&quot;]
+    tr --&gt; auth
+    auth --&gt; be[&quot;Backend&quot;]</pre></figure>
+<ul>
+<li><strong>Pass-through keeps fidelity.</strong> Fields we don't recognize (<code>cache_control</code>, thinking signatures,
+  encrypted reasoning, provider extras) reach the backend exactly as the harness sent them. That is
+  what keeps prompt caching working.</li>
+<li><strong>Translation is one pair of converters</strong> (OpenAI Chat Completions ⇄ Anthropic Messages), unit-tested in
+  both directions, streams included. The Responses API is converted to and from Chat Completions at the
+  edges: for clients that call <code>/v1/responses</code>, and for OpenAI backends set to <code>api: responses</code>. Gemini's
+  native API is converted the same way, at the backend, for backends set to <code>api: gemini</code> (below).</li>
+<li><strong>Provider auth uses official libraries:</strong> <code>botocore</code> for AWS request signing, <code>google-auth</code> for
+  Vertex, <code>azure-identity</code> for Entra ID (Foundry, Azure OpenAI).</li>
+<li><strong>Long tail:</strong> any OpenAI-compatible endpoint is a valid backend. Anyone who needs a niche provider
+  can run LiteLLM (or anything else) themselves and register it as a backend, out of process.</li>
+</ul>
+<h3 id="geminis-native-api">Gemini's native API</h3>
+<p>Gemini also answers on OpenAI-compatible endpoints (Vertex AI's, OpenRouter's), but those drop or flatten
+what Gemini's own API reports. A backend with <code>format: openai</code> and <code>api: gemini</code> calls <code>generateContent</code>
+and <code>streamGenerateContent?alt=sse</code> instead, while the rest of the gateway keeps seeing Chat Completions
+(<code>formats/gemini_upstream.py</code>, <code>GeminiBackend</code> in <code>backends/http.py</code>):</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Where</th>
+<th>Config</th>
+<th>Auth</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>The Gemini API</td>
+<td><code>base_url: https://generativelanguage.googleapis.com/v1beta</code></td>
+<td><code>auth: {type: api_key, header: x-goog-api-key, value_env: GEMINI_API_KEY}</code></td>
+</tr>
+<tr>
+<td>Vertex AI</td>
+<td><code>flavor: vertex</code>, <code>project</code>, <code>region</code> (<code>global</code> by default)</td>
+<td><code>auth: {type: google}</code>, as for Claude on Vertex</td>
+</tr>
+</tbody>
+</table></div>
+<p>The shipped config has both: <code>gemini</code>, on once <code>GEMINI_API_KEY</code> is set, and <code>vertex-gemini-native</code>, off
+until <code>MERITORDER_VERTEX_GEMINI_NATIVE=true</code> (on Vertex, the OpenAI-compatible <code>vertex-gemini</code> stays the
+default for now). A route's model is Gemini's id (<code>gemini-4-carbon</code>); <code>google/…</code> and <code>models/…</code> work too.
+Prices come from LiteLLM's list (<code>gemini/…</code> for the Gemini API, <code>vertex_ai/…</code> for Vertex), like any direct
+provider API.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Chat Completions</th>
+<th>Gemini</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>system</code> / <code>developer</code> messages</td>
+<td><code>systemInstruction</code></td>
+</tr>
+<tr>
+<td><code>user</code> / <code>assistant</code> messages</td>
+<td><code>contents</code> with roles <code>user</code> / <code>model</code>; consecutive turns of one role merged</td>
+</tr>
+<tr>
+<td>images, audio, files (<code>data:</code> URLs)</td>
+<td><code>inlineData</code>; image URLs become <code>fileData</code></td>
+</tr>
+<tr>
+<td><code>tools</code>, <code>tool_choice</code></td>
+<td><code>functionDeclarations</code> (the JSON Schema as <code>parametersJsonSchema</code>), <code>toolConfig.functionCallingConfig</code> (<code>AUTO</code>, <code>NONE</code>, <code>ANY</code>, allowed names)</td>
+</tr>
+<tr>
+<td>assistant <code>tool_calls</code>, <code>tool</code> messages</td>
+<td><code>functionCall</code> and <code>functionResponse</code> parts, matched by id and named after the call they answer</td>
+</tr>
+<tr>
+<td><code>max_tokens</code>, <code>temperature</code>, <code>top_p</code>, <code>stop</code>, <code>seed</code>, penalties</td>
+<td><code>generationConfig</code> (<code>maxOutputTokens</code>, <code>temperature</code>, <code>topP</code>, <code>stopSequences</code>, …)</td>
+</tr>
+<tr>
+<td><code>response_format</code> (JSON schema or object)</td>
+<td><code>responseMimeType: application/json</code> and <code>responseJsonSchema</code></td>
+</tr>
+<tr>
+<td><code>reasoning_effort</code></td>
+<td><code>thinkingConfig.thinkingLevel</code>, fitted to the levels each model takes (Gemini 4 Hydrogen alone takes <code>xhigh</code>; Gemini 4 and 3.8 Flash have no <code>minimal</code>; Gemini 3 and 4 can't stop thinking). Gemini 2.5 gets a <code>thinkingBudget</code>. Thought summaries are always asked for (<code>includeThoughts</code>): they cost nothing extra. A model that only thinks when asked (Gemma, Gemini 2.0) gets a level only for an effort other than <code>none</code></td>
+</tr>
+</tbody>
+</table></div>
+<p>Replies and streams come back as Chat Completions: text, function calls, thought summaries as
+<code>reasoning_content</code>, and <code>usageMetadata</code> as usage (cached tokens from <code>cachedContentTokenCount</code>; thinking
+counts as output, and is also shown as <code>reasoning_tokens</code>). Finish reasons:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Gemini says</th>
+<th>The gateway sees</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>STOP</code> (<code>tool_calls</code> when the reply calls functions), <code>MAX_TOKENS</code></td>
+<td><code>stop</code> / <code>tool_calls</code>, <code>length</code></td>
+</tr>
+<tr>
+<td>A blocked prompt (<code>promptFeedback.blockReason</code>), or <code>SAFETY</code>, <code>RECITATION</code>, <code>PROHIBITED_CONTENT</code>, <code>BLOCKLIST</code>, <code>SPII</code>, …</td>
+<td><code>content_filter</code> with a <code>refusal</code> saying why: a refusal, which <code>auto</code> retries on another model</td>
+</tr>
+<tr>
+<td><code>MALFORMED_FUNCTION_CALL</code>, <code>MALFORMED_RESPONSE</code></td>
+<td>An error (502): the request goes to the next source</td>
+</tr>
+<tr>
+<td><code>MISSING_THOUGHT_SIGNATURE</code></td>
+<td>An error (400), returned to the client</td>
+</tr>
+<tr>
+<td><code>PUP_LIMITED_DISABLED</code> (the Google account is restricted)</td>
+<td>403: the next backend</td>
+</tr>
+<tr>
+<td>HTTP 429 (<code>RESOURCE_EXHAUSTED</code>) and 503 (<code>UNAVAILABLE</code>)</td>
+<td>Capacity: the request moves on, and that model is skipped on that backend for a while (after a 429, for the <code>retryDelay</code> Google gives in the error's details)</td>
+</tr>
+</tbody>
+</table></div>
+<p>Gemini 3 and later return a <strong>thought signature</strong> with each step's first function call and reject a
+request whose current-turn call comes back without one. The signature rides on the tool call as
+<code>extra_content.google.thought_signature</code>, the convention of Google's own OpenAI-compatible endpoint, so
+a client that sends messages back as it got them keeps Gemini's reasoning between tool calls (an
+OpenRouter <code>reasoning_details</code> signature is used too). A call with none (a client that rebuilt its
+history, a translated Anthropic request, a call another model made) is sent with Google's documented
+bypass value, so the request still works; the model just reasons afresh.</p>
+<h2 id="building-blocks">Building blocks</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Need</th>
+<th>What we use</th>
+<th>Later, maybe</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>API model prices, context windows and output limits</td>
+<td>Live: OpenRouter's public catalog and the price list LiteLLM maintains, refreshed by the worker every 15 minutes (fetched as data; no code from either); costs checked against each provider's own cost data</td>
+<td></td>
+</tr>
+<tr>
+<td>GPU prices</td>
+<td>SkyPilot's catalog (per cloud, region, instance, spot/on-demand), checked against the AWS, Google Cloud and Azure bills by instance tag; on Kubernetes, a configured price per node type</td>
+<td>Reconciling Kubernetes GPU time with the cloud bill</td>
+</tr>
+<tr>
+<td>GPU provisioning + replica autoscaling</td>
+<td>SkyPilot (plain clusters, one per replica, each with a dead-man lease; decision 56), in its own Python environment; KServe or llm-d on an existing cluster, over the Kubernetes API (plain HTTP, no client library)</td>
+<td></td>
+</tr>
+<tr>
+<td>Inference engines</td>
+<td>vLLM (prefix caching, priority scheduling)</td>
+<td>SGLang</td>
+</tr>
+<tr>
+<td>Replica routing</td>
+<td>The gateway (replica affinity, by cost: SkyPilot, static servers, pods), KServe's Service, or llm-d's endpoint picker (prefix-cache aware)</td>
+<td>LMCache</td>
+</tr>
+<tr>
+<td>Task classifier</td>
+<td>Rules; an opt-in learned router that corrects their level from outcomes, pure Python (decision 44), with opt-in judged labels per team: a sample replayed on a stronger model and graded by a judge (decision 52)</td>
+<td>An embedding feature source behind an endpoint the operator runs</td>
+</tr>
+<tr>
+<td>Model quality scores</td>
+<td>Published benchmarks: Epoch AI by default, or the Artificial Analysis Intelligence Index, refreshed daily by the worker; <code>meritorder eval</code> checks them on your own work</td>
+<td></td>
+</tr>
+<tr>
+<td>Compression</td>
+<td>Deterministic rules; LLMLingua-2 (llmlingua 0.2.2) in its own <code>meritorder compressor</code> service, opt-in per team, with each result's cuts stored by content hash</td>
+<td></td>
+</tr>
+<tr>
+<td>Web framework / telemetry / UI</td>
+<td>FastAPI, Prometheus, OpenTelemetry; React + Mantine</td>
+<td></td>
+</tr>
+</tbody>
+</table></div></section>
+  </main>
+</div>
+
+<script>
+(function () {
+  // Only the all-in-one page: its rail links to sections of the page. One-doc pages mark their own link.
+  var links = Array.prototype.slice.call(document.querySelectorAll('.rail a')).filter(function (a) {
+    return a.getAttribute('href').charAt(0) === '#';
+  });
+  if (!links.length) {
+    var here = document.querySelector('.rail a.active');
+    if (here && here.scrollIntoView && window.matchMedia('(max-width: 860px)').matches) {
+      here.scrollIntoView({ block: 'nearest', inline: 'center' });
+      window.scrollTo(0, 0);
+    }
+    return;
+  }
+  var byId = {};
+  links.forEach(function (a) { byId[a.getAttribute('href').slice(1)] = a; });
+  function setActive(id) {
+    links.forEach(function (a) { a.classList.toggle('active', a === byId[id]); });
+    var a = byId[id];
+    if (a && a.scrollIntoView && window.matchMedia('(max-width: 860px)').matches) {
+      a.scrollIntoView({ block: 'nearest', inline: 'center' });
+    }
+  }
+  if ('IntersectionObserver' in window) {
+    var obs = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) { if (e.isIntersecting) setActive(e.target.id); });
+    }, { rootMargin: '-20% 0px -70% 0px' });
+    document.querySelectorAll('main section').forEach(function (s) { obs.observe(s); });
+  }
+  setActive((location.hash || '#overview').slice(1));
+})();
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js"></script>
+<script>
+(function () {
+  var t = document.documentElement.getAttribute('data-theme');
+  var dark = t ? t === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+  mermaid.initialize({ startOnLoad: true, theme: dark ? 'dark' : 'default', securityLevel: 'strict' });
+})();
+</script>
+</body>
+</html>

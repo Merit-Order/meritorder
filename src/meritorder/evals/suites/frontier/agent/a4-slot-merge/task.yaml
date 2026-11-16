@@ -1,0 +1,18 @@
+id: a4-slot-merge
+task: coding
+level: 4
+kind: agent
+prompt: |
+  You're working in a Python repository that you can only reach through the tools: list_files, read_file,
+  search, write_file (creates a file or replaces its whole content) and run_tests (runs the tests in tests/).
+
+  Fix the bug report in ISSUE.md. Find the root cause and fix it there, and keep the public API (names and
+  signatures) unchanged. After you finish, hidden tests that are stricter than the ones in tests/ check the
+  documented behaviour of the package's public functions, so make sure the fix is right in general, not only
+  for the two examples in the issue. Run the tests before you finish.
+
+  When you're done, reply with a short summary of the change.
+env: meritorder.evals.envs.repo:RepoEnv
+env_args: {project: slotfinder}
+max_turns: 30
+summary: "Two symptoms in two modules share one root cause (an interval merge that drops touching and contained intervals); patching the symptoms passes the visible tests, not the hidden ones"

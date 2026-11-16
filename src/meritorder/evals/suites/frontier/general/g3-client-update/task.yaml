@@ -1,0 +1,37 @@
+id: g3-client-update
+task: general
+level: 3
+kind: answer
+prompt: |
+  You work on the Harbor Desk at a freight forwarder. Write a short status update to the client Halvorsen Marine
+  about their order 7731, which will arrive late.
+
+  Facts to use:
+  - The container missed its connecting vessel in Rotterdam because of a crane outage at the terminal.
+  - It is now booked on the next sailing; the new estimated delivery is Thursday 14 November.
+  - Because of the delay, Halvorsen Marine receives a 15% credit on the freight charge for this order.
+  - They can track the shipment with reference HM-7731-R.
+
+  Your reply is checked automatically, so follow every rule exactly:
+  1. Start the reply with exactly `Status: delayed` (the first sentence can continue after those words).
+  2. Between 90 and 130 words in total.
+  3. Exactly three bullet points, each on its own line starting with "- ".
+  4. Exactly three blocks of text separated by single blank lines: an opening paragraph, then the three bullets
+     together as one block, then a closing paragraph. No other blank lines.
+  5. Include these exactly as written: `Rotterdam`, `Thursday 14 November`, `15% credit`, `HM-7731-R`.
+  6. Do not use the words "sorry" or "unfortunately", or any form of "apologise", "apologize" or "apology".
+  7. The very last words of the reply must be `Harbor Desk`, with nothing after them.
+  8. No more than 900 characters in total.
+
+  Reply with the update only: no preamble, no notes.
+checks:
+  - constraints:
+      starts_with: "Status: delayed"
+      words: [90, 130]
+      bullets: 3
+      paragraphs: 3
+      must_include: ["Rotterdam", "Thursday 14 November", "15% credit", "HM-7731-R"]
+      must_not_include: ["sorry", "unfortunately", "apolog"]
+      ends_with: "Harbor Desk"
+      max_chars: 900
+summary: "Client update under eight simultaneous mechanical constraints (exact opener and closer, word and character limits, block and bullet counts, required and banned phrases)"

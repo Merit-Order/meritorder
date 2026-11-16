@@ -1,0 +1,517 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Overview · Merit Order docs</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Source+Sans+3:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a design-notes reader. Sticky chapter rail on the left, one long readable column on the right; rail folds into a scrolling chip row on phones. */
+:root {
+  --bg: #f4f7f6;
+  --surface: #ffffff;
+  --fg: #142120;
+  --muted: #566866;
+  --line: #d6e0de;
+  --accent: #0b7566;
+  --accent-soft: #e0f0ec;
+  --code-bg: #ecf2f1;
+  --z1: #e3f3ea; --i1: #1d6a3a;
+  --z2: #fcf1d8; --i2: #865600;
+  --z3: #fbe4e3; --i3: #9a1f1c;
+  --curve: #2556c4; --over: #c0392b;
+  --font-display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Source Sans 3", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d1413; --surface: #141d1c; --fg: #e2ebe9; --muted: #92a6a2; --line: #253331;
+    --accent: #4fcab4; --accent-soft: #15302b; --code-bg: #17221f;
+    --z1: #132c1d; --i1: #82d6a0; --z2: #2f260e; --i2: #f0c566; --z3: #351817; --i3: #f39b95;
+    --curve: #7da4ff; --over: #ff7d6e;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0d1413; --surface: #141d1c; --fg: #e2ebe9; --muted: #92a6a2; --line: #253331;
+  --accent: #4fcab4; --accent-soft: #15302b; --code-bg: #17221f;
+  --z1: #132c1d; --i1: #82d6a0; --z2: #2f260e; --i2: #f0c566; --z3: #351817; --i3: #f39b95;
+  --curve: #7da4ff; --over: #ff7d6e;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 24px; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body {
+  background: var(--bg); color: var(--fg);
+  font-family: var(--font-body); font-size: 17px; line-height: 1.6;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+
+.hero { max-width: 1180px; margin: 0 auto; padding-block: 56px 36px; display: grid; gap: 14px; border-bottom: 1px solid var(--line); }
+.eyebrow { font-family: var(--font-mono); font-size: 12.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+.hero h1 { font-family: var(--font-display); font-weight: 700; font-size: clamp(2.1rem, 5vw, 3.4rem); line-height: 1.05; letter-spacing: -.02em; margin: 0; text-wrap: balance; }
+.hero .lede { max-width: 68ch; color: var(--fg); }
+.hero .lede p { margin: 0 0 .7em; }
+.hero .lede ol { margin: 0 0 .7em; padding-left: 1.3em; display: grid; gap: 4px; }
+.hero .lede strong { color: var(--accent); }
+.also { color: var(--muted); font-size: 15.5px; }
+.contents { margin-top: 6px; max-width: 68ch; }
+.contents summary { cursor: pointer; font-family: var(--font-mono); font-size: 12.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+.contents ol { margin: 10px 0 0; padding-left: 1.3em; columns: 2 260px; column-gap: 32px; }
+.contents li { break-inside: avoid; margin: 0 0 4px; }
+h2[id], h3[id], h4[id] { scroll-margin-top: 72px; }
+
+.layout { max-width: 1180px; margin: 0 auto; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 56px; padding-block: 36px 96px; }
+.rail { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 24px); align-self: start; }
+.rail p { font-family: var(--font-mono); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0 0 10px; }
+.rail ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.rail a { display: flex; gap: 10px; align-items: baseline; padding: 6px 10px; border-radius: 6px; color: var(--fg); text-decoration: none; font-size: 15.5px; line-height: 1.3; }
+.rail a:hover { background: var(--accent-soft); }
+.rail a.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.rail a:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.n { font-family: var(--font-mono); font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.rail a.active .n { color: var(--accent); }
+
+main { min-width: 0; max-width: 860px; }
+section { padding-bottom: 56px; margin-bottom: 56px; border-bottom: 1px solid var(--line); }
+section:last-child { border-bottom: 0; }
+.sec-head { display: flex; align-items: baseline; gap: 14px; margin-bottom: 18px; }
+.sec-head .n { font-size: 14px; color: var(--accent); }
+h2 { font-family: var(--font-display); font-weight: 700; font-size: clamp(1.7rem, 3.4vw, 2.3rem); letter-spacing: -.015em; line-height: 1.1; margin: 0; text-wrap: balance; }
+h3 { font-family: var(--font-display); font-weight: 600; font-size: 1.3rem; letter-spacing: -.01em; margin: 2.2em 0 .5em; text-wrap: balance; }
+h4 { font-family: var(--font-body); font-weight: 600; font-size: 1.05rem; margin: 1.6em 0 .4em; }
+p, ul, ol { max-width: 68ch; }
+ul, ol { padding-left: 1.3em; }
+li { margin: .25em 0; }
+a { color: var(--accent); text-underline-offset: 3px; }
+strong { font-weight: 600; }
+
+code { font-family: var(--font-mono); font-size: .84em; background: var(--code-bg); padding: .1em .35em; border-radius: 4px; }
+pre:not(.mermaid) { background: var(--code-bg); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; overflow-x: auto; font-size: 14px; line-height: 1.5; }
+pre:not(.mermaid) code { background: none; padding: 0; font-size: inherit; }
+
+.table-wrap { overflow-x: auto; margin: 1em 0 1.4em; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 15.5px; }
+th, td { text-align: left; vertical-align: top; padding: 9px 14px; border-bottom: 1px solid var(--line); }
+tr:last-child td { border-bottom: 0; }
+th { font-family: var(--font-mono); font-size: 12px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); background: var(--code-bg); }
+td { font-variant-numeric: tabular-nums; }
+
+figure { margin: 1.4em 0 1.8em; }
+.diagram { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px; overflow-x: auto; }
+.diagram pre.mermaid { margin: 0; display: flex; justify-content: center; background: none; }
+
+.chart { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px; overflow-x: auto; }
+.chart svg { display: block; width: 100%; min-width: 520px; max-width: 720px; height: auto; margin: 0 auto; font-family: var(--font-body); }
+.chart figcaption { color: var(--muted); font-size: 15px; margin-top: 10px; max-width: 68ch; }
+.chart .z1 { fill: var(--z1); } .chart .z2 { fill: var(--z2); } .chart .z3 { fill: var(--z3); }
+.chart .t { font-size: 13px; font-weight: 600; }
+.chart .i1 { fill: var(--i1); } .chart .i2 { fill: var(--i2); } .chart .i3 { fill: var(--i3); }
+.chart .lbl { font-size: 13px; fill: var(--fg); }
+.chart .tick { font-size: 12px; fill: var(--muted); }
+.chart .tick.i3 { fill: var(--i3); }
+.chart .axis { stroke: var(--fg); stroke-width: 1.5; fill: none; }
+.chart .ref { stroke: var(--muted); stroke-width: 1.5; stroke-dasharray: 6 5; fill: none; }
+.chart .curve { stroke: var(--curve); stroke-width: 3.5; fill: none; }
+.chart .over { stroke: var(--over); stroke-width: 3.5; fill: none; }
+.chart .dot { fill: var(--over); }
+
+@media (max-width: 860px) {
+  .layout { grid-template-columns: minmax(0, 1fr); gap: 20px; padding-top: 20px; }
+  .rail { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); margin-inline: calc(-1 * max(16px, env(safe-area-inset-left, 0px))); padding: 10px max(16px, env(safe-area-inset-left, 0px)); border-bottom: 1px solid var(--line); }
+  .rail p { display: none; }
+  .rail ol { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; }
+  .rail a { white-space: nowrap; border: 1px solid var(--line); background: var(--surface); }
+  body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+  .hero { padding-block: 36px 24px; }
+  body { font-size: 16px; }
+}
+</style>
+</head>
+<body>
+
+
+<header class="hero">
+  <div class="eyebrow">Merit Order docs</div>
+  <h1>Overview</h1>
+  <div class="lede"><p class="also"><a href="index.html">All docs on one page</a> · <a href="how-it-all-works.html">How it all works</a></p><details class="contents"><summary>On this page</summary><ol><li><a href="#read-in-this-order">Read in this order</a></li><li><a href="#six-ideas-behind-the-design">Six ideas behind the design</a></li><li><a href="#glossary">Glossary</a></li><li><a href="#status">Status</a></li></ol></details></div>
+</header>
+
+<div class="layout">
+  <nav class="rail" aria-label="Chapters">
+    <p>Docs</p>
+    <ol><li><a href="overview.html" class="active" aria-current="page"><span class="n">&nbsp;&nbsp;</span>Overview</a></li><li><a href="how-it-all-works.html"><span class="n">00</span>How it all works (start here)</a></li><li><a href="architecture.html"><span class="n">01</span>Architecture</a></li><li><a href="request-flow.html"><span class="n">02</span>Request flow</a></li><li><a href="routing.html"><span class="n">03</span>Routing</a></li><li><a href="caching-and-sessions.html"><span class="n">04</span>Caching &amp; sessions</a></li><li><a href="gpu-autoscaling.html"><span class="n">05</span>GPU autoscaling</a></li><li><a href="auth-and-spend.html"><span class="n">06</span>Auth &amp; spend</a></li><li><a href="deployment.html"><span class="n">07</span>Deployment</a></li><li><a href="reporting.html"><span class="n">08</span>Reporting</a></li><li><a href="decisions.html"><span class="n">09</span>Decisions</a></li><li><a href="how-it-decides.html"><span class="n">10</span>How it decides</a></li><li><a href="evals.html"><span class="n">11</span>Evals: measuring model quality</a></li><li><a href="feature-sheet.html"><span class="n"></span>Merit Order feature sheet</a></li></ol>
+  </nav>
+  <main>
+    
+    <section id="doc"><p>Merit Order is a self-hosted LLM gateway. Its job is to <strong>lower LLM spend for day-to-day use</strong> (coding agents
+such as pi and Claude Code, internal apps, SDKs) without users changing how they work.</p>
+<blockquote>
+<p><strong>Pre-production: version 0.0.1.</strong> Most of Merit Order is tested only against mocks of each provider's
+API, written from the provider's docs. What has been checked live, and what hasn't, is in
+<a href="#whats-verified-and-what-still-needs-live-accounts">What's verified</a> below: OpenRouter, Anthropic and
+OpenAI, Claude Code sessions, the Docker Compose stack, GPUs on a local kind cluster and one SkyPilot
+replica on a Lambda GPU have been; the other providers, the rest of the GPU cycle on real clouds, Entra and
+Google sign-in, batch APIs and bills have not. Version 0.1.0 comes
+once the checks in the right-hand column pass (<a href="https://github.com/Merit-Order/meritorder/blob/main/ROADMAP.md">ROADMAP.md</a>).</p>
+</blockquote>
+<p>The name comes from power grids. Operators dispatch generators in <strong>merit order</strong>: the cheapest marginal
+cost first, with expensive "peaker" plants switched on only when demand needs them. Merit Order does the
+same with tokens. When steady load justifies it, your own GPUs become the cheap baseload. API endpoints are
+always available as the peakers that cover spikes and everything else. The router sends every session to
+the cheapest capacity that meets its quality bar.</p>
+<p>It does three things:</p>
+<ol>
+<li><strong>Routes</strong> each session to the cheapest model and backend that meets the task's quality bar.</li>
+<li><strong>Runs open-weight models on your own GPUs</strong> (SkyPilot, Kubernetes, or servers you run) when sustained
+   load makes that cheaper than paying per token, and turns them off when it doesn't. API endpoints
+   (Bedrock, Vertex AI, Foundry, ...) are always on, as the fallback and the overflow.</li>
+<li><strong>Saves tokens</strong> with provider prompt caching, cache-aware routing, careful compression and batch prices.</li>
+</ol>
+<p>Around that: sign-in (Entra, Google Workspace, generic OIDC, SCIM), budgets and hard safeguards, a
+<strong>savings ledger</strong> that shows what every request would have cost without the gateway, and a web console
+to watch and control all of it: spend, savings, where every GPU runs and what it costs, and the switches
+to stop it.</p>
+<h2 id="read-in-this-order">Read in this order</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Doc</th>
+<th>What you'll understand</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="how-it-all-works.html">00 How it all works</a></td>
+<td><strong>Start here.</strong> How your tools connect, how a request gets a level, how models get scores, why the cheapest qualifying route wins, how long conversations are handled, when your GPUs start and stop, and setting up Claude Code, with real numbers (<a href="how-it-all-works.html">also as a standalone page</a>)</td>
+</tr>
+<tr>
+<td><a href="architecture.html">01 Architecture</a></td>
+<td>The processes (gateway, worker, GPU controller, compressor), the stores, and what each one owns</td>
+</tr>
+<tr>
+<td><a href="request-flow.html">02 Request flow</a></td>
+<td>What happens to one request, start to finish; batches</td>
+</tr>
+<tr>
+<td><a href="routing.html">03 Routing</a></td>
+<td>How a model and backend are picked: levels, scores, marginal cost and switching cost, the learned router</td>
+</tr>
+<tr>
+<td><a href="caching-and-sessions.html">04 Caching and sessions</a></td>
+<td>Who owns what state, why caches don't move between backends, the Responses API's stored mode</td>
+</tr>
+<tr>
+<td><a href="gpu-autoscaling.html">05 GPU autoscaling</a></td>
+<td>When GPUs come up and down, and overflow to APIs</td>
+</tr>
+<tr>
+<td><a href="auth-and-spend.html">06 Auth and spend</a></td>
+<td>Sign-in, virtual keys, roles, budgets and safeguards</td>
+</tr>
+<tr>
+<td><a href="deployment.html">07 Deployment</a></td>
+<td>Docker Compose or Kubernetes, configuration, secrets, scaling, supply-chain security</td>
+</tr>
+<tr>
+<td><a href="reporting.html">08 Reporting</a></td>
+<td>Spend and savings by user, team, project and time; bills; exports; ClickHouse</td>
+</tr>
+<tr>
+<td><a href="decisions.html">09 Decisions</a></td>
+<td>What was decided, why, and what's still open</td>
+</tr>
+<tr>
+<td><a href="how-it-decides.html">10 How it decides</a></td>
+<td><strong>Every rule, as diagrams:</strong> which model, GPU or API, retries, when GPUs start and stop, and what happens when things go wrong</td>
+</tr>
+<tr>
+<td><a href="evals.html">11 Evals</a></td>
+<td>Model quality: scores from published benchmarks, running evals from the console or CLI, the task kinds, judges, the sandbox, and how results become scores</td>
+</tr>
+<tr>
+<td><a href="feature-sheet.html">Feature sheet</a></td>
+<td>A 5-minute read: each way it saves money, with a worked example; how it judges and routes; how it compares with other gateways and routers; its limits</td>
+</tr>
+</tbody>
+</table></div>
+<p>Outside docs/: <a href="https://github.com/Merit-Order/meritorder/blob/main/README.md">README.md</a> (quickstart), <a href="https://github.com/Merit-Order/meritorder/blob/main/ROADMAP.md">ROADMAP.md</a>,
+<a href="https://github.com/Merit-Order/meritorder/blob/main/CONTRIBUTING.md">CONTRIBUTING.md</a>, <a href="https://github.com/Merit-Order/meritorder/blob/main/SECURITY.md">SECURITY.md</a> and <a href="https://github.com/Merit-Order/meritorder/blob/main/CHANGELOG.md">CHANGELOG.md</a>.</p>
+<p>Every doc is also a web page in <a href="index.html"><code>html/</code></a>: one page per doc (<code>html/routing.html</code>, ...; this file is
+<code>html/overview.html</code>), all of them on one page (<code>html/index.html</code>), and the start-here explainer with
+diagrams (<code>html/how-it-all-works.html</code>, written by hand). <code>scripts/build_docs_html.py</code> rebuilds the generated
+pages from these files. It needs the <code>markdown</code> package:
+<code>uv run --with markdown python scripts/build_docs_html.py</code>.</p>
+<h2 id="six-ideas-behind-the-design">Six ideas behind the design</h2>
+<ol>
+<li><strong>Marginal cost, not list price.</strong> A GPU that is already running is a sunk cost for that hour, so its
+   spare capacity is close to free. Use it, even for a <em>better</em> model than the task needs.</li>
+<li><strong>Moving a session costs money.</strong> Prompt caches live on the backend. Switching backends means paying
+   again for the whole context, so the router counts that before moving anything.</li>
+<li><strong>The harness owns the conversation.</strong> By default the gateway stores routing <em>metadata</em> (hashes,
+   timestamps, which backend), never conversation content. The exceptions are opt-in or explicit: the
+   response cache, the Responses API's stored mode, and batch files held (sealed) until a provider or GPU
+   takes them.</li>
+<li><strong>APIs are the floor, GPUs are an optimization.</strong> Every model that runs on your GPUs should also have an
+   API route, so GPUs never become a single point of failure. The console warns about any model that
+   doesn't before anyone stops its GPUs.</li>
+<li><strong>Clone and run.</strong> <code>docker compose up</code> gives you a working gateway: on mock backends with no keys, on
+   real ones with a single key. GPUs, sign-in and Kubernetes are opt-in layers.</li>
+<li><strong>Every cost is visible next to the switch that controls it.</strong> Anything that spends money (a team, a
+   GPU, the whole organization) shows what it costs and can be capped or stopped from the console.</li>
+</ol>
+<h2 id="glossary">Glossary</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Term</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Harness</strong></td>
+<td>The client driving the model: pi, Claude Code, Cursor, an SDK app</td>
+</tr>
+<tr>
+<td><strong>Session</strong></td>
+<td>One conversation or agent run; the unit of stickiness and caching</td>
+</tr>
+<tr>
+<td><strong>Backend</strong></td>
+<td>A configured place models run: <code>anthropic</code>, <code>bedrock</code>, <code>openrouter</code>, or your own GPUs (<code>gpu-qwen-coder</code>)</td>
+</tr>
+<tr>
+<td><strong>Route</strong></td>
+<td>One model on one backend, with its price; a model can have several</td>
+</tr>
+<tr>
+<td><strong>Level</strong></td>
+<td>What a request sent with <code>model: "auto"</code> needs, per kind of work, 1 to 5 (<code>coding:3</code>); set from its wording and tools, never its length. Also called the quality floor (<code>X-Route-Floor</code>)</td>
+</tr>
+<tr>
+<td><strong>Score</strong></td>
+<td>A model's quality for a kind of work, 1 to 5, from published benchmarks (Epoch AI by default) or measured with <code>meritorder eval</code></td>
+</tr>
+<tr>
+<td><strong>Headroom</strong></td>
+<td>Spare capacity on a running GPU replica before it misses its latency target</td>
+</tr>
+<tr>
+<td><strong>Shadow price</strong></td>
+<td>The internal price for self-hosted tokens: about 0 when idle, rising toward the API price as the replica fills</td>
+</tr>
+<tr>
+<td><strong>Rebuild cost</strong></td>
+<td>The cost to process a session's context again on a backend whose cache is cold</td>
+</tr>
+<tr>
+<td><strong>Counterfactual cost</strong></td>
+<td>What a request would have cost on the baseline model (<code>baseline_model</code>, set for the organization or a team) at its API price</td>
+</tr>
+<tr>
+<td><strong>Ledger</strong></td>
+<td>One row per request: who, which model and backend, tokens, cost, counterfactual cost and savings by cause; never content</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="status">Status</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Area</th>
+<th>Built</th>
+<th>Not yet</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Gateway</td>
+<td>OpenAI Chat + Responses (HTTP and WebSocket, with <code>compact</code> and <code>input_tokens</code>), PDFs and tool-result images translated between formats, forced tool choice and refusals carried across, a broken-off stream charged at an estimate (<code>usage: estimated</code>), Codex CLI's own tools on every backend (custom tools such as <code>apply_patch</code>, namespaced tools, tool search, local shell; web search on Claude; tested against mocks), Anthropic Messages, embeddings; pass-through and translation; Anthropic, Bedrock, Foundry, Vertex (Claude, and Gemini through its native API or Vertex's OpenAI-compatible endpoint), the Gemini API, Azure OpenAI, OpenAI, xAI, OpenRouter, direct open-model vendors, any OpenAI-compatible server; OpenAI and Anthropic batch APIs routed to ten providers' batch APIs or to running GPUs' headroom; the Responses API's stored mode (opt-in per team: <code>previous_response_id</code>, conversations, background responses)</td>
+<td>Resuming a background response's stream (<code>starting_after</code>)</td>
+</tr>
+<tr>
+<td>Routing</td>
+<td>Rule classifier setting levels from the work (tools say it's coding, the task's wording how hard; configurable <code>routing.levels</code>, a reason recorded per request), by default the lowest expected total cost to finish the task with what a failure puts at stake (a person's time scaled by level and size; decisions 62 and 67), never more than the threshold per task class on the routing simulator (CI runs 1,000 tasks and fails past 10% over), the threshold or cost per success per team, an opt-in cascade inside a failing task, marginal-cost router with rebuild cost, stickiness, window checks against each model's real window, token counts calibrated per model, unpriced routes refused, re-routing sessions that outgrow their model's context window, refusal fallback, opt-in substitution, automatic reasoning effort, live prices (OpenRouter, LiteLLM; every 15 minutes), quality scores from published benchmarks against a fixed bar (Epoch AI by default; daily) or measured (<code>meritorder eval</code>), opt-in learned router that corrects levels from outcomes (shadow mode, <code>meritorder router</code>), opt-in judged labels for it (a sample replayed and graded, with a required monthly cap), a first turn's cache estimate that counts each team's pauses</td>
+<td></td>
+</tr>
+<tr>
+<td>Routing benchmark from your own traffic (exploration, coding outcomes, level report)</td>
+<td>Built, tested against mocks: opt-in exploration per team (a few new tasks one level up or down, canaries for a new cheapest model), coding outcome signals from agents' tool results, Reports → Levels saying whether each level is too high or too low, applied as <code>routing.level_map</code></td>
+<td></td>
+</tr>
+<tr>
+<td>GPUs</td>
+<td>Break-even controller; vLLM on plain SkyPilot clusters, one per replica, with a keyed gate, a dead-man lease and a sweep, on every cloud SkyPilot 0.14.2 supports with Docker images and autodown (AWS, GCP, Azure, Lambda, RunPod, Nebius, Kubernetes and CoreWeave, Vast, Fluidstack, Paperspace, DigitalOcean, Mithril, Seeweb, Slurm with Pyxis): read from SkyPilot's source, one replica run on Lambda; cold starts timed per phase and paid back in the break-even, an opt-in weights cache volume; a GPU with no known price never starts; leases renewed through Postgres, Redis and SkyPilot outages; Kubernetes (KServe or llm-d), stopped on a config change and swept when no deployment owns its resources, static servers, SkyPilot catalog (refreshed in the background, one lookup at a time) and node-type prices, batch work in running GPUs' headroom, replica affinity (KV events or an estimate), stop / drain / pin / stop-all, fleet safeguards, activity log</td>
+<td>Batch embeddings on GPUs</td>
+</tr>
+<tr>
+<td>Token savings</td>
+<td>Automatic prompt caching, sticky sessions, deterministic compression, opt-in model-based compression (LLMLingua-2, its own service), batch prices, batch work on running GPUs, opt-in response cache</td>
+<td></td>
+</tr>
+<tr>
+<td>Identity and spend</td>
+<td>Keys, Entra/OIDC and Google Workspace login, Google Groups, SCIM, roles (a person's record lowers a key's role, never raises it), People page, team/user/org/GPU budgets (one total everywhere: ledger, batch reservations and, for the organization, GPU time), rate limits, per-session and per-request caps, spend counters checked against the ledger; console-saved config reads only allowed secrets, bounded inputs (<code>vllm_args</code>, backend answers, the gate's connections, WebSocket queues), CSV cells escaped</td>
+<td></td>
+</tr>
+<tr>
+<td>Reporting</td>
+<td>Ledger, savings by cause (self-hosting after GPU cost), spend as APIs and GPUs with GPU idle time charged to the organization, reports API, console, CSV/JSONL/Parquet export to S3, Prometheus with a Grafana dashboard, OpenTelemetry, alerts and weekly digests to a webhook; OpenRouter costs taken from what it billed; bills from Anthropic, OpenAI, AWS (Cost Explorer or CUR 2.0), GCP and Azure (Cost Management or exports) checked against the ledger (batch tier included); the worker's batch metrics; an optional ClickHouse copy of the ledger that long-range reports and tag breakdowns read</td>
+<td></td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="whats-verified-and-what-still-needs-live-accounts">What's verified, and what still needs live accounts</h3>
+<p>The left column is checked in CI on every change, or by hand where noted. The right column is what 0.1.0
+waits for (<a href="https://github.com/Merit-Order/meritorder/blob/main/ROADMAP.md#010-the-live-checks">ROADMAP.md</a>).</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Verified (CI on every change, or by hand where noted)</th>
+<th>Still needs a live account or cluster</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2,319 tests (1,856 run anywhere; the other 463, mostly the real Redis and Postgres variants, run in CI; CI fails below 95% line coverage), each gateway, storage, and state test run against both in-memory and real Redis + Postgres</td>
+<td>Every provider other than OpenRouter, Anthropic, and OpenAI: <code>scripts/smoke_providers.py</code> (plain, streaming, tool calls, embeddings, both formats) once keys are in <code>.env</code></td>
+</tr>
+<tr>
+<td>Provider HTTP and streaming parsed from real wire bytes; retries, failover, circuit breaker</td>
+<td>Anthropic prompt-caching savings checked against an invoice; a broken-off stream's estimate against the provider's bill</td>
+</tr>
+<tr>
+<td>OpenRouter, by hand: the smoke test, <code>auto</code> routing, provider prompt caching in a real session, and recorded cost equal to what OpenRouter billed for every request, streamed or not</td>
+<td></td>
+</tr>
+<tr>
+<td>OIDC verification with a real signing key (expired, forged, wrong audience or issuer, alg confusion), incl. tokens shaped like Google's (domain, unverified email, both issuer forms)</td>
+<td>Entra sign-in, group mapping, and SCIM from a real tenant; Google Workspace sign-in and Google Groups (Groups Reader service account, Business vs Enterprise editions) from a real domain</td>
+</tr>
+<tr>
+<td>Gemini's native API, the seven bill sources (AWS's CUR 2.0 and Azure's exports included), and vLLM KV events: requests and replies written from each provider's docs, served by mocks (KV events over a real ZeroMQ socket)</td>
+<td>Gemini with a key and on Vertex (<code>thinkingLevel</code>, thought signatures, mid-stream errors); each provider's real cost data in Reports → Bills; replica affinity and KV events on real vLLM replicas</td>
+</tr>
+<tr>
+<td>GPUs on Kubernetes, on a local kind cluster with KServe 0.21, llm-d's InferencePool and a stand-in vLLM: up, scale, status, requests, metrics, drain, down, five kinds of start failure, and the Role (<code>scripts/kind/</code>, by hand, 14 Nov)</td>
+<td>Real vLLM on GPUs beyond one start (<code>/dev/shm</code>, shutdown, other models and quantizations); the weights cache volume on RunPod and a Kubernetes PVC; the Kubernetes sweep on a real cluster; llm-d's Gateway and endpoint picker; the GPU device plugin and a cluster autoscaler adding a node; NetworkPolicies; EKS, GKE and AKS exec-plugin sign-in</td>
+</tr>
+<tr>
+<td>Token estimates and cost-per-success chances from published tokenizer behavior and benchmark scores; routing on the simulator (thousands of synthetic tasks through the real router and pricing; CI runs 1,000 and fails if a task class spends more than 10% above the threshold)</td>
+<td>Token calibration against providers' real counts; cost-per-success chances against real outcomes; what a failure puts at stake against real failure costs</td>
+</tr>
+<tr>
+<td>Batch APIs through the official OpenAI and Anthropic SDKs, against mocks of ten providers' batch APIs written from their references; batch work on GPUs against a fake vLLM</td>
+<td>Each provider's real batch API: result and error file shapes, Bedrock's S3 layout, Azure's v1 fields, Gemini's output lines, Moonshot's window, xAI's discounted models; vLLM preempting low-priority batch work for live requests</td>
+</tr>
+<tr>
+<td>The Responses API's stored mode through the official openai SDK, against mocks of Anthropic's Messages API and OpenAI's Responses API (chaining across providers, failover mid-chain, OpenAI continuing its own response)</td>
+<td>OpenAI's real behaviour for an expired <code>previous_response_id</code>, earlier turns in <code>input_items</code>, and deleting a response mid-chain</td>
+</tr>
+<tr>
+<td>The learned router on synthetic traffic: training recovers a known rule, shadow mode never changes a decision, every fallback; judged labels with a canned judge, learning a rule outcome signals alone can't</td>
+<td>How often each outcome signal occurs on real traffic, and how often it really means a bad answer; real coding outcome signal rates on real agents, and exploration's recommendations on real traffic; how well real judges agree with people, and what samples really cost</td>
+</tr>
+<tr>
+<td>Model-based compression on the published LLMLingua-2 models, by hand on a laptop's CPU and GPU: rates per kind of tool output, latency, memory; every identifier, path, number, quote and error line intact; cache stability across turns and two gateways</td>
+<td>Whether agents still succeed on compressed results; compressor latency on an NVIDIA GPU and an x86 CPU</td>
+</tr>
+<tr>
+<td>ClickHouse: every report gives the same numbers from ClickHouse and Postgres, against a real ClickHouse server in CI; copy speed, size on disk and report times measured at 20M rows in both stores and 60M in ClickHouse, on a small machine (<a href="reporting.html">08</a>)</td>
+<td>At hundreds of millions of rows; ClickHouse Cloud and replicated clusters</td>
+</tr>
+<tr>
+<td>Console in a browser: every page and role, keys, budgets, config (Playwright)</td>
+<td>A real coding session through pi</td>
+</tr>
+<tr>
+<td>Claude Code sessions through the gateway on Claude Sonnet 5.5, GPT-5.6 Terra, and Kimi K3.1: tools, streaming, cache reads (by hand)</td>
+<td>A real Codex CLI session over the Responses API's WebSocket transport; a real Codex <code>apply_patch</code> session on Claude or Kimi</td>
+</tr>
+<tr>
+<td>The Responses API over WebSocket, <code>compact</code> and <code>input_tokens</code>: against mocks and the official openai SDK's WebSocket client on localhost</td>
+<td>OpenAI's own WebSocket behaviour</td>
+</tr>
+<tr>
+<td>Codex CLI's tools against mocks: Codex-shaped requests, <code>apply_patch</code> round trips on Claude, a Chat Completions backend and a Responses backend, streamed and not; two WebSocket turns sending the same bytes upstream</td>
+<td>Claude's web search live (and an org that hasn't enabled it); OpenAI taking <code>namespace</code> and <code>tool_search</code> tools from the gateway</td>
+</tr>
+<tr>
+<td>Anthropic and OpenAI, by hand: the smoke test (incl. OpenAI's Responses API), gateway-added Claude caching (turns 2+ at a tenth of the price)</td>
+<td></td>
+</tr>
+<tr>
+<td>Docker Compose stack: migrate, gateway, worker, a request end to end; a fresh clone's quickstart, the console, <code>setup</code>, and the gpu and clickhouse profiles (by hand, 13 Nov)</td>
+<td>A real SkyPilot cycle (<code>scripts/skypilot_check.py</code>) on Lambda, then another cloud: start, serve, scale, spot preemption, drain, the lease and autodown, prices vs. the bill</td>
+</tr>
+<tr>
+<td>Helm chart rendered with a chart-made Secret and with External Secrets (plus secret files and workload identity), and validated (kubeconform, ExternalSecret CRD schema); two secret sources at once are refused</td>
+<td>Helm install on a cluster with External Secrets, Reloader, and workload identity</td>
+</tr>
+<tr>
+<td>Grafana dashboard queries against real Prometheus and Grafana (by hand)</td>
+<td>Measured quality scores (<code>meritorder eval</code>) on real models</td>
+</tr>
+<tr>
+<td>SkyPilot replicas against a stand-in SDK; the gate and its lease for real against a stand-in vLLM; each cloud's behaviour read from SkyPilot 0.14.2's source. One real replica on Lambda (one A10, gpt-oss-20b, real vLLM, by hand): the cold start's phases, the NVIDIA driver's forward compatibility, the image's broken torchcodec, and GPU time counted in spend</td>
+<td>Azure's self-delete path (the copied <code>az login</code> cache; then a scoped service principal); Vast's ports (always tunneled today)</td>
+</tr>
+<tr>
+<td>Load: about 1,100 requests/s per process, 7,100 with 8 (by hand, mock backends); re-run 14 Nov in memory with each new feature on: short turns +26% CPU, agent turns −6% after a fix, learned router +35–40% (<a href="deployment.html">07</a>)</td>
+<td>Load against Redis and Postgres over a real network</td>
+</tr>
+</tbody>
+</table></div></section>
+  </main>
+</div>
+
+<script>
+(function () {
+  // Only the all-in-one page: its rail links to sections of the page. One-doc pages mark their own link.
+  var links = Array.prototype.slice.call(document.querySelectorAll('.rail a')).filter(function (a) {
+    return a.getAttribute('href').charAt(0) === '#';
+  });
+  if (!links.length) {
+    var here = document.querySelector('.rail a.active');
+    if (here && here.scrollIntoView && window.matchMedia('(max-width: 860px)').matches) {
+      here.scrollIntoView({ block: 'nearest', inline: 'center' });
+      window.scrollTo(0, 0);
+    }
+    return;
+  }
+  var byId = {};
+  links.forEach(function (a) { byId[a.getAttribute('href').slice(1)] = a; });
+  function setActive(id) {
+    links.forEach(function (a) { a.classList.toggle('active', a === byId[id]); });
+    var a = byId[id];
+    if (a && a.scrollIntoView && window.matchMedia('(max-width: 860px)').matches) {
+      a.scrollIntoView({ block: 'nearest', inline: 'center' });
+    }
+  }
+  if ('IntersectionObserver' in window) {
+    var obs = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) { if (e.isIntersecting) setActive(e.target.id); });
+    }, { rootMargin: '-20% 0px -70% 0px' });
+    document.querySelectorAll('main section').forEach(function (s) { obs.observe(s); });
+  }
+  setActive((location.hash || '#overview').slice(1));
+})();
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js"></script>
+<script>
+(function () {
+  var t = document.documentElement.getAttribute('data-theme');
+  var dark = t ? t === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+  mermaid.initialize({ startOnLoad: true, theme: dark ? 'dark' : 'default', securityLevel: 'strict' });
+})();
+</script>
+</body>
+</html>

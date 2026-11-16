@@ -1,0 +1,98 @@
+{{- /* GPUs on this cluster (provisioner: kubernetes): the controller's own ServiceAccount, and a Role in each GPU
+       namespace that lets it run vLLM there through KServe and/or llm-d. Nothing cluster-wide unless readNodes. */}}
+{{- if and .Values.controller.enabled .Values.controller.kubernetes.enabled }}
+{{- $k := .Values.controller.kubernetes }}
+{{- $sa := include "meritorder.controllerServiceAccount" . }}
+{{- $kserve := has "kserve" $k.apis }}
+{{- $llmd := has "llm-d" $k.apis }}
+{{- if not (or $kserve $llmd) }}{{ fail "controller.kubernetes.apis needs kserve, llm-d, or both" }}{{ end }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ $sa }}
+  namespace: {{ .Release.Namespace }}
+  labels: {{- include "meritorder.labels" . | nindent 4 }}
+    app.kubernetes.io/component: controller
+  {{- with $k.serviceAccountAnnotations }}
+  annotations: {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- range $ns := include "meritorder.gpuNamespaces" . | fromJsonArray }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ $sa }}-gpus
+  namespace: {{ $ns }}
+  labels: {{- include "meritorder.labels" $ | nindent 4 }}
+# Exactly the calls kube.py makes (checked on kind: scripts/kind/check.py); no watch, no events, no services.
+rules:
+  {{- if $kserve }}
+  # KServe: the InferenceService per deployment (read, create, replace one left from a restart, scale, delete).
+  - apiGroups: [serving.kserve.io]
+    resources: [inferenceservices]
+    verbs: [get, create, update, patch, delete]
+  {{- end }}
+  - apiGroups: [apps]
+    resources: [deployments]
+    {{- if and $llmd $kserve }}
+    # llm-d: the model server Deployment per deployment. KServe: list its predictor Deployment (pods it can't create).
+    verbs: [get, list, create, update, patch, delete]
+    {{- else if $llmd }}
+    verbs: [get, create, update, patch, delete]
+    {{- else }}
+    verbs: [list]
+    {{- end }}
+  {{- if $llmd }}
+  # llm-d: read the InferencePool for the labels and port its pods need.
+  - apiGroups: [inference.networking.k8s.io, inference.networking.x-k8s.io]
+    resources: [inferencepools]
+    verbs: [get]
+  {{- end }}
+  # Where each replica runs, why one won't start, and its pod address for vLLM's metrics: one list by label.
+  - apiGroups: [""]
+    resources: [pods]
+    verbs: [list]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ $sa }}-gpus
+  namespace: {{ $ns }}
+  labels: {{- include "meritorder.labels" $ | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ $sa }}-gpus
+subjects:
+  - kind: ServiceAccount
+    name: {{ $sa }}
+    namespace: {{ $.Release.Namespace }}
+{{- end }}
+{{- if $k.readNodes }}
+---
+# Optional: read nodes, to price each replica for the node type it landed on and show its zone and spot.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ $sa }}-nodes-{{ .Release.Namespace }}
+  labels: {{- include "meritorder.labels" . | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: [nodes]
+    verbs: [get]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ $sa }}-nodes-{{ .Release.Namespace }}
+  labels: {{- include "meritorder.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ $sa }}-nodes-{{ .Release.Namespace }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ $sa }}
+    namespace: {{ .Release.Namespace }}
+{{- end }}
+{{- end }}

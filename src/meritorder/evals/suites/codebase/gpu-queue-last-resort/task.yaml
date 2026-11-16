@@ -1,0 +1,79 @@
+id: gpu-queue-last-resort
+task: coding
+level: 5
+kind: agent
+commit: c133778
+summary: "Saturated GPUs stay routable as a last resort with a bounded vLLM queue and a 503 past it; gateways count in-flight requests per backend, share them through the state every few seconds and saturate a backend for routing within seconds; touches router, proxy, state, config, gpu and controller"
+env: meritorder.evals.envs.codebase:CodebaseEnv
+env_args: {task: gpu-queue-last-resort}
+max_turns: 80
+est_turns: 40
+est_tool_tokens: 5000    # new tokens per turn (tool results and the reply), from runs of this suite
+est_output_tokens: 1500
+preamble_file: ../PREAMBLE.md
+prompt: |
+  ## Issue: a full GPU drops out of routing, and saturation is only seen a minute late
+
+  When a self-hosted backend's utilization reaches 1.0 the router skips its routes entirely. New work spilling
+  to API routes is right; but a model served only on that GPU then has nowhere to go and the client gets a 503,
+  while vLLM would happily have queued the request. And utilization comes from the controller's once-a-minute
+  metrics sample, so a burst saturates the GPU for a minute before routing notices.
+
+  ### Queue as a last resort
+
+  In `Router.decide`, a saturated self-hosted route is still skipped when another route can take the request
+  (spill first; the candidates then don't include it and aren't queued). When every route is saturated, the
+  request goes to the saturated backend anyway and waits in vLLM's queue: the decision's candidates are those
+  routes (cheapest first) with `Candidate.queued = True`, and its `reason` ends with
+  `every route is saturated, queued on <backend names>`. Backends whose queue is also full are passed in a new
+  last positional parameter `queue_full` (a set of backend names, default empty); those are skipped outright, and
+  when nothing is left the usual `RoutingError(503, ...)` is raised with the per-route explanation now reading
+  `<backend>: saturated and its queue is full`.
+
+  An `auto` session continuing mid-task (`boundary=False`) on a model whose GPUs are saturated is re-routed as if
+  at a boundary when that finds a model with room (no queued candidate); its `reason` then starts
+  `session model <name> is saturated; re-routed: `.
+
+  Responses served by a queued candidate carry the header `x-meritorder-queued: 1` (streaming or not); others
+  don't have it. When the queue is full the client gets the 503 with `queue is full` in the message.
+
+  ### Seeing load within seconds
+
+  `BackendConfig` gains `max_concurrency: int | None = None` (requests one replica runs at once) and
+  `max_waiting: int = 32` (requests allowed to wait per replica before the gateway answers 503). `Backend`
+  objects gain `replicas` (running replicas from the controller's record, else None) and `reported_waiting`
+  (vLLM's waiting count from the controller's last sample, when fresh).
+
+  Each gateway counts its open requests per backend: `Gateway.inflight`, an `InFlight` object (in `proxy.py`)
+  with `acquire(backend, ttl) -> release` (a callable that's safe to call twice), `count(backend)` and
+  `counts() -> {backend: n}`. Entries past their `ttl` (seconds) no longer count, so a leaked release can't pin a
+  count. A slot is taken when a request is sent to a backend and released when the response ends (for a stream,
+  when it closes); a failed attempt releases at once.
+
+  Gateways publish their counts through the shared state every 2 seconds, which also serves as their heartbeat:
+  `state.publish_inflight(gateway_id, counts)` (both state implementations); `Gateway.gateway_id` identifies
+  this process. `state.admit(...)` gains `"inflight": {gateway_id: {backend: n}}` for gateways seen in the last
+  20 seconds, omitting zero counts. A module-level helper `state._live_inflight(fields, gateways, within=20)`
+  does that filtering from `{"<gateway>|<backend>": n}` and `{gateway: unix time}` mappings whose values may be
+  strings (what Redis hashes return), giving integer counts. Redis forgets gateways silent for 2 minutes.
+
+  `Gateway.load(pre) -> (utilization, queue_full)` turns the admit result (`pre["util"]`, and `pre["inflight"]`
+  when present) into routing inputs. For each self-hosted backend, with `n` = this gateway's live count plus
+  every other gateway's published count (its own published figure is ignored; it may be stale) and `replicas` =
+  `backend.replicas or 1`: with `max_concurrency` set, utilization is the larger of the controller's and
+  `n / (max_concurrency x replicas)`, and waiting is `n - slots` (at least 0); without it, utilization is the
+  controller's and waiting is `reported_waiting`. The backend is in `queue_full` when waiting is known and
+  `>= max_waiting x replicas`. Example: `max_concurrency=2, max_waiting=2`, 2 local plus 1 elsewhere gives
+  utilization 1.5 and not full; 4 in flight is full; with `replicas = 2` it's 1.0 and not full.
+
+  The controller publishes vLLM's waiting count: `gpu.vllm_load(text) -> {"utilization", "waiting", "running"}`
+  parses the metrics (`vllm:num_requests_waiting` and `vllm:num_requests_running` as ints, utilization as today), and
+  gateways must receive that waiting count as `reported_waiting`, disregarding a sample more than five minutes
+  old (None) and any sample for a deployment that isn't live.
+
+  The shipped configuration's self-hosted example should show both new backend settings.
+
+  **Interface**: `Router.decide(..., queue_full=frozenset())` (tenth positional argument), `Candidate.queued`,
+  `BackendConfig.max_concurrency` / `max_waiting`, `Backend.replicas` / `reported_waiting`, `proxy.InFlight`,
+  `Gateway.inflight`, `Gateway.gateway_id`, `Gateway.load(pre)`, `state.publish_inflight`, `state._live_inflight`,
+  `gpu.vllm_load`, header `x-meritorder-queued`, messages as quoted.

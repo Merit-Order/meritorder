@@ -1,0 +1,12 @@
+id: c4-expr
+task: coding
+level: 4
+kind: code
+prompt_file: prompt.md
+code:
+  tests: tests.py
+  timeout: 30
+  forbid: [ast, tokenize]
+reference: reference.py
+wrong: wrong.py
+summary: "Exact-Fraction expression evaluator: unary minus vs right-assoc ^, floor // and % signs, parse-before-eval, exact 'first stuck token' error positions"

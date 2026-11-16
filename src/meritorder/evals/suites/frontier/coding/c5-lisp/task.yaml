@@ -1,0 +1,11 @@
+id: c5-lisp
+task: coding
+level: 5
+kind: code
+prompt_file: prompt.md
+code:
+  tests: tests.py
+  timeout: 30
+reference: reference.py
+wrong: wrong.py
+summary: "Scheme-like interpreter from a long spec: closures with shared mutable environments, variadics, let/let*/letrec/named let, exact rationals, Scheme quotient/remainder/modulo signs, booleans that aren't numbers, exact printing, and proper tail calls in every tail position (stack depth is measured)"

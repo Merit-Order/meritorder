@@ -1,0 +1,21 @@
+.DS_Store
+__pycache__/
+*.pyc
+.venv/
+.env
+.pytest_cache/
+dist/
+src/meritorder/ui_dist/
+ui/node_modules/
+ui/test-results/
+ui/playwright-report/
+ui/blob-report/
+.coverage
+htmlcov/
+coverage.xml
+*.egg-info/
+# Claude Code worktrees and per-user settings
+.claude/worktrees/
+.claude/settings.local.json
+ui/dist-demo/
+ui/playwright-report-demo/

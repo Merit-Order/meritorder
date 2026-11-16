@@ -1,0 +1,22 @@
+id: a5-march-revenue
+task: general
+level: 5
+kind: agent
+prompt: |
+  Finance needs March 2026 net revenue in EUR from the billing database. You can only reach the database
+  through the tools: list_tables, describe_table and run_sql (read-only SQL, SQLite dialect).
+
+  Definitions from the finance handbook:
+  1. Revenue is the sum of captured payments. Net revenue is revenue minus refunds.
+  2. Months are in Lisbon local time: UTC+0 until 2026-03-29 01:00 UTC, UTC+1 from then on. A payment belongs
+     to the month of its capture time; a refund belongs to the month it was issued.
+  3. Leave out payments (and refunds of payments) on orders of internal test accounts.
+  4. Convert non-EUR amounts to EUR with fx_rates: use the rate for the UTC date of the payment (for a refund,
+     the UTC date of the refund); if that date has no rate, use the most recent earlier rate.
+
+  The tables have quirks that their definitions document; read them, and check your numbers before you answer.
+  Finish with one line `ANSWER: <amount>` giving the amount in EUR with 2 decimals.
+env: meritorder.evals.envs.sqldb:SqlEnv
+env_args: {dataset: billing}
+max_turns: 40
+summary: "Exact EUR figure that needs a schema migration (two payment tables, cents vs units, mixed timestamp formats), webhook and dual-write duplicates, NULLs with meanings, a DST month boundary and gap-filled FX"

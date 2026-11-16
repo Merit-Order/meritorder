@@ -1,0 +1,80 @@
+id: claude-agent-messages
+task: coding
+level: 4
+kind: agent
+commit: 45e5b3d
+summary: "Eval agent tasks talk to Claude over the Anthropic Messages API so thinking blocks survive between tool calls: a second agent loop with tool_result blocks, effort as output_config, usage and max_tokens handling, and the chosen API recorded per model in runs"
+env: meritorder.evals.envs.codebase:CodebaseEnv
+env_args: {task: claude-agent-messages}
+max_turns: 80
+est_turns: 30
+est_tool_tokens: 5000    # new tokens per turn (tool results and the reply), from runs of this suite
+est_output_tokens: 1500
+preamble_file: ../PREAMBLE.md
+prompt: |
+  ## Issue: eval agent tasks make Claude work without its own reasoning between tool calls
+
+  The eval runner's agent loop (`kind: agent` tasks) speaks OpenAI Chat Completions to the gateway for every
+  model. For Claude that is a handicap: Chat Completions has no place for Anthropic's thinking blocks, so the
+  thinking Claude did before a tool call is dropped from the conversation that is sent back with the tool
+  result, and it continues each step without its earlier reasoning. Claude Code talks to Claude over Anthropic's
+  Messages API, where each reply (thinking blocks and their signatures included) goes back unchanged. The eval
+  should measure Claude the way it is used.
+
+  ### Wanted
+
+  Agent tasks run over the Messages API (`POST /v1/messages` on the gateway, header
+  `anthropic-version: 2023-06-01`) for models whose chosen backend speaks the `anthropic` format, and over Chat
+  Completions as today for everyone else. A run records which API each model uses, next to the backend it runs
+  on.
+
+  Over the Messages API:
+
+  - The body has `model`, `system` (the same agent instructions string the Chat Completions loop sends as its
+    system message), `messages` and `tools`. Tools are the environment's tools in Anthropic's shape: `name`,
+    `description`, `input_schema` (the function's `parameters` object). No `max_tokens` unless the task sets one
+    (the gateway fills in the model's maximum, as it does for Chat Completions); a task's `max_tokens` is sent.
+  - The task's reasoning effort goes as `output_config: {"effort": "<level>"}` instead of `reasoning_effort`.
+  - The first message is the user prompt. Each reply's `content` list goes back as an assistant message exactly
+    as received (thinking blocks, signatures and tool_use blocks untouched). The tool results for a reply go
+    back in one user message as `tool_result` blocks: `{"type": "tool_result", "tool_use_id": <the tool_use
+    block's id>, "content": <the environment's output>}`, with the output cut the same way (and with the same
+    marker) as the Chat Completions loop cuts a long tool result.
+  - A reply with no `tool_use` block ends the loop; the final answer is its text blocks joined. Steps are
+    recorded as today, `name(<json arguments>)`, from each tool_use block's `name` and `input`. The turn,
+    tool-call and step counts, grading, `detail`, and the "no final answer within N turns" outcome work as for
+    the other loop.
+  - Usage: `output_tokens` from `usage.output_tokens`; `input_tokens` is the sum of `usage.input_tokens`,
+    `usage.cache_read_input_tokens` and `usage.cache_creation_input_tokens`. Tool calls are counted from the
+    `tool_use` blocks.
+  - `stop_reason: "max_tokens"` means the reply was cut off, and is reported exactly like `finish_reason:
+    "length"` is today (same `truncated` flag and the same "ran out of output" reasons from the gateway's
+    max-tokens headers). A non-200 answer has the same outcome as over Chat Completions: the result's `error`
+    is `"HTTP <status>: <body>"`, and a 429 or 5xx (a 529, say) also marks it skipped.
+
+  `RunContext` gets a `formats` field: `{model name: "anthropic" | "openai"}`. A model listed as `anthropic`
+  runs its agent tasks over the Messages API; others, and models not listed, use Chat Completions.
+
+  `jobs.formats(models_view, backends)` works out that mapping from the models view (the per-model dict that
+  `jobs.routes` and `jobs.efforts` already read) and the chosen backend per model (`{model: backend}`): it is
+  the `format` of the route of that model whose `backend` matches. Each route in the models view therefore
+  carries a `format` key (its backend's format). Models with no matching route are left out:
+
+      formats({"claude": {"routes": [{"backend": "anthropic", "format": "anthropic"}]},
+               "gpt": {"routes": [{"backend": "openai", "format": "openai"}]}},
+              {"claude": "anthropic", "gpt": "openai", "gone": "x"})
+      == {"claude": "anthropic", "gpt": "openai"}
+
+  A run created with `POST /v1/admin/evals/runs` stores `formats` in its `request`, computed from its
+  `backends` the same way (a model whose chosen backend is an OpenAI-format backend records `"openai"`). Runs
+  executed by the worker and runs executed by `meritorder eval` both honour the recorded mapping: a model
+  recorded as `anthropic` does its agent tasks over the Messages API in either case.
+
+  **Interface**
+
+  - `RunContext(..., formats: dict[str, str] = {})`
+  - `jobs.formats(models: dict[str, dict], backends: dict[str, str]) -> dict[str, str]`; models-view routes
+    gain `"format"`
+  - Eval run `request["formats"]`
+  - Requests to `/v1/messages` with header `anthropic-version: 2023-06-01`, body fields `system`, `tools`
+    (`name`, `description`, `input_schema`), `output_config.effort`; `tool_result` blocks with `tool_use_id`

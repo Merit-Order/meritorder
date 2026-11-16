@@ -1,0 +1,58 @@
+{{- if .Values.ingress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "meritorder.fullname" . }}
+  labels: {{- include "meritorder.labels" . | nindent 4 }}
+  annotations:
+    # Streaming responses: don't buffer, allow long generations.
+    nginx.ingress.kubernetes.io/proxy-buffering: "off"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "900"
+    {{- with .Values.ingress.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  {{- with .Values.ingress.className }}
+  ingressClassName: {{ . }}
+  {{- end }}
+  {{- with .Values.ingress.tls }}
+  tls: {{- toYaml . | nindent 4 }}
+  {{- end }}
+  rules:
+    - host: {{ .Values.ingress.host | quote }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "meritorder.fullname" . }}
+                port:
+                  name: http
+{{- end }}
+{{- if .Values.metrics.serviceMonitor }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "meritorder.fullname" . }}
+  labels: {{- include "meritorder.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels: {{- include "meritorder.selector" . | nindent 6 }}
+  endpoints:
+    {{- range $port := list "http" "metrics" }}
+    {{- if or (eq $port "http") $.Values.worker.metricsPort }}
+    # {{ if eq $port "http" }}the gateways' live traffic{{ else }}the worker's batch requests (meritorder_batch_*), never counted twice{{ end }}
+    - port: {{ $port }}
+      path: /metrics
+      {{- if $.Values.metrics.tokenKey }}
+      authorization:
+        type: Bearer
+        credentials:
+          name: {{ include "meritorder.secretName" $ }}
+          key: {{ $.Values.metrics.tokenKey }}
+      {{- end }}
+    {{- end }}
+    {{- end }}
+{{- end }}

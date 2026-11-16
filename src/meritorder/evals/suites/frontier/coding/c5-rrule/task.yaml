@@ -1,0 +1,11 @@
+id: c5-rrule
+task: coding
+level: 5
+kind: code
+prompt_file: prompt.md
+code:
+  tests: tests.py
+  timeout: 30
+reference: reference.py
+wrong: wrong.py
+summary: "Expand an RFC 5545 RRULE subset: per-frequency expand/limit semantics, defaults, ordinal BYDAY scopes, WKST weeks, BYSETPOS before the dtstart cut, UNTIL/COUNT/window bounds"

@@ -1,0 +1,20 @@
+id: a4-charger-order
+task: general
+level: 4
+kind: agent
+prompt: |
+  You're the purchasing assistant for Halyard Labs and work through our supplier portal's tools; the portal is
+  the only source of prices, stock, fees and delivery dates. Today is 2026-11-10.
+
+  Request from facilities: buy 12 new (not refurbished) USB-C chargers rated 100 W or more for the Porto office.
+  They must arrive by 2026-11-20 at the latest. Charge the purchase to purchase order PO-4471.
+
+  Choose the offer with the lowest total cost (items, shipping and every fee) that meets all of these
+  requirements and place a single order for exactly 12 chargers. Don't order more units than needed and don't
+  create duplicate orders.
+
+  When you're done, reply with the order id and the order's total cost in EUR.
+env: meritorder.evals.envs.procurement:ProcurementEnv
+env_args: {scenario: chargers}
+max_turns: 25
+summary: "Every offer cheaper than the right one is refurbished, 65 W, fee-laden, pack-only, or late (details only via get_offer/get_quote); the order is rejected without the PO's cost center, and the first accepted order answers 504 although it was placed"

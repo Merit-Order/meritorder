@@ -1,0 +1,3089 @@
+{
+ "strategies": {
+  "always-opus": {
+   "label": "Always Claude Opus",
+   "overall": {
+    "tasks": 2000,
+    "cost": 2788.1879,
+    "success_rate": 0.9765,
+    "first_try_success": 0.8895,
+    "finished": 1953,
+    "failed_attempts": 329,
+    "cost_per_task": 1.394094,
+    "cost_per_finished": 1.427644,
+    "human_cost": 4935.0,
+    "total_with_human": 7723.1879,
+    "total_per_finished_with_human": 3.954525,
+    "escalation_rate": 0.0,
+    "escalations": 0,
+    "escalations_helped": null,
+    "too_high": 0.8885,
+    "too_low": 0.0185,
+    "estimate_ratio": 0.153235,
+    "rebuilds_per_100_turns": 4.1,
+    "levels": {
+     "named": 2000
+    },
+    "spend_by_model": {
+     "claude-opus": 2788.1879
+    },
+    "savings_vs_sonnet": -0.9536,
+    "savings_vs_sonnet_with_human": -0.1671,
+    "savings_vs_opus": 0.0,
+    "savings_vs_opus_with_human": 0.0
+   },
+   "by_class": {
+    "coding-easy": {
+     "tasks": 559,
+     "cost": 215.1654,
+     "success_rate": 1.0,
+     "first_try_success": 0.937388,
+     "finished": 559,
+     "failed_attempts": 35,
+     "cost_per_task": 0.384911,
+     "cost_per_finished": 0.384911,
+     "human_cost": 525.0,
+     "total_with_human": 740.1654,
+     "total_per_finished_with_human": 1.324088,
+     "escalation_rate": 0.0,
+     "escalations": 0,
+     "escalations_helped": null,
+     "too_high": 0.937388,
+     "too_low": 0.0,
+     "estimate_ratio": 0.466136,
+     "rebuilds_per_100_turns": 4.29,
+     "levels": {
+      "named": 559
+     },
+     "spend_by_model": {
+      "claude-opus": 215.1654
+     },
+     "savings_vs_sonnet": -1.0032,
+     "savings_vs_sonnet_with_human": -0.1704,
+     "savings_vs_opus": 0.0,
+     "savings_vs_opus_with_human": 0.0
+    },
+    "coding-medium": {
+     "tasks": 740,
+     "cost": 1132.174,
+     "success_rate": 1.0,
+     "first_try_success": 0.914865,
+     "finished": 740,
+     "failed_attempts": 63,
+     "cost_per_task": 1.529965,
+     "cost_per_finished": 1.529965,
+     "human_cost": 945.0,
+     "total_with_human": 2077.174,
+     "total_per_finished_with_human": 2.806992,
+     "escalation_rate": 0.0,
+     "escalations": 0,
+     "escalations_helped": null,
+     "too_high": 0.913514,
+     "too_low": 0.004054,
+     "estimate_ratio": 0.133623,
+     "rebuilds_per_100_turns": 3.98,
+     "levels": {
+      "named": 740
+     },
+     "spend_by_model": {
+      "claude-opus": 1132.174
+     },
+     "savings_vs_sonnet": -1.0077,
+     "savings_vs_sonnet_with_human": -0.3904,
+     "savings_vs_opus": 0.0,
+     "savings_vs_opus_with_human": 0.0
+    },
+    "coding-hard": {
+     "tasks": 128,
+     "cost": 1133.4964,
+     "success_rate": 0.765625,
+     "first_try_success": 0.515625,
+     "finished": 98,
+     "failed_attempts": 133,
+     "cost_per_task": 8.855441,
+     "cost_per_finished": 11.56629,
+     "human_cost": 1995.0,
+     "total_with_human": 3128.4964,
+     "total_per_finished_with_human": 31.923433,
+     "escalation_rate": 0.0,
+     "escalations": 0,
+     "escalations_helped": null,
+     "too_high": 0.515625,
+     "too_low": 0.140625,
+     "estimate_ratio": 0.045923,
+     "rebuilds_per_100_turns": 4.13,
+     "levels": {
+      "named": 128
+     },
+     "spend_by_model": {
+      "claude-opus": 1133.4964
+     },
+     "savings_vs_sonnet": -0.945,
+     "savings_vs_sonnet_with_human": -0.186,
+     "savings_vs_opus": 0.0,
+     "savings_vs_opus_with_human": 0.0
+    },
+    "coding-very-hard": {
+     "tasks": 10,
+     "cost": 263.4604,
+     "success_rate": 0.6,
+     "first_try_success": 0.3,
+     "finished": 6,
+     "failed_attempts": 17,
+     "cost_per_task": 26.346042,
+     "cost_per_finished": 43.910069,
+     "human_cost": 255.0,
+     "total_with_human": 518.4604,
+     "total_per_finished_with_human": 86.410069,
+     "escalation_rate": 0.0,
+     "escalations": 0,
+     "escalations_helped": null,
+     "too_high": 0.2,
+     "too_low": 0.4,
+     "estimate_ratio": 0.019492,
+     "rebuilds_per_100_turns": 4.2,
+     "levels": {
+      "named": 10
+     },
+     "spend_by_model": {
+      "claude-opus": 263.4604
+     },
+     "savings_vs_sonnet": -0.7525,
+     "savings_vs_sonnet_with_human": -0.191,
+     "savings_vs_opus": 0.0,
+     "savings_vs_opus_with_human": 0.0
+    },
+    "chat-short": {
+     "tasks": 159,
+     "cost": 0.9122,
+     "success_rate": 1.0,
+     "first_try_success": 1.0,
+     "finished": 159,
+     "failed_attempts": 0,
+     "cost_per_task": 0.005737,
+     "cost_per_finished": 0.005737,
+     "human_cost": 0.0,
+     "total_with_human": 0.9122,
+     "total_per_finished_with_human": 0.005737,
+     "escalation_rate": 0.0,
+     "escalations": 0,
+     "escalations_helped": null,
+     "too_high": 1.0,
+     "too_low": 0.0,
+     "estimate_ratio": 11.503615,
+     "rebuilds_per_100_turns": 0.0,
+     "levels": {
+      "named": 159
+     },
+     "spend_by_model": {
+      "claude-opus": 0.9122
+     },
+     "savings_vs_sonnet": -1.0,
+     "savings_vs_sonnet_with_human": -1.0,
+     "savings_vs_opus": 0.0,
+     "savings_vs_opus_with_human": 0.0
+    },
+    "chat": {
+     "tasks": 278,
+     "cost": 15.0011,
+     "success_rate": 1.0,
+     "first_try_success": 0.92446,
+     "finished": 278,
+     "failed_attempts": 21,
+     "cost_per_task": 0.053961,
+     "cost_per_finished": 0.053961,
+     "human_cost": 315.0,
+     "total_with_human": 330.0011,
+     "total_per_finished_with_human": 1.187054,
+     "escalation_rate": 0.0,
+     "escalations": 0,
+     "escalations_helped": null,
+     "too_high": 0.92446,
+     "too_low": 0.0,
+     "estimate_ratio": 1.423133,
+     "rebuilds_per_100_turns": 3.85,
+     "levels": {
+      "named": 278
+     },
+     "spend_by_model": {
+      "claude-opus": 15.0011
+     },
+     "savings_vs_sonnet": -1.0,
+     "savings_vs_sonnet_with_human": -0.0233,
+     "savings_vs_opus": 0.0,
+     "savings_vs_opus_with_human": 0.0
+    },
+    "analysis": {
+     "tasks": 126,
+     "cost": 27.9783,
+     "success_rate": 0.896825,
+     "first_try_success": 0.738095,
+     "finished": 113,
+     "failed_attempts": 60,
+     "cost_per_task": 0.22205,
+     "cost_per_finished": 0.247596,
+     "human_cost": 900.0,
+     "total_with_human": 927.9783,
+     "total_per_finished_with_human": 8.212198,
+     "escalation_rate": 0.0,
+     "escalations": 0,
+     "escalations_helped": null,
+     "too_high": 0.738095,
+     "too_low": 0.095238,
+     "estimate_ratio": 0.816929,
+     "rebuilds_per_100_turns": 7.93,
+     "levels": {
+      "named": 126
+     },
+     "spend_by_model": {
+      "claude-opus": 27.9783
+     },
+     "savings_vs_sonnet": -0.8918,
+     "savings_vs_sonnet_with_human": 0.1524,
+     "savings_vs_opus": 0.0,
+     "savings_vs_opus_with_human": 0.0
+    }
+   }
+  },
+  "always-sonnet": {
+   "label": "Always Claude Sonnet",
+   "overall": {
+    "tasks": 2000,
+    "cost": 1427.195,
+    "success_rate": 0.974,
+    "first_try_success": 0.8865,
+    "finished": 1948,
+    "failed_attempts": 346,
+    "cost_per_task": 0.713598,
+    "cost_per_finished": 0.732646,
+    "human_cost": 5190.0,
+    "total_with_human": 6617.195,
+    "total_per_finished_with_human": 3.396917,
+    "escalation_rate": 0.0,
+    "escalations": 0,
+    "escalations_helped": null,
+    "too_high": 0.883,
+    "too_low": 0.0215,
+    "estimate_ratio": 0.15276,
+    "rebuilds_per_100_turns": 4.06,
+    "levels": {
+     "named": 2000
+    },
+    "spend_by_model": {
+     "claude-sonnet": 1427.195
+    },
+    "savings_vs_sonnet": 0.0,
+    "savings_vs_sonnet_with_human": 0.0,
+    "savings_vs_opus": 0.4881,
+    "savings_vs_opus_with_human": 0.1432
+   },
+   "by_class": {
+    "coding-easy": {
+     "tasks": 559,
+     "cost": 107.412,
+     "success_rate": 1.0,
+     "first_try_success": 0.937388,
+     "finished": 559,
+     "failed_attempts": 35,
+     "cost_per_task": 0.19215,
+     "cost_per_finished": 0.19215,
+     "human_cost": 525.0,
+     "total_with_human": 632.412,
+     "total_per_finished_with_human": 1.131327,
+     "escalation_rate": 0.0,
+     "escalations": 0,
+     "escalations_helped": null,
+     "too_high": 0.937388,
+     "too_low": 0.0,
+     "estimate_ratio": 0.466924,
+     "rebuilds_per_100_turns": 4.14,
+     "levels": {
+      "named": 559
+     },
+     "spend_by_model": {
+      "claude-sonnet": 107.412
+     },
+     "savings_vs_sonnet": 0.0,
+     "savings_vs_sonnet_with_human": 0.0,
+     "savings_vs_opus": 0.5008,
+     "savings_vs_opus_with_human": 0.1456
+    },
+    "coding-medium": {
+     "tasks": 740,
+     "cost": 563.9211,
+     "success_rate": 1.0,
+     "first_try_success": 0.916216,
+     "finished": 740,
+     "failed_attempts": 62,
+     "cost_per_task": 0.762056,
+     "cost_per_finished": 0.762056,
+     "human_cost": 930.0,
+     "total_with_human": 1493.9211,
+     "total_per_finished_with_human": 2.018812,
+     "escalation_rate": 0.0,
+     "escalations": 0,
+     "escalations_helped": null,
+     "too_high": 0.914865,
+     "too_low": 0.002703,
+     "estimate_ratio": 0.1336,
+     "rebuilds_per_100_turns": 3.93,
+     "levels": {
+      "named": 740
+     },
+     "spend_by_model": {
+      "claude-sonnet": 563.9211
+     },
+     "savings_vs_sonnet": 0.0,
+     "savings_vs_sonnet_with_human": 0.0,
+     "savings_vs_opus": 0.5019,
+     "savings_vs_opus_with_human": 0.2808
+    },
+    "coding-hard": {
+     "tasks": 128,
+     "cost": 582.783,
+     "success_rate": 0.75,
+     "first_try_success": 0.5,
+     "finished": 96,
+     "failed_attempts": 137,
+     "cost_per_task": 4.552992,
+     "cost_per_finished": 6.070656,
+     "human_cost": 2055.0,
+     "total_with_human": 2637.783,
+     "total_per_finished_with_human": 27.476906,
+     "escalation_rate": 0.0,
+     "escalations": 0,
+     "escalations_helped": null,
+     "too_high": 0.484375,
+     "too_low": 0.15625,
+     "estimate_ratio": 0.045868,
+     "rebuilds_per_100_turns": 4.1,
+     "levels": {
+      "named": 128
+     },
+     "spend_by_model": {
+      "claude-sonnet": 582.783
+     },
+     "savings_vs_sonnet": 0.0,
+     "savings_vs_sonnet_with_human": 0.0,
+     "savings_vs_opus": 0.4859,
+     "savings_vs_opus_with_human": 0.1569
+    },
+    "coding-very-hard": {
+     "tasks": 10,
+     "cost": 150.3332,
+     "success_rate": 0.6,
+     "first_try_success": 0.2,
+     "finished": 6,
+     "failed_attempts": 19,
+     "cost_per_task": 15.033325,
+     "cost_per_finished": 25.055541,
+     "human_cost": 285.0,
+     "total_with_human": 435.3332,
+     "total_per_finished_with_human": 72.555541,
+     "escalation_rate": 0.0,
+     "escalations": 0,
+     "escalations_helped": null,
+     "too_high": 0.2,
+     "too_low": 0.5,
+     "estimate_ratio": 0.018634,
+     "rebuilds_per_100_turns": 4.19,
+     "levels": {
+      "named": 10
+     },
+     "spend_by_model": {
+      "claude-sonnet": 150.3332
+     },
+     "savings_vs_sonnet": 0.0,
+     "savings_vs_sonnet_with_human": 0.0,
+     "savings_vs_opus": 0.4294,
+     "savings_vs_opus_with_human": 0.1603
+    },
+    "chat-short": {
+     "tasks": 159,
+     "cost": 0.4561,
+     "success_rate": 1.0,
+     "first_try_success": 1.0,
+     "finished": 159,
+     "failed_attempts": 0,
+     "cost_per_task": 0.002869,
+     "cost_per_finished": 0.002869,
+     "human_cost": 0.0,
+     "total_with_human": 0.4561,
+     "total_per_finished_with_human": 0.002869,
+     "escalation_rate": 0.0,
+     "escalations": 0,
+     "escalations_helped": null,
+     "too_high": 1.0,
+     "too_low": 0.0,
+     "estimate_ratio": 11.503615,
+     "rebuilds_per_100_turns": 0.0,
+     "levels": {
+      "named": 159
+     },
+     "spend_by_model": {
+      "claude-sonnet": 0.4561
+     },
+     "savings_vs_sonnet": 0.0,
+     "savings_vs_sonnet_with_human": 0.0,
+     "savings_vs_opus": 0.5,
+     "savings_vs_opus_with_human": 0.5
+    },
+    "chat": {
+     "tasks": 278,
+     "cost": 7.5005,
+     "success_rate": 1.0,
+     "first_try_success": 0.92446,
+     "finished": 278,
+     "failed_attempts": 21,
+     "cost_per_task": 0.02698,
+     "cost_per_finished": 0.02698,
+     "human_cost": 315.0,
+     "total_with_human": 322.5005,
+     "total_per_finished_with_human": 1.160074,
+     "escalation_rate": 0.0,
+     "escalations": 0,
+     "escalations_helped": null,
+     "too_high": 0.92446,
+     "too_low": 0.0,
+     "estimate_ratio": 1.423146,
+     "rebuilds_per_100_turns": 3.85,
+     "levels": {
+      "named": 278
+     },
+     "spend_by_model": {
+      "claude-sonnet": 7.5005
+     },
+     "savings_vs_sonnet": 0.0,
+     "savings_vs_sonnet_with_human": 0.0,
+     "savings_vs_opus": 0.5,
+     "savings_vs_opus_with_human": 0.0227
+    },
+    "analysis": {
+     "tasks": 126,
+     "cost": 14.7891,
+     "success_rate": 0.873016,
+     "first_try_success": 0.706349,
+     "finished": 110,
+     "failed_attempts": 72,
+     "cost_per_task": 0.117374,
+     "cost_per_finished": 0.134446,
+     "human_cost": 1080.0,
+     "total_with_human": 1094.7891,
+     "total_per_finished_with_human": 9.952628,
+     "escalation_rate": 0.0,
+     "escalations": 0,
+     "escalations_helped": null,
+     "too_high": 0.674603,
+     "too_low": 0.126984,
+     "estimate_ratio": 0.816454,
+     "rebuilds_per_100_turns": 8.24,
+     "levels": {
+      "named": 126
+     },
+     "spend_by_model": {
+      "claude-sonnet": 14.7891
+     },
+     "savings_vs_sonnet": 0.0,
+     "savings_vs_sonnet_with_human": 0.0,
+     "savings_vs_opus": 0.4714,
+     "savings_vs_opus_with_human": -0.1798
+    }
+   }
+  },
+  "always-cheapest": {
+   "label": "Always the cheapest (deepseek-v4.1-flash)",
+   "overall": {
+    "tasks": 2000,
+    "cost": 37.2601,
+    "success_rate": 0.946,
+    "first_try_success": 0.8555,
+    "finished": 1892,
+    "failed_attempts": 523,
+    "cost_per_task": 0.01863,
+    "cost_per_finished": 0.019694,
+    "human_cost": 7845.0,
+    "total_with_human": 7882.2601,
+    "total_per_finished_with_human": 4.166099,
+    "escalation_rate": 0.0,
+    "escalations": 0,
+    "escalations_helped": null,
+    "too_high": 0.2545,
+    "too_low": 0.0525,
+    "estimate_ratio": 0.116838,
+    "rebuilds_per_100_turns": 12.25,
+    "levels": {
+     "named": 2000
+    },
+    "spend_by_model": {
+     "deepseek-v4.1-flash": 37.2601
+    },
+    "savings_vs_sonnet": 0.9739,
+    "savings_vs_sonnet_with_human": -0.1912,
+    "savings_vs_opus": 0.9866,
+    "savings_vs_opus_with_human": -0.0206
+   },
+   "by_class": {
+    "coding-easy": {
+     "tasks": 559,
+     "cost": 2.0904,
+     "success_rate": 1.0,
+     "first_try_success": 0.937388,
+     "finished": 559,
+     "failed_attempts": 35,
+     "cost_per_task": 0.003739,
+     "cost_per_finished": 0.003739,
+     "human_cost": 525.0,
+     "total_with_human": 527.0904,
+     "total_per_finished_with_human": 0.942917,
+     "escalation_rate": 0.0,
+     "escalations": 0,
+     "escalations_helped": null,
+     "too_high": 0.037567,
+     "too_low": 0.0,
+     "estimate_ratio": 0.413047,
+     "rebuilds_per_100_turns": 10.15,
+     "levels": {
+      "named": 559
+     },
+     "spend_by_model": {
+      "deepseek-v4.1-flash": 2.0904
+     },
+     "savings_vs_sonnet": 0.9805,
+     "savings_vs_sonnet_with_human": 0.1665,
+     "savings_vs_opus": 0.9903,
+     "savings_vs_opus_with_human": 0.2879
+    },
+    "coding-medium": {
+     "tasks": 740,
+     "cost": 12.9719,
+     "success_rate": 0.998649,
+     "first_try_success": 0.9,
+     "finished": 739,
+     "failed_attempts": 76,
+     "cost_per_task": 0.01753,
+     "cost_per_finished": 0.017553,
+     "human_cost": 1140.0,
+     "total_with_human": 1152.9719,
+     "total_per_finished_with_human": 1.560179,
+     "escalation_rate": 0.0,
+     "escalations": 0,
+     "escalations_helped": null,
+     "too_high": 0.048649,
+     "too_low": 0.018919,
+     "estimate_ratio": 0.098896,
+     "rebuilds_per_100_turns": 11.65,
+     "levels": {
+      "named": 740
+     },
+     "spend_by_model": {
+      "deepseek-v4.1-flash": 12.9719
+     },
+     "savings_vs_sonnet": 0.977,
+     "savings_vs_sonnet_with_human": 0.2282,
+     "savings_vs_opus": 0.9885,
+     "savings_vs_opus_with_human": 0.4449
+    },
+    "coding-hard": {
+     "tasks": 128,
+     "cost": 17.4682,
+     "success_rate": 0.554688,
+     "first_try_success": 0.34375,
+     "finished": 71,
+     "failed_attempts": 207,
+     "cost_per_task": 0.13647,
+     "cost_per_finished": 0.246031,
+     "human_cost": 3105.0,
+     "total_with_human": 3122.4682,
+     "total_per_finished_with_human": 43.978425,
+     "escalation_rate": 0.0,
+     "escalations": 0,
+     "escalations_helped": null,
+     "too_high": 0.0,
+     "too_low": 0.3125,
+     "estimate_ratio": 0.029211,
+     "rebuilds_per_100_turns": 13.67,
+     "levels": {
+      "named": 128
+     },
+     "spend_by_model": {
+      "deepseek-v4.1-flash": 17.4682
+     },
+     "savings_vs_sonnet": 0.97,
+     "savings_vs_sonnet_with_human": -0.1837,
+     "savings_vs_opus": 0.9846,
+     "savings_vs_opus_with_human": 0.0019
+    },
+    "coding-very-hard": {
+     "tasks": 10,
+     "cost": 4.0812,
+     "success_rate": 0.3,
+     "first_try_success": 0.1,
+     "finished": 3,
+     "failed_attempts": 24,
+     "cost_per_task": 0.408118,
+     "cost_per_finished": 1.360393,
+     "human_cost": 360.0,
+     "total_with_human": 364.0812,
+     "total_per_finished_with_human": 121.360393,
+     "escalation_rate": 0.0,
+     "escalations": 0,
+     "escalations_helped": null,
+     "too_high": 0.0,
+     "too_low": 0.6,
+     "estimate_ratio": 0.011843,
+     "rebuilds_per_100_turns": 13.54,
+     "levels": {
+      "named": 10
+     },
+     "spend_by_model": {
+      "deepseek-v4.1-flash": 4.0812
+     },
+     "savings_vs_sonnet": 0.9729,
+     "savings_vs_sonnet_with_human": 0.1637,
+     "savings_vs_opus": 0.9845,
+     "savings_vs_opus_with_human": 0.2978
+    },
+    "chat-short": {
+     "tasks": 159,
+     "cost": 0.0163,
+     "success_rate": 1.0,
+     "first_try_success": 1.0,
+     "finished": 159,
+     "failed_attempts": 0,
+     "cost_per_task": 0.000103,
+     "cost_per_finished": 0.000103,
+     "human_cost": 0.0,
+     "total_with_human": 0.0163,
+     "total_per_finished_with_human": 0.000103,
+     "escalation_rate": 0.0,
+     "escalations": 0,
+     "escalations_helped": null,
+     "too_high": 1.0,
+     "too_low": 0.0,
+     "estimate_ratio": 8.291674,
+     "rebuilds_per_100_turns": 0.0,
+     "levels": {
+      "named": 159
+     },
+     "spend_by_model": {
+      "deepseek-v4.1-flash": 0.0163
+     },
+     "savings_vs_sonnet": 0.9643,
+     "savings_vs_sonnet_with_human": 0.9643,
+     "savings_vs_opus": 0.9821,
+     "savings_vs_opus_with_human": 0.9821
+    },
+    "chat": {
+     "tasks": 278,
+     "cost": 0.1961,
+     "success_rate": 1.0,
+     "first_try_success": 0.92446,
+     "finished": 278,
+     "failed_attempts": 22,
+     "cost_per_task": 0.000705,
+     "cost_per_finished": 0.000705,
+     "human_cost": 330.0,
+     "total_with_human": 330.1961,
+     "total_per_finished_with_human": 1.187756,
+     "escalation_rate": 0.0,
+     "escalations": 0,
+     "escalations_helped": null,
+     "too_high": 0.913669,
+     "too_low": 0.0,
+     "estimate_ratio": 1.348763,
+     "rebuilds_per_100_turns": 3.98,
+     "levels": {
+      "named": 278
+     },
+     "spend_by_model": {
+      "deepseek-v4.1-flash": 0.1961
+     },
+     "savings_vs_sonnet": 0.9739,
+     "savings_vs_sonnet_with_human": -0.0239,
+     "savings_vs_opus": 0.9869,
+     "savings_vs_opus_with_human": -0.0006
+    },
+    "analysis": {
+     "tasks": 126,
+     "cost": 0.436,
+     "success_rate": 0.65873,
+     "first_try_success": 0.47619,
+     "finished": 83,
+     "failed_attempts": 159,
+     "cost_per_task": 0.00346,
+     "cost_per_finished": 0.005253,
+     "human_cost": 2385.0,
+     "total_with_human": 2385.436,
+     "total_per_finished_with_human": 28.740193,
+     "escalation_rate": 0.0,
+     "escalations": 0,
+     "escalations_helped": null,
+     "too_high": 0.309524,
+     "too_low": 0.357143,
+     "estimate_ratio": 0.684577,
+     "rebuilds_per_100_turns": 9.44,
+     "levels": {
+      "named": 126
+     },
+     "spend_by_model": {
+      "deepseek-v4.1-flash": 0.436
+     },
+     "savings_vs_sonnet": 0.9705,
+     "savings_vs_sonnet_with_human": -1.1789,
+     "savings_vs_opus": 0.9844,
+     "savings_vs_opus_with_human": -1.5706
+    }
+   }
+  },
+  "auto-threshold": {
+   "label": "auto, model_choice threshold",
+   "overall": {
+    "tasks": 2000,
+    "cost": 1963.8059,
+    "success_rate": 0.975,
+    "first_try_success": 0.887,
+    "finished": 1950,
+    "failed_attempts": 341,
+    "cost_per_task": 0.981903,
+    "cost_per_finished": 1.00708,
+    "human_cost": 5115.0,
+    "total_with_human": 7078.8059,
+    "total_per_finished_with_human": 3.630157,
+    "escalation_rate": 0.0455,
+    "escalations": 92,
+    "escalations_helped": 0.815217,
+    "too_high": 0.6305,
+    "too_low": 0.021,
+    "estimate_ratio": 0.060136,
+    "rebuilds_per_100_turns": 7.32,
+    "levels": {
+     "coding:2": 369,
+     "coding:3": 555,
+     "coding:4": 409,
+     "coding:5": 94,
+     "general:1": 159,
+     "general:2": 295,
+     "general:3": 119
+    },
+    "spend_by_model": {
+     "claude-fable": 1656.1823,
+     "gpt-terra": 265.4771,
+     "claude-haiku": 40.8538,
+     "deepseek-v4.1-flash": 1.2886,
+     "glm-5.3-flash": 0.0041
+    },
+    "savings_vs_sonnet": -0.376,
+    "savings_vs_sonnet_with_human": -0.0698,
+    "savings_vs_opus": 0.2957,
+    "savings_vs_opus_with_human": 0.0834
+   },
+   "by_class": {
+    "coding-easy": {
+     "tasks": 559,
+     "cost": 29.7813,
+     "success_rate": 1.0,
+     "first_try_success": 0.937388,
+     "finished": 559,
+     "failed_attempts": 35,
+     "cost_per_task": 0.053276,
+     "cost_per_finished": 0.053276,
+     "human_cost": 525.0,
+     "total_with_human": 554.7813,
+     "total_per_finished_with_human": 0.992453,
+     "escalation_rate": 0.046512,
+     "escalations": 26,
+     "escalations_helped": 1.0,
+     "too_high": 0.350626,
+     "too_low": 0.0,
+     "estimate_ratio": 0.426986,
+     "rebuilds_per_100_turns": 8.45,
+     "levels": {
+      "coding:2": 369,
+      "coding:3": 106,
+      "coding:4": 81,
+      "general:2": 3
+     },
+     "spend_by_model": {
+      "claude-fable": 19.8534,
+      "gpt-terra": 7.4057,
+      "deepseek-v4.1-flash": 1.2886,
+      "claude-haiku": 1.2336
+     },
+     "savings_vs_sonnet": 0.7227,
+     "savings_vs_sonnet_with_human": 0.1228,
+     "savings_vs_opus": 0.8616,
+     "savings_vs_opus_with_human": 0.2505
+    },
+    "coding-medium": {
+     "tasks": 740,
+     "cost": 222.3617,
+     "success_rate": 1.0,
+     "first_try_success": 0.910811,
+     "finished": 740,
+     "failed_attempts": 66,
+     "cost_per_task": 0.300489,
+     "cost_per_finished": 0.300489,
+     "human_cost": 990.0,
+     "total_with_human": 1212.3617,
+     "total_per_finished_with_human": 1.638327,
+     "escalation_rate": 0.060811,
+     "escalations": 45,
+     "escalations_helped": 1.0,
+     "too_high": 0.902703,
+     "too_low": 0.008108,
+     "estimate_ratio": 0.109096,
+     "rebuilds_per_100_turns": 7.42,
+     "levels": {
+      "coding:3": 437,
+      "coding:4": 296,
+      "general:2": 7
+     },
+     "spend_by_model": {
+      "gpt-terra": 137.8017,
+      "claude-fable": 56.463,
+      "claude-haiku": 28.0969
+     },
+     "savings_vs_sonnet": 0.6057,
+     "savings_vs_sonnet_with_human": 0.1885,
+     "savings_vs_opus": 0.8036,
+     "savings_vs_opus_with_human": 0.4163
+    },
+    "coding-hard": {
+     "tasks": 128,
+     "cost": 1381.7689,
+     "success_rate": 0.8125,
+     "first_try_success": 0.5625,
+     "finished": 104,
+     "failed_attempts": 114,
+     "cost_per_task": 10.79507,
+     "cost_per_finished": 13.28624,
+     "human_cost": 1710.0,
+     "total_with_human": 3091.7689,
+     "total_per_finished_with_human": 29.728547,
+     "escalation_rate": 0.140625,
+     "escalations": 18,
+     "escalations_helped": 0.222222,
+     "too_high": 0.484375,
+     "too_low": 0.09375,
+     "estimate_ratio": 0.050052,
+     "rebuilds_per_100_turns": 7.0,
+     "levels": {
+      "coding:3": 11,
+      "coding:4": 31,
+      "coding:5": 86
+     },
+     "spend_by_model": {
+      "claude-fable": 1272.2128,
+      "gpt-terra": 101.6602,
+      "claude-haiku": 7.896
+     },
+     "savings_vs_sonnet": -1.371,
+     "savings_vs_sonnet_with_human": -0.1721,
+     "savings_vs_opus": -0.219,
+     "savings_vs_opus_with_human": 0.0117
+    },
+    "coding-very-hard": {
+     "tasks": 10,
+     "cost": 324.6955,
+     "success_rate": 0.6,
+     "first_try_success": 0.4,
+     "finished": 6,
+     "failed_attempts": 16,
+     "cost_per_task": 32.469547,
+     "cost_per_finished": 54.115912,
+     "human_cost": 240.0,
+     "total_with_human": 564.6955,
+     "total_per_finished_with_human": 94.115912,
+     "escalation_rate": 0.2,
+     "escalations": 3,
+     "escalations_helped": 0.0,
+     "too_high": 0.3,
+     "too_low": 0.3,
+     "estimate_ratio": 0.025573,
+     "rebuilds_per_100_turns": 7.23,
+     "levels": {
+      "coding:3": 1,
+      "coding:4": 1,
+      "coding:5": 8
+     },
+     "spend_by_model": {
+      "claude-fable": 307.6531,
+      "gpt-terra": 14.1091,
+      "claude-haiku": 2.9333
+     },
+     "savings_vs_sonnet": -1.1598,
+     "savings_vs_sonnet_with_human": -0.2972,
+     "savings_vs_opus": -0.2324,
+     "savings_vs_opus_with_human": -0.0892
+    },
+    "chat-short": {
+     "tasks": 159,
+     "cost": 0.0041,
+     "success_rate": 1.0,
+     "first_try_success": 1.0,
+     "finished": 159,
+     "failed_attempts": 0,
+     "cost_per_task": 2.6e-05,
+     "cost_per_finished": 2.6e-05,
+     "human_cost": 0.0,
+     "total_with_human": 0.0041,
+     "total_per_finished_with_human": 2.6e-05,
+     "escalation_rate": 0.0,
+     "escalations": 0,
+     "escalations_helped": null,
+     "too_high": 0.0,
+     "too_low": 0.0,
+     "estimate_ratio": 14.857363,
+     "rebuilds_per_100_turns": 0.0,
+     "levels": {
+      "general:1": 159
+     },
+     "spend_by_model": {
+      "glm-5.3-flash": 0.0041
+     },
+     "savings_vs_sonnet": 0.991,
+     "savings_vs_sonnet_with_human": 0.991,
+     "savings_vs_opus": 0.9955,
+     "savings_vs_opus_with_human": 0.9955
+    },
+    "chat": {
+     "tasks": 278,
+     "cost": 0.7495,
+     "success_rate": 1.0,
+     "first_try_success": 0.92446,
+     "finished": 278,
+     "failed_attempts": 21,
+     "cost_per_task": 0.002696,
+     "cost_per_finished": 0.002696,
+     "human_cost": 315.0,
+     "total_with_human": 315.7495,
+     "total_per_finished_with_human": 1.13579,
+     "escalation_rate": 0.0,
+     "escalations": 0,
+     "escalations_helped": null,
+     "too_high": 0.92446,
+     "too_low": 0.0,
+     "estimate_ratio": 1.502597,
+     "rebuilds_per_100_turns": 3.85,
+     "levels": {
+      "general:2": 240,
+      "general:3": 38
+     },
+     "spend_by_model": {
+      "gpt-terra": 0.415,
+      "claude-haiku": 0.3345
+     },
+     "savings_vs_sonnet": 0.9001,
+     "savings_vs_sonnet_with_human": 0.0209,
+     "savings_vs_opus": 0.95,
+     "savings_vs_opus_with_human": 0.0432
+    },
+    "analysis": {
+     "tasks": 126,
+     "cost": 4.4449,
+     "success_rate": 0.825397,
+     "first_try_success": 0.666667,
+     "finished": 104,
+     "failed_attempts": 89,
+     "cost_per_task": 0.035277,
+     "cost_per_finished": 0.04274,
+     "human_cost": 1335.0,
+     "total_with_human": 1339.4449,
+     "total_per_finished_with_human": 12.879278,
+     "escalation_rate": 0.0,
+     "escalations": 0,
+     "escalations_helped": null,
+     "too_high": 0.595238,
+     "too_low": 0.166667,
+     "estimate_ratio": 0.785999,
+     "rebuilds_per_100_turns": 9.15,
+     "levels": {
+      "general:2": 45,
+      "general:3": 81
+     },
+     "spend_by_model": {
+      "gpt-terra": 4.0854,
+      "claude-haiku": 0.3595
+     },
+     "savings_vs_sonnet": 0.6994,
+     "savings_vs_sonnet_with_human": -0.2235,
+     "savings_vs_opus": 0.8411,
+     "savings_vs_opus_with_human": -0.4434
+    }
+   }
+  },
+  "auto-cost-per-success": {
+   "label": "auto, model_choice cost_per_success",
+   "overall": {
+    "tasks": 2000,
+    "cost": 775.4911,
+    "success_rate": 0.9675,
+    "first_try_success": 0.8765,
+    "finished": 1935,
+    "failed_attempts": 396,
+    "cost_per_task": 0.387746,
+    "cost_per_finished": 0.400771,
+    "human_cost": 5940.0,
+    "total_with_human": 6715.4911,
+    "total_per_finished_with_human": 3.470538,
+    "escalation_rate": 0.043,
+    "escalations": 87,
+    "escalations_helped": 0.793103,
+    "too_high": 0.3725,
+    "too_low": 0.0315,
+    "estimate_ratio": 0.06123,
+    "rebuilds_per_100_turns": 12.02,
+    "levels": {
+     "coding:2": 369,
+     "coding:3": 555,
+     "coding:4": 409,
+     "coding:5": 94,
+     "general:1": 159,
+     "general:2": 295,
+     "general:3": 119
+    },
+    "spend_by_model": {
+     "gemini-carbon": 535.638,
+     "gpt-terra": 221.4037,
+     "deepseek-v4.1-flash": 17.784,
+     "claude-haiku": 0.6613,
+     "glm-5.3-flash": 0.0041
+    },
+    "savings_vs_sonnet": 0.4566,
+    "savings_vs_sonnet_with_human": -0.0149,
+    "savings_vs_opus": 0.7219,
+    "savings_vs_opus_with_human": 0.1305
+   },
+   "by_class": {
+    "coding-easy": {
+     "tasks": 559,
+     "cost": 13.5462,
+     "success_rate": 1.0,
+     "first_try_success": 0.937388,
+     "finished": 559,
+     "failed_attempts": 35,
+     "cost_per_task": 0.024233,
+     "cost_per_finished": 0.024233,
+     "human_cost": 525.0,
+     "total_with_human": 538.5462,
+     "total_per_finished_with_human": 0.96341,
+     "escalation_rate": 0.030411,
+     "escalations": 17,
+     "escalations_helped": 1.0,
+     "too_high": 0.166369,
+     "too_low": 0.0,
+     "estimate_ratio": 0.426089,
+     "rebuilds_per_100_turns": 10.15,
+     "levels": {
+      "coding:2": 369,
+      "coding:3": 106,
+      "coding:4": 81,
+      "general:2": 3
+     },
+     "spend_by_model": {
+      "gpt-terra": 7.4057,
+      "gemini-carbon": 4.4411,
+      "deepseek-v4.1-flash": 1.6995
+     },
+     "savings_vs_sonnet": 0.8739,
+     "savings_vs_sonnet_with_human": 0.1484,
+     "savings_vs_opus": 0.937,
+     "savings_vs_opus_with_human": 0.2724
+    },
+    "coding-medium": {
+     "tasks": 740,
+     "cost": 151.3911,
+     "success_rate": 1.0,
+     "first_try_success": 0.906757,
+     "finished": 740,
+     "failed_attempts": 69,
+     "cost_per_task": 0.204583,
+     "cost_per_finished": 0.204583,
+     "human_cost": 1035.0,
+     "total_with_human": 1186.3911,
+     "total_per_finished_with_human": 1.603231,
+     "escalation_rate": 0.063514,
+     "escalations": 47,
+     "escalations_helped": 1.0,
+     "too_high": 0.386486,
+     "too_low": 0.012162,
+     "estimate_ratio": 0.108346,
+     "rebuilds_per_100_turns": 11.65,
+     "levels": {
+      "coding:3": 437,
+      "coding:4": 296,
+      "general:2": 7
+     },
+     "spend_by_model": {
+      "gpt-terra": 123.7921,
+      "gemini-carbon": 17.7665,
+      "deepseek-v4.1-flash": 9.8325
+     },
+     "savings_vs_sonnet": 0.7315,
+     "savings_vs_sonnet_with_human": 0.2059,
+     "savings_vs_opus": 0.8663,
+     "savings_vs_opus_with_human": 0.4288
+    },
+    "coding-hard": {
+     "tasks": 128,
+     "cost": 504.7941,
+     "success_rate": 0.796875,
+     "first_try_success": 0.539062,
+     "finished": 102,
+     "failed_attempts": 121,
+     "cost_per_task": 3.943704,
+     "cost_per_finished": 4.948962,
+     "human_cost": 1815.0,
+     "total_with_human": 2319.7941,
+     "total_per_finished_with_human": 22.74308,
+     "escalation_rate": 0.15625,
+     "escalations": 20,
+     "escalations_helped": 0.25,
+     "too_high": 0.414062,
+     "too_low": 0.117188,
+     "estimate_ratio": 0.035944,
+     "rebuilds_per_100_turns": 13.64,
+     "levels": {
+      "coding:3": 11,
+      "coding:4": 31,
+      "coding:5": 86
+     },
+     "spend_by_model": {
+      "gemini-carbon": 421.1074,
+      "gpt-terra": 78.6851,
+      "deepseek-v4.1-flash": 5.0017
+     },
+     "savings_vs_sonnet": 0.1338,
+     "savings_vs_sonnet_with_human": 0.1206,
+     "savings_vs_opus": 0.5547,
+     "savings_vs_opus_with_human": 0.2585
+    },
+    "coding-very-hard": {
+     "tasks": 10,
+     "cost": 104.757,
+     "success_rate": 0.6,
+     "first_try_success": 0.4,
+     "finished": 6,
+     "failed_attempts": 15,
+     "cost_per_task": 10.475703,
+     "cost_per_finished": 17.459504,
+     "human_cost": 225.0,
+     "total_with_human": 329.757,
+     "total_per_finished_with_human": 54.959504,
+     "escalation_rate": 0.2,
+     "escalations": 3,
+     "escalations_helped": 0.0,
+     "too_high": 0.2,
+     "too_low": 0.3,
+     "estimate_ratio": 0.017943,
+     "rebuilds_per_100_turns": 13.1,
+     "levels": {
+      "coding:3": 1,
+      "coding:4": 1,
+      "coding:5": 8
+     },
+     "spend_by_model": {
+      "gemini-carbon": 92.323,
+      "gpt-terra": 11.5209,
+      "deepseek-v4.1-flash": 0.9131
+     },
+     "savings_vs_sonnet": 0.3032,
+     "savings_vs_sonnet_with_human": 0.2425,
+     "savings_vs_opus": 0.6024,
+     "savings_vs_opus_with_human": 0.364
+    },
+    "chat-short": {
+     "tasks": 159,
+     "cost": 0.0041,
+     "success_rate": 1.0,
+     "first_try_success": 1.0,
+     "finished": 159,
+     "failed_attempts": 0,
+     "cost_per_task": 2.6e-05,
+     "cost_per_finished": 2.6e-05,
+     "human_cost": 0.0,
+     "total_with_human": 0.0041,
+     "total_per_finished_with_human": 2.6e-05,
+     "escalation_rate": 0.0,
+     "escalations": 0,
+     "escalations_helped": null,
+     "too_high": 0.0,
+     "too_low": 0.0,
+     "estimate_ratio": 14.857363,
+     "rebuilds_per_100_turns": 0.0,
+     "levels": {
+      "general:1": 159
+     },
+     "spend_by_model": {
+      "glm-5.3-flash": 0.0041
+     },
+     "savings_vs_sonnet": 0.991,
+     "savings_vs_sonnet_with_human": 0.991,
+     "savings_vs_opus": 0.9955,
+     "savings_vs_opus_with_human": 0.9955
+    },
+    "chat": {
+     "tasks": 278,
+     "cost": 0.2193,
+     "success_rate": 1.0,
+     "first_try_success": 0.92446,
+     "finished": 278,
+     "failed_attempts": 22,
+     "cost_per_task": 0.000789,
+     "cost_per_finished": 0.000789,
+     "human_cost": 330.0,
+     "total_with_human": 330.2193,
+     "total_per_finished_with_human": 1.187839,
+     "escalation_rate": 0.0,
+     "escalations": 0,
+     "escalations_helped": null,
+     "too_high": 0.917266,
+     "too_low": 0.0,
+     "estimate_ratio": 1.376913,
+     "rebuilds_per_100_turns": 3.98,
+     "levels": {
+      "general:2": 240,
+      "general:3": 38
+     },
+     "spend_by_model": {
+      "deepseek-v4.1-flash": 0.1728,
+      "claude-haiku": 0.0465
+     },
+     "savings_vs_sonnet": 0.9708,
+     "savings_vs_sonnet_with_human": -0.0239,
+     "savings_vs_opus": 0.9854,
+     "savings_vs_opus_with_human": -0.0007
+    },
+    "analysis": {
+     "tasks": 126,
+     "cost": 0.7792,
+     "success_rate": 0.722222,
+     "first_try_success": 0.547619,
+     "finished": 91,
+     "failed_attempts": 134,
+     "cost_per_task": 0.006184,
+     "cost_per_finished": 0.008563,
+     "human_cost": 2010.0,
+     "total_with_human": 2010.7792,
+     "total_per_finished_with_human": 22.096475,
+     "escalation_rate": 0.0,
+     "escalations": 0,
+     "escalations_helped": null,
+     "too_high": 0.444444,
+     "too_low": 0.285714,
+     "estimate_ratio": 0.767865,
+     "rebuilds_per_100_turns": 8.33,
+     "levels": {
+      "general:2": 45,
+      "general:3": 81
+     },
+     "spend_by_model": {
+      "claude-haiku": 0.6148,
+      "deepseek-v4.1-flash": 0.1644
+     },
+     "savings_vs_sonnet": 0.9473,
+     "savings_vs_sonnet_with_human": -0.8367,
+     "savings_vs_opus": 0.9721,
+     "savings_vs_opus_with_human": -1.1668
+    }
+   }
+  },
+  "auto-expected-cost": {
+   "label": "auto, model_choice expected_cost",
+   "overall": {
+    "tasks": 2000,
+    "cost": 790.5308,
+    "success_rate": 0.977,
+    "first_try_success": 0.881,
+    "finished": 1954,
+    "failed_attempts": 348,
+    "cost_per_task": 0.395265,
+    "cost_per_finished": 0.404571,
+    "human_cost": 5220.0,
+    "total_with_human": 6010.5308,
+    "total_per_finished_with_human": 3.076014,
+    "escalation_rate": 0.0755,
+    "escalations": 152,
+    "escalations_helped": 0.782895,
+    "too_high": 0.631,
+    "too_low": 0.027,
+    "estimate_ratio": 0.064007,
+    "rebuilds_per_100_turns": 9.98,
+    "levels": {
+     "coding:2": 369,
+     "coding:3": 555,
+     "coding:4": 409,
+     "coding:5": 94,
+     "general:1": 159,
+     "general:2": 295,
+     "general:3": 119
+    },
+    "spend_by_model": {
+     "gemini-carbon": 534.6268,
+     "gpt-terra": 222.951,
+     "claude-haiku": 24.4072,
+     "deepseek-v4.1-flash": 8.5417,
+     "glm-5.3-flash": 0.0041
+    },
+    "savings_vs_sonnet": 0.4461,
+    "savings_vs_sonnet_with_human": 0.0917,
+    "savings_vs_opus": 0.7165,
+    "savings_vs_opus_with_human": 0.2218
+   },
+   "by_class": {
+    "coding-easy": {
+     "tasks": 559,
+     "cost": 14.8501,
+     "success_rate": 1.0,
+     "first_try_success": 0.937388,
+     "finished": 559,
+     "failed_attempts": 35,
+     "cost_per_task": 0.026565,
+     "cost_per_finished": 0.026565,
+     "human_cost": 525.0,
+     "total_with_human": 539.8501,
+     "total_per_finished_with_human": 0.965743,
+     "escalation_rate": 0.046512,
+     "escalations": 26,
+     "escalations_helped": 1.0,
+     "too_high": 0.386404,
+     "too_low": 0.0,
+     "estimate_ratio": 0.428577,
+     "rebuilds_per_100_turns": 8.61,
+     "levels": {
+      "coding:2": 369,
+      "coding:3": 106,
+      "coding:4": 81,
+      "general:2": 3
+     },
+     "spend_by_model": {
+      "gpt-terra": 7.9062,
+      "gemini-carbon": 4.4411,
+      "deepseek-v4.1-flash": 1.2603,
+      "claude-haiku": 1.2425
+     },
+     "savings_vs_sonnet": 0.8617,
+     "savings_vs_sonnet_with_human": 0.1464,
+     "savings_vs_opus": 0.931,
+     "savings_vs_opus_with_human": 0.2706
+    },
+    "coding-medium": {
+     "tasks": 740,
+     "cost": 161.5676,
+     "success_rate": 1.0,
+     "first_try_success": 0.910811,
+     "finished": 740,
+     "failed_attempts": 66,
+     "cost_per_task": 0.218335,
+     "cost_per_finished": 0.218335,
+     "human_cost": 990.0,
+     "total_with_human": 1151.5676,
+     "total_per_finished_with_human": 1.556172,
+     "escalation_rate": 0.060811,
+     "escalations": 45,
+     "escalations_helped": 1.0,
+     "too_high": 0.902703,
+     "too_low": 0.008108,
+     "estimate_ratio": 0.109119,
+     "rebuilds_per_100_turns": 7.68,
+     "levels": {
+      "coding:3": 437,
+      "coding:4": 296,
+      "general:2": 7
+     },
+     "spend_by_model": {
+      "gpt-terra": 123.1893,
+      "claude-haiku": 19.6932,
+      "gemini-carbon": 15.7561,
+      "deepseek-v4.1-flash": 2.929
+     },
+     "savings_vs_sonnet": 0.7135,
+     "savings_vs_sonnet_with_human": 0.2292,
+     "savings_vs_opus": 0.8573,
+     "savings_vs_opus_with_human": 0.4456
+    },
+    "coding-hard": {
+     "tasks": 128,
+     "cost": 504.6011,
+     "success_rate": 0.804688,
+     "first_try_success": 0.546875,
+     "finished": 103,
+     "failed_attempts": 118,
+     "cost_per_task": 3.942196,
+     "cost_per_finished": 4.89904,
+     "human_cost": 1770.0,
+     "total_with_human": 2274.6011,
+     "total_per_finished_with_human": 22.083506,
+     "escalation_rate": 0.140625,
+     "escalations": 18,
+     "escalations_helped": 0.222222,
+     "too_high": 0.429688,
+     "too_low": 0.109375,
+     "estimate_ratio": 0.03594,
+     "rebuilds_per_100_turns": 13.48,
+     "levels": {
+      "coding:3": 11,
+      "coding:4": 31,
+      "coding:5": 86
+     },
+     "spend_by_model": {
+      "gemini-carbon": 421.1074,
+      "gpt-terra": 78.0203,
+      "deepseek-v4.1-flash": 3.6227,
+      "claude-haiku": 1.8507
+     },
+     "savings_vs_sonnet": 0.1342,
+     "savings_vs_sonnet_with_human": 0.1377,
+     "savings_vs_opus": 0.5548,
+     "savings_vs_opus_with_human": 0.2729
+    },
+    "coding-very-hard": {
+     "tasks": 10,
+     "cost": 105.2993,
+     "success_rate": 0.6,
+     "first_try_success": 0.4,
+     "finished": 6,
+     "failed_attempts": 15,
+     "cost_per_task": 10.529929,
+     "cost_per_finished": 17.549882,
+     "human_cost": 225.0,
+     "total_with_human": 330.2993,
+     "total_per_finished_with_human": 55.049882,
+     "escalation_rate": 0.2,
+     "escalations": 3,
+     "escalations_helped": 0.0,
+     "too_high": 0.2,
+     "too_low": 0.3,
+     "estimate_ratio": 0.017815,
+     "rebuilds_per_100_turns": 13.17,
+     "levels": {
+      "coding:3": 1,
+      "coding:4": 1,
+      "coding:5": 8
+     },
+     "spend_by_model": {
+      "gemini-carbon": 92.323,
+      "gpt-terra": 11.5209,
+      "claude-haiku": 0.7669,
+      "deepseek-v4.1-flash": 0.6884
+     },
+     "savings_vs_sonnet": 0.2996,
+     "savings_vs_sonnet_with_human": 0.2413,
+     "savings_vs_opus": 0.6003,
+     "savings_vs_opus_with_human": 0.3629
+    },
+    "chat-short": {
+     "tasks": 159,
+     "cost": 0.0041,
+     "success_rate": 1.0,
+     "first_try_success": 1.0,
+     "finished": 159,
+     "failed_attempts": 0,
+     "cost_per_task": 2.6e-05,
+     "cost_per_finished": 2.6e-05,
+     "human_cost": 0.0,
+     "total_with_human": 0.0041,
+     "total_per_finished_with_human": 2.6e-05,
+     "escalation_rate": 0.0,
+     "escalations": 0,
+     "escalations_helped": null,
+     "too_high": 0.0,
+     "too_low": 0.0,
+     "estimate_ratio": 14.857363,
+     "rebuilds_per_100_turns": 0.0,
+     "levels": {
+      "general:1": 159
+     },
+     "spend_by_model": {
+      "glm-5.3-flash": 0.0041
+     },
+     "savings_vs_sonnet": 0.991,
+     "savings_vs_sonnet_with_human": 0.991,
+     "savings_vs_opus": 0.9955,
+     "savings_vs_opus_with_human": 0.9955
+    },
+    "chat": {
+     "tasks": 278,
+     "cost": 0.6056,
+     "success_rate": 1.0,
+     "first_try_success": 0.92446,
+     "finished": 278,
+     "failed_attempts": 21,
+     "cost_per_task": 0.002178,
+     "cost_per_finished": 0.002178,
+     "human_cost": 315.0,
+     "total_with_human": 315.6056,
+     "total_per_finished_with_human": 1.135272,
+     "escalation_rate": 0.064748,
+     "escalations": 18,
+     "escalations_helped": 1.0,
+     "too_high": 0.92446,
+     "too_low": 0.0,
+     "estimate_ratio": 1.367809,
+     "rebuilds_per_100_turns": 3.85,
+     "levels": {
+      "general:2": 240,
+      "general:3": 38
+     },
+     "spend_by_model": {
+      "claude-haiku": 0.2878,
+      "gpt-terra": 0.1985,
+      "gemini-carbon": 0.0818,
+      "deepseek-v4.1-flash": 0.0375
+     },
+     "savings_vs_sonnet": 0.9193,
+     "savings_vs_sonnet_with_human": 0.0214,
+     "savings_vs_opus": 0.9596,
+     "savings_vs_opus_with_human": 0.0436
+    },
+    "analysis": {
+     "tasks": 126,
+     "cost": 3.6031,
+     "success_rate": 0.865079,
+     "first_try_success": 0.587302,
+     "finished": 109,
+     "failed_attempts": 93,
+     "cost_per_task": 0.028596,
+     "cost_per_finished": 0.033056,
+     "human_cost": 1395.0,
+     "total_with_human": 1398.6031,
+     "total_per_finished_with_human": 12.831221,
+     "escalation_rate": 0.333333,
+     "escalations": 42,
+     "escalations_helped": 0.619048,
+     "too_high": 0.507937,
+     "too_low": 0.246032,
+     "estimate_ratio": 0.757171,
+     "rebuilds_per_100_turns": 8.57,
+     "levels": {
+      "general:2": 45,
+      "general:3": 81
+     },
+     "spend_by_model": {
+      "gpt-terra": 2.1159,
+      "gemini-carbon": 0.9173,
+      "claude-haiku": 0.5661,
+      "deepseek-v4.1-flash": 0.0037
+     },
+     "savings_vs_sonnet": 0.7564,
+     "savings_vs_sonnet_with_human": -0.2775,
+     "savings_vs_opus": 0.8712,
+     "savings_vs_opus_with_human": -0.5072
+    }
+   }
+  },
+  "auto-threshold-escalate": {
+   "label": "auto, threshold, escalating on evidence (example)",
+   "overall": {
+    "tasks": 2000,
+    "cost": 2149.8214,
+    "success_rate": 0.976,
+    "first_try_success": 0.891,
+    "finished": 1952,
+    "failed_attempts": 328,
+    "cost_per_task": 1.074911,
+    "cost_per_finished": 1.101343,
+    "human_cost": 4920.0,
+    "total_with_human": 7069.8214,
+    "total_per_finished_with_human": 3.621835,
+    "escalation_rate": 0.1065,
+    "escalations": 235,
+    "escalations_helped": 0.651064,
+    "too_high": 0.6345,
+    "too_low": 0.017,
+    "estimate_ratio": 0.05096,
+    "rebuilds_per_100_turns": 7.45,
+    "levels": {
+     "coding:2": 369,
+     "coding:3": 555,
+     "coding:4": 409,
+     "coding:5": 94,
+     "general:1": 159,
+     "general:2": 295,
+     "general:3": 119
+    },
+    "spend_by_model": {
+     "claude-fable": 1770.8886,
+     "gpt-terra": 327.3842,
+     "claude-haiku": 50.2469,
+     "deepseek-v4.1-flash": 1.2976,
+     "glm-5.3-flash": 0.0041
+    },
+    "savings_vs_sonnet": -0.5063,
+    "savings_vs_sonnet_with_human": -0.0684,
+    "savings_vs_opus": 0.229,
+    "savings_vs_opus_with_human": 0.0846
+   },
+   "by_class": {
+    "coding-easy": {
+     "tasks": 559,
+     "cost": 31.4384,
+     "success_rate": 1.0,
+     "first_try_success": 0.937388,
+     "finished": 559,
+     "failed_attempts": 35,
+     "cost_per_task": 0.05624,
+     "cost_per_finished": 0.05624,
+     "human_cost": 525.0,
+     "total_with_human": 556.4384,
+     "total_per_finished_with_human": 0.995418,
+     "escalation_rate": 0.057245,
+     "escalations": 36,
+     "escalations_helped": 0.583333,
+     "too_high": 0.354204,
+     "too_low": 0.0,
+     "estimate_ratio": 0.321271,
+     "rebuilds_per_100_turns": 8.88,
+     "levels": {
+      "coding:2": 369,
+      "coding:3": 106,
+      "coding:4": 81,
+      "general:2": 3
+     },
+     "spend_by_model": {
+      "claude-fable": 20.1695,
+      "gpt-terra": 8.6223,
+      "claude-haiku": 1.349,
+      "deepseek-v4.1-flash": 1.2976
+     },
+     "savings_vs_sonnet": 0.7073,
+     "savings_vs_sonnet_with_human": 0.1201,
+     "savings_vs_opus": 0.8539,
+     "savings_vs_opus_with_human": 0.2482
+    },
+    "coding-medium": {
+     "tasks": 740,
+     "cost": 311.5627,
+     "success_rate": 1.0,
+     "first_try_success": 0.916216,
+     "finished": 740,
+     "failed_attempts": 62,
+     "cost_per_task": 0.421031,
+     "cost_per_finished": 0.421031,
+     "human_cost": 930.0,
+     "total_with_human": 1241.5627,
+     "total_per_finished_with_human": 1.677787,
+     "escalation_rate": 0.198649,
+     "escalations": 154,
+     "escalations_helped": 0.74026,
+     "too_high": 0.904054,
+     "too_low": 0.002703,
+     "estimate_ratio": 0.058459,
+     "rebuilds_per_100_turns": 8.01,
+     "levels": {
+      "coding:3": 437,
+      "coding:4": 296,
+      "general:2": 7
+     },
+     "spend_by_model": {
+      "gpt-terra": 178.3546,
+      "claude-fable": 100.2762,
+      "claude-haiku": 32.932
+     },
+     "savings_vs_sonnet": 0.4475,
+     "savings_vs_sonnet_with_human": 0.1689,
+     "savings_vs_opus": 0.7248,
+     "savings_vs_opus_with_human": 0.4023
+    },
+    "coding-hard": {
+     "tasks": 128,
+     "cost": 1469.2399,
+     "success_rate": 0.828125,
+     "first_try_success": 0.59375,
+     "finished": 106,
+     "failed_attempts": 105,
+     "cost_per_task": 11.478437,
+     "cost_per_finished": 13.860754,
+     "human_cost": 1575.0,
+     "total_with_human": 3044.2399,
+     "total_per_finished_with_human": 28.719244,
+     "escalation_rate": 0.25,
+     "escalations": 42,
+     "escalations_helped": 0.428571,
+     "too_high": 0.523438,
+     "too_low": 0.0625,
+     "estimate_ratio": 0.04578,
+     "rebuilds_per_100_turns": 6.39,
+     "levels": {
+      "coding:3": 11,
+      "coding:4": 31,
+      "coding:5": 86
+     },
+     "spend_by_model": {
+      "claude-fable": 1337.0711,
+      "gpt-terra": 120.9743,
+      "claude-haiku": 11.1944
+     },
+     "savings_vs_sonnet": -1.5211,
+     "savings_vs_sonnet_with_human": -0.1541,
+     "savings_vs_opus": -0.2962,
+     "savings_vs_opus_with_human": 0.0269
+    },
+    "coding-very-hard": {
+     "tasks": 10,
+     "cost": 332.3833,
+     "success_rate": 0.6,
+     "first_try_success": 0.4,
+     "finished": 6,
+     "failed_attempts": 16,
+     "cost_per_task": 33.238327,
+     "cost_per_finished": 55.397212,
+     "human_cost": 240.0,
+     "total_with_human": 572.3833,
+     "total_per_finished_with_human": 95.397212,
+     "escalation_rate": 0.2,
+     "escalations": 3,
+     "escalations_helped": 0.0,
+     "too_high": 0.3,
+     "too_low": 0.3,
+     "estimate_ratio": 0.024866,
+     "rebuilds_per_100_turns": 7.14,
+     "levels": {
+      "coding:3": 1,
+      "coding:4": 1,
+      "coding:5": 8
+     },
+     "spend_by_model": {
+      "claude-fable": 313.3718,
+      "gpt-terra": 14.9326,
+      "claude-haiku": 4.0789
+     },
+     "savings_vs_sonnet": -1.211,
+     "savings_vs_sonnet_with_human": -0.3148,
+     "savings_vs_opus": -0.2616,
+     "savings_vs_opus_with_human": -0.104
+    },
+    "chat-short": {
+     "tasks": 159,
+     "cost": 0.0041,
+     "success_rate": 1.0,
+     "first_try_success": 1.0,
+     "finished": 159,
+     "failed_attempts": 0,
+     "cost_per_task": 2.6e-05,
+     "cost_per_finished": 2.6e-05,
+     "human_cost": 0.0,
+     "total_with_human": 0.0041,
+     "total_per_finished_with_human": 2.6e-05,
+     "escalation_rate": 0.0,
+     "escalations": 0,
+     "escalations_helped": null,
+     "too_high": 0.0,
+     "too_low": 0.0,
+     "estimate_ratio": 14.857363,
+     "rebuilds_per_100_turns": 0.0,
+     "levels": {
+      "general:1": 159
+     },
+     "spend_by_model": {
+      "glm-5.3-flash": 0.0041
+     },
+     "savings_vs_sonnet": 0.991,
+     "savings_vs_sonnet_with_human": 0.991,
+     "savings_vs_opus": 0.9955,
+     "savings_vs_opus_with_human": 0.9955
+    },
+    "chat": {
+     "tasks": 278,
+     "cost": 0.7495,
+     "success_rate": 1.0,
+     "first_try_success": 0.92446,
+     "finished": 278,
+     "failed_attempts": 21,
+     "cost_per_task": 0.002696,
+     "cost_per_finished": 0.002696,
+     "human_cost": 315.0,
+     "total_with_human": 315.7495,
+     "total_per_finished_with_human": 1.13579,
+     "escalation_rate": 0.0,
+     "escalations": 0,
+     "escalations_helped": null,
+     "too_high": 0.92446,
+     "too_low": 0.0,
+     "estimate_ratio": 1.502608,
+     "rebuilds_per_100_turns": 3.85,
+     "levels": {
+      "general:2": 240,
+      "general:3": 38
+     },
+     "spend_by_model": {
+      "gpt-terra": 0.415,
+      "claude-haiku": 0.3345
+     },
+     "savings_vs_sonnet": 0.9001,
+     "savings_vs_sonnet_with_human": 0.0209,
+     "savings_vs_opus": 0.95,
+     "savings_vs_opus_with_human": 0.0432
+    },
+    "analysis": {
+     "tasks": 126,
+     "cost": 4.4435,
+     "success_rate": 0.825397,
+     "first_try_success": 0.666667,
+     "finished": 104,
+     "failed_attempts": 89,
+     "cost_per_task": 0.035266,
+     "cost_per_finished": 0.042726,
+     "human_cost": 1335.0,
+     "total_with_human": 1339.4435,
+     "total_per_finished_with_human": 12.879264,
+     "escalation_rate": 0.0,
+     "escalations": 0,
+     "escalations_helped": null,
+     "too_high": 0.595238,
+     "too_low": 0.166667,
+     "estimate_ratio": 0.785977,
+     "rebuilds_per_100_turns": 9.15,
+     "levels": {
+      "general:2": 45,
+      "general:3": 81
+     },
+     "spend_by_model": {
+      "gpt-terra": 4.0854,
+      "claude-haiku": 0.3581
+     },
+     "savings_vs_sonnet": 0.6995,
+     "savings_vs_sonnet_with_human": -0.2235,
+     "savings_vs_opus": 0.8412,
+     "savings_vs_opus_with_human": -0.4434
+    }
+   }
+  },
+  "auto-expected-cost-cascade": {
+   "label": "auto, expected_cost, with its cascade (one escalation)",
+   "overall": {
+    "tasks": 2000,
+    "cost": 1055.9978,
+    "success_rate": 0.978,
+    "first_try_success": 0.8865,
+    "finished": 1956,
+    "failed_attempts": 331,
+    "cost_per_task": 0.527999,
+    "cost_per_finished": 0.539876,
+    "human_cost": 4965.0,
+    "total_with_human": 6020.9978,
+    "total_per_finished_with_human": 3.07822,
+    "escalation_rate": 0.121,
+    "escalations": 261,
+    "escalations_helped": 0.616858,
+    "too_high": 0.7085,
+    "too_low": 0.0215,
+    "estimate_ratio": 0.050224,
+    "rebuilds_per_100_turns": 9.65,
+    "levels": {
+     "coding:2": 369,
+     "coding:3": 555,
+     "coding:4": 409,
+     "coding:5": 94,
+     "general:1": 159,
+     "general:2": 295,
+     "general:3": 119
+    },
+    "spend_by_model": {
+     "gemini-carbon": 576.5933,
+     "gpt-terra": 224.1896,
+     "claude-fable": 220.0688,
+     "claude-haiku": 34.1507,
+     "deepseek-v4.1-flash": 0.9913,
+     "glm-5.3-flash": 0.0041
+    },
+    "savings_vs_sonnet": 0.2601,
+    "savings_vs_sonnet_with_human": 0.0901,
+    "savings_vs_opus": 0.6213,
+    "savings_vs_opus_with_human": 0.2204
+   },
+   "by_class": {
+    "coding-easy": {
+     "tasks": 559,
+     "cost": 15.4934,
+     "success_rate": 1.0,
+     "first_try_success": 0.937388,
+     "finished": 559,
+     "failed_attempts": 35,
+     "cost_per_task": 0.027716,
+     "cost_per_finished": 0.027716,
+     "human_cost": 525.0,
+     "total_with_human": 540.4934,
+     "total_per_finished_with_human": 0.966893,
+     "escalation_rate": 0.062612,
+     "escalations": 35,
+     "escalations_helped": 0.771429,
+     "too_high": 0.63864,
+     "too_low": 0.0,
+     "estimate_ratio": 0.405107,
+     "rebuilds_per_100_turns": 7.08,
+     "levels": {
+      "coding:2": 369,
+      "coding:3": 106,
+      "coding:4": 81,
+      "general:2": 3
+     },
+     "spend_by_model": {
+      "gpt-terra": 9.124,
+      "claude-haiku": 3.0122,
+      "gemini-carbon": 2.6699,
+      "deepseek-v4.1-flash": 0.6873
+     },
+     "savings_vs_sonnet": 0.8558,
+     "savings_vs_sonnet_with_human": 0.1453,
+     "savings_vs_opus": 0.928,
+     "savings_vs_opus_with_human": 0.2698
+    },
+    "coding-medium": {
+     "tasks": 740,
+     "cost": 182.5211,
+     "success_rate": 1.0,
+     "first_try_success": 0.912162,
+     "finished": 740,
+     "failed_attempts": 65,
+     "cost_per_task": 0.24665,
+     "cost_per_finished": 0.24665,
+     "human_cost": 975.0,
+     "total_with_human": 1157.5211,
+     "total_per_finished_with_human": 1.564218,
+     "escalation_rate": 0.124324,
+     "escalations": 92,
+     "escalations_helped": 0.847826,
+     "too_high": 0.904054,
+     "too_low": 0.006757,
+     "estimate_ratio": 0.092626,
+     "rebuilds_per_100_turns": 7.92,
+     "levels": {
+      "coding:3": 437,
+      "coding:4": 296,
+      "general:2": 7
+     },
+     "spend_by_model": {
+      "gpt-terra": 121.582,
+      "gemini-carbon": 37.955,
+      "claude-haiku": 22.9321,
+      "deepseek-v4.1-flash": 0.0519
+     },
+     "savings_vs_sonnet": 0.6763,
+     "savings_vs_sonnet_with_human": 0.2252,
+     "savings_vs_opus": 0.8388,
+     "savings_vs_opus_with_human": 0.4427
+    },
+    "coding-hard": {
+     "tasks": 128,
+     "cost": 690.6703,
+     "success_rate": 0.820312,
+     "first_try_success": 0.570312,
+     "finished": 105,
+     "failed_attempts": 110,
+     "cost_per_task": 5.395862,
+     "cost_per_finished": 6.577813,
+     "human_cost": 1650.0,
+     "total_with_human": 2340.6703,
+     "total_per_finished_with_human": 22.292098,
+     "escalation_rate": 0.40625,
+     "escalations": 66,
+     "escalations_helped": 0.212121,
+     "too_high": 0.460938,
+     "too_low": 0.085938,
+     "estimate_ratio": 0.025673,
+     "rebuilds_per_100_turns": 12.88,
+     "levels": {
+      "coding:3": 11,
+      "coding:4": 31,
+      "coding:5": 86
+     },
+     "spend_by_model": {
+      "gemini-carbon": 439.1347,
+      "claude-fable": 170.331,
+      "gpt-terra": 75.0128,
+      "claude-haiku": 5.9572,
+      "deepseek-v4.1-flash": 0.2347
+     },
+     "savings_vs_sonnet": -0.1851,
+     "savings_vs_sonnet_with_human": 0.1126,
+     "savings_vs_opus": 0.3907,
+     "savings_vs_opus_with_human": 0.2518
+    },
+    "coding-very-hard": {
+     "tasks": 10,
+     "cost": 161.3275,
+     "success_rate": 0.6,
+     "first_try_success": 0.5,
+     "finished": 6,
+     "failed_attempts": 14,
+     "cost_per_task": 16.132748,
+     "cost_per_finished": 26.887913,
+     "human_cost": 210.0,
+     "total_with_human": 371.3275,
+     "total_per_finished_with_human": 61.887913,
+     "escalation_rate": 0.6,
+     "escalations": 11,
+     "escalations_helped": 0.090909,
+     "too_high": 0.2,
+     "too_low": 0.2,
+     "estimate_ratio": 0.012285,
+     "rebuilds_per_100_turns": 12.78,
+     "levels": {
+      "coding:3": 1,
+      "coding:4": 1,
+      "coding:5": 8
+     },
+     "spend_by_model": {
+      "gemini-carbon": 94.9239,
+      "claude-fable": 49.7379,
+      "gpt-terra": 15.0981,
+      "claude-haiku": 1.5676
+     },
+     "savings_vs_sonnet": -0.0731,
+     "savings_vs_sonnet_with_human": 0.147,
+     "savings_vs_opus": 0.3877,
+     "savings_vs_opus_with_human": 0.2838
+    },
+    "chat-short": {
+     "tasks": 159,
+     "cost": 0.0041,
+     "success_rate": 1.0,
+     "first_try_success": 1.0,
+     "finished": 159,
+     "failed_attempts": 0,
+     "cost_per_task": 2.6e-05,
+     "cost_per_finished": 2.6e-05,
+     "human_cost": 0.0,
+     "total_with_human": 0.0041,
+     "total_per_finished_with_human": 2.6e-05,
+     "escalation_rate": 0.0,
+     "escalations": 0,
+     "escalations_helped": null,
+     "too_high": 0.0,
+     "too_low": 0.0,
+     "estimate_ratio": 14.857363,
+     "rebuilds_per_100_turns": 0.0,
+     "levels": {
+      "general:1": 159
+     },
+     "spend_by_model": {
+      "glm-5.3-flash": 0.0041
+     },
+     "savings_vs_sonnet": 0.991,
+     "savings_vs_sonnet_with_human": 0.991,
+     "savings_vs_opus": 0.9955,
+     "savings_vs_opus_with_human": 0.9955
+    },
+    "chat": {
+     "tasks": 278,
+     "cost": 0.6295,
+     "success_rate": 1.0,
+     "first_try_success": 0.92446,
+     "finished": 278,
+     "failed_attempts": 21,
+     "cost_per_task": 0.002265,
+     "cost_per_finished": 0.002265,
+     "human_cost": 315.0,
+     "total_with_human": 315.6295,
+     "total_per_finished_with_human": 1.135358,
+     "escalation_rate": 0.064748,
+     "escalations": 18,
+     "escalations_helped": 1.0,
+     "too_high": 0.92446,
+     "too_low": 0.0,
+     "estimate_ratio": 1.408673,
+     "rebuilds_per_100_turns": 3.85,
+     "levels": {
+      "general:2": 240,
+      "general:3": 38
+     },
+     "spend_by_model": {
+      "claude-haiku": 0.3296,
+      "gpt-terra": 0.2044,
+      "gemini-carbon": 0.0818,
+      "deepseek-v4.1-flash": 0.0137
+     },
+     "savings_vs_sonnet": 0.9161,
+     "savings_vs_sonnet_with_human": 0.0213,
+     "savings_vs_opus": 0.958,
+     "savings_vs_opus_with_human": 0.0436
+    },
+    "analysis": {
+     "tasks": 126,
+     "cost": 5.3519,
+     "success_rate": 0.865079,
+     "first_try_success": 0.634921,
+     "finished": 109,
+     "failed_attempts": 86,
+     "cost_per_task": 0.042475,
+     "cost_per_finished": 0.0491,
+     "human_cost": 1290.0,
+     "total_with_human": 1295.3519,
+     "total_per_finished_with_human": 11.883962,
+     "escalation_rate": 0.309524,
+     "escalations": 39,
+     "escalations_helped": 0.589744,
+     "too_high": 0.579365,
+     "too_low": 0.198413,
+     "estimate_ratio": 0.799774,
+     "rebuilds_per_100_turns": 8.4,
+     "levels": {
+      "general:2": 45,
+      "general:3": 81
+     },
+     "spend_by_model": {
+      "gpt-terra": 3.1683,
+      "gemini-carbon": 1.8279,
+      "claude-haiku": 0.352,
+      "deepseek-v4.1-flash": 0.0037
+     },
+     "savings_vs_sonnet": 0.6381,
+     "savings_vs_sonnet_with_human": -0.1832,
+     "savings_vs_opus": 0.8087,
+     "savings_vs_opus_with_human": -0.3959
+    }
+   }
+  },
+  "oracle": {
+   "label": "Oracle: the cheapest model that succeeds (lower bound)",
+   "overall": {
+    "tasks": 2000,
+    "cost": 339.1884,
+    "success_rate": 0.987,
+    "first_try_success": 0.908,
+    "finished": 1974,
+    "failed_attempts": 244,
+    "cost_per_task": 0.169594,
+    "cost_per_finished": 0.171828,
+    "human_cost": 3660.0,
+    "total_with_human": 3999.1884,
+    "total_per_finished_with_human": 2.025931,
+    "escalation_rate": 0.0,
+    "escalations": 0,
+    "escalations_helped": null,
+    "too_high": 0.0,
+    "too_low": 0.0,
+    "estimate_ratio": 0.055159,
+    "rebuilds_per_100_turns": 11.44,
+    "levels": {
+     "named": 2000
+    },
+    "spend_by_model": {
+     "claude-fable": 106.008,
+     "gemini-carbon": 63.884,
+     "gpt-terra": 57.6073,
+     "gpt-astra": 44.7914,
+     "claude-sonnet": 27.5023,
+     "deepseek-v4.1-flash": 21.6315
+    },
+    "savings_vs_sonnet": 0.7623,
+    "savings_vs_sonnet_with_human": 0.3956,
+    "savings_vs_opus": 0.8783,
+    "savings_vs_opus_with_human": 0.4822
+   },
+   "by_class": {
+    "coding-easy": {
+     "tasks": 559,
+     "cost": 2.0878,
+     "success_rate": 1.0,
+     "first_try_success": 0.937388,
+     "finished": 559,
+     "failed_attempts": 35,
+     "cost_per_task": 0.003735,
+     "cost_per_finished": 0.003735,
+     "human_cost": 525.0,
+     "total_with_human": 527.0878,
+     "total_per_finished_with_human": 0.942912,
+     "escalation_rate": 0.0,
+     "escalations": 0,
+     "escalations_helped": null,
+     "too_high": 0.0,
+     "too_low": 0.0,
+     "estimate_ratio": 0.407744,
+     "rebuilds_per_100_turns": 10.15,
+     "levels": {
+      "named": 559
+     },
+     "spend_by_model": {
+      "deepseek-v4.1-flash": 2.0736,
+      "glm-5.3-flash": 0.0091,
+      "gpt-oss-20b": 0.0051
+     },
+     "savings_vs_sonnet": 0.9806,
+     "savings_vs_sonnet_with_human": 0.1665,
+     "savings_vs_opus": 0.9903,
+     "savings_vs_opus_with_human": 0.2879
+    },
+    "coding-medium": {
+     "tasks": 740,
+     "cost": 17.2042,
+     "success_rate": 1.0,
+     "first_try_success": 0.918919,
+     "finished": 740,
+     "failed_attempts": 60,
+     "cost_per_task": 0.023249,
+     "cost_per_finished": 0.023249,
+     "human_cost": 900.0,
+     "total_with_human": 917.2042,
+     "total_per_finished_with_human": 1.239465,
+     "escalation_rate": 0.0,
+     "escalations": 0,
+     "escalations_helped": null,
+     "too_high": 0.0,
+     "too_low": 0.0,
+     "estimate_ratio": 0.111076,
+     "rebuilds_per_100_turns": 11.54,
+     "levels": {
+      "named": 740
+     },
+     "spend_by_model": {
+      "deepseek-v4.1-flash": 12.3207,
+      "gpt-terra": 2.9911,
+      "claude-opus": 1.0212,
+      "claude-sonnet": 0.6663,
+      "claude-haiku": 0.0853,
+      "gemini-flash": 0.0491
+     },
+     "savings_vs_sonnet": 0.9695,
+     "savings_vs_sonnet_with_human": 0.386,
+     "savings_vs_opus": 0.9848,
+     "savings_vs_opus_with_human": 0.5584
+    },
+    "coding-hard": {
+     "tasks": 128,
+     "cost": 220.1581,
+     "success_rate": 0.875,
+     "first_try_success": 0.65625,
+     "finished": 112,
+     "failed_attempts": 82,
+     "cost_per_task": 1.719985,
+     "cost_per_finished": 1.965697,
+     "human_cost": 1230.0,
+     "total_with_human": 1450.1581,
+     "total_per_finished_with_human": 12.94784,
+     "escalation_rate": 0.0,
+     "escalations": 0,
+     "escalations_helped": null,
+     "too_high": 0.0,
+     "too_low": 0.0,
+     "estimate_ratio": 0.048605,
+     "rebuilds_per_100_turns": 12.59,
+     "levels": {
+      "named": 128
+     },
+     "spend_by_model": {
+      "claude-fable": 90.6521,
+      "gemini-carbon": 53.9718,
+      "gpt-terra": 51.9007,
+      "claude-sonnet": 12.74,
+      "deepseek-v4.1-flash": 6.1792,
+      "gemini-argon": 2.3414
+     },
+     "savings_vs_sonnet": 0.6222,
+     "savings_vs_sonnet_with_human": 0.4502,
+     "savings_vs_opus": 0.8058,
+     "savings_vs_opus_with_human": 0.5365
+    },
+    "coding-very-hard": {
+     "tasks": 10,
+     "cost": 95.8461,
+     "success_rate": 0.8,
+     "first_try_success": 0.7,
+     "finished": 8,
+     "failed_attempts": 8,
+     "cost_per_task": 9.584609,
+     "cost_per_finished": 11.980761,
+     "human_cost": 120.0,
+     "total_with_human": 215.8461,
+     "total_per_finished_with_human": 26.980761,
+     "escalation_rate": 0.0,
+     "escalations": 0,
+     "escalations_helped": null,
+     "too_high": 0.0,
+     "too_low": 0.0,
+     "estimate_ratio": 0.01808,
+     "rebuilds_per_100_turns": 10.81,
+     "levels": {
+      "named": 10
+     },
+     "spend_by_model": {
+      "gpt-astra": 44.7914,
+      "claude-sonnet": 13.7086,
+      "claude-fable": 13.3751,
+      "claude-opus": 11.3483,
+      "gemini-carbon": 9.5535,
+      "gpt-terra": 2.0746
+     },
+     "savings_vs_sonnet": 0.3624,
+     "savings_vs_sonnet_with_human": 0.5042,
+     "savings_vs_opus": 0.6362,
+     "savings_vs_opus_with_human": 0.5837
+    },
+    "chat-short": {
+     "tasks": 159,
+     "cost": 0.0041,
+     "success_rate": 1.0,
+     "first_try_success": 1.0,
+     "finished": 159,
+     "failed_attempts": 0,
+     "cost_per_task": 2.6e-05,
+     "cost_per_finished": 2.6e-05,
+     "human_cost": 0.0,
+     "total_with_human": 0.0041,
+     "total_per_finished_with_human": 2.6e-05,
+     "escalation_rate": 0.0,
+     "escalations": 0,
+     "escalations_helped": null,
+     "too_high": 0.0,
+     "too_low": 0.0,
+     "estimate_ratio": 14.857363,
+     "rebuilds_per_100_turns": 0.0,
+     "levels": {
+      "named": 159
+     },
+     "spend_by_model": {
+      "glm-5.3-flash": 0.0041
+     },
+     "savings_vs_sonnet": 0.991,
+     "savings_vs_sonnet_with_human": 0.991,
+     "savings_vs_opus": 0.9955,
+     "savings_vs_opus_with_human": 0.9955
+    },
+    "chat": {
+     "tasks": 278,
+     "cost": 0.122,
+     "success_rate": 1.0,
+     "first_try_success": 0.92446,
+     "finished": 278,
+     "failed_attempts": 21,
+     "cost_per_task": 0.000439,
+     "cost_per_finished": 0.000439,
+     "human_cost": 315.0,
+     "total_with_human": 315.122,
+     "total_per_finished_with_human": 1.133532,
+     "escalation_rate": 0.0,
+     "escalations": 0,
+     "escalations_helped": null,
+     "too_high": 0.0,
+     "too_low": 0.0,
+     "estimate_ratio": 1.15022,
+     "rebuilds_per_100_turns": 3.85,
+     "levels": {
+      "named": 278
+     },
+     "spend_by_model": {
+      "glm-5.3-flash": 0.1019,
+      "gpt-oss-20b": 0.0151,
+      "claude-haiku": 0.0029,
+      "deepseek-v4.1-flash": 0.0021
+     },
+     "savings_vs_sonnet": 0.9837,
+     "savings_vs_sonnet_with_human": 0.0229,
+     "savings_vs_opus": 0.9919,
+     "savings_vs_opus_with_human": 0.0451
+    },
+    "analysis": {
+     "tasks": 126,
+     "cost": 3.7662,
+     "success_rate": 0.936508,
+     "first_try_success": 0.833333,
+     "finished": 118,
+     "failed_attempts": 38,
+     "cost_per_task": 0.02989,
+     "cost_per_finished": 0.031917,
+     "human_cost": 570.0,
+     "total_with_human": 573.7662,
+     "total_per_finished_with_human": 4.862425,
+     "escalation_rate": 0.0,
+     "escalations": 0,
+     "escalations_helped": null,
+     "too_high": 0.0,
+     "too_low": 0.0,
+     "estimate_ratio": 0.815675,
+     "rebuilds_per_100_turns": 9.33,
+     "levels": {
+      "named": 126
+     },
+     "spend_by_model": {
+      "claude-fable": 1.9808,
+      "gpt-terra": 0.6408,
+      "claude-sonnet": 0.3874,
+      "gemini-carbon": 0.3586,
+      "kimi-k3.1": 0.0968,
+      "deepseek-v4.1-flash": 0.0612
+     },
+     "savings_vs_sonnet": 0.7453,
+     "savings_vs_sonnet_with_human": 0.4759,
+     "savings_vs_opus": 0.8654,
+     "savings_vs_opus_with_human": 0.3817
+    }
+   }
+  }
+ },
+ "order": [
+  "always-opus",
+  "always-sonnet",
+  "always-cheapest",
+  "auto-threshold",
+  "auto-cost-per-success",
+  "auto-expected-cost",
+  "auto-threshold-escalate",
+  "auto-expected-cost-cascade",
+  "oracle"
+ ],
+ "classes": [
+  "coding-easy",
+  "coding-medium",
+  "coding-hard",
+  "coding-very-hard",
+  "chat-short",
+  "chat",
+  "analysis"
+ ],
+ "tasks": 2000,
+ "human_cost": 15.0,
+ "settings": {
+  "tasks": 2000,
+  "seed": 1,
+  "mix": "standard",
+  "human_cost": 15.0,
+  "pause_share": 0.1,
+  "max_attempts": 3,
+  "quality_error": 0.0,
+  "oracle": true,
+  "sensitivity": true,
+  "sensitivity_tasks": 400,
+  "strategies": null
+ },
+ "human_sensitivity": {
+  "always-opus": {
+   "0.0": 1.4276,
+   "5.0": 2.2699,
+   "15.0": 3.9545,
+   "50.0": 9.8506
+  },
+  "always-sonnet": {
+   "0.0": 0.7326,
+   "5.0": 1.6207,
+   "15.0": 3.3969,
+   "50.0": 9.6135
+  },
+  "always-cheapest": {
+   "0.0": 0.0197,
+   "5.0": 1.4018,
+   "15.0": 4.1661,
+   "50.0": 13.841
+  },
+  "auto-threshold": {
+   "0.0": 1.0071,
+   "5.0": 1.8814,
+   "15.0": 3.6302,
+   "50.0": 9.7507
+  },
+  "auto-cost-per-success": {
+   "0.0": 0.4008,
+   "5.0": 1.424,
+   "15.0": 3.4705,
+   "50.0": 10.6333
+  },
+  "auto-expected-cost": {
+   "0.0": 0.4046,
+   "5.0": 1.2951,
+   "15.0": 3.076,
+   "50.0": 9.3094
+  },
+  "auto-threshold-escalate": {
+   "0.0": 1.1013,
+   "5.0": 1.9415,
+   "15.0": 3.6218,
+   "50.0": 9.503
+  },
+  "auto-expected-cost-cascade": {
+   "0.0": 0.5399,
+   "5.0": 1.386,
+   "15.0": 3.0782,
+   "50.0": 9.001
+  },
+  "oracle": {
+   "0.0": 0.1718,
+   "5.0": 0.7899,
+   "15.0": 2.0259,
+   "50.0": 6.3522
+  }
+ },
+ "intervals": {
+  "always-opus": {
+   "success_rate": [
+    0.971,
+    0.9815
+   ],
+   "cost_per_finished": [
+    1.307394,
+    1.564514
+   ],
+   "total_per_finished_with_human": [
+    3.571776,
+    4.353391
+   ],
+   "savings_vs_sonnet": [
+    -1.023471,
+    -0.874924
+   ]
+  },
+  "always-sonnet": {
+   "success_rate": [
+    0.968,
+    0.9795
+   ],
+   "cost_per_finished": [
+    0.666572,
+    0.801064
+   ],
+   "total_per_finished_with_human": [
+    3.078659,
+    3.762442
+   ],
+   "savings_vs_sonnet": [
+    0.0,
+    0.0
+   ]
+  },
+  "always-cheapest": {
+   "success_rate": [
+    0.938,
+    0.9535
+   ],
+   "cost_per_finished": [
+    0.01782,
+    0.021665
+   ],
+   "total_per_finished_with_human": [
+    3.742941,
+    4.641535
+   ],
+   "savings_vs_sonnet": [
+    0.973092,
+    0.97467
+   ]
+  },
+  "auto-threshold": {
+   "success_rate": [
+    0.9685,
+    0.98
+   ],
+   "cost_per_finished": [
+    0.834434,
+    1.199731
+   ],
+   "total_per_finished_with_human": [
+    3.201426,
+    4.073014
+   ],
+   "savings_vs_sonnet": [
+    -0.529085,
+    -0.213297
+   ]
+  },
+  "auto-cost-per-success": {
+   "success_rate": [
+    0.961,
+    0.973
+   ],
+   "cost_per_finished": [
+    0.344524,
+    0.462746
+   ],
+   "total_per_finished_with_human": [
+    3.121907,
+    3.856697
+   ],
+   "savings_vs_sonnet": [
+    0.412209,
+    0.508021
+   ]
+  },
+  "auto-expected-cost": {
+   "success_rate": [
+    0.971,
+    0.9815
+   ],
+   "cost_per_finished": [
+    0.348487,
+    0.465413
+   ],
+   "total_per_finished_with_human": [
+    2.766372,
+    3.431552
+   ],
+   "savings_vs_sonnet": [
+    0.401561,
+    0.497349
+   ]
+  },
+  "auto-threshold-escalate": {
+   "success_rate": [
+    0.9695,
+    0.981
+   ],
+   "cost_per_finished": [
+    0.923062,
+    1.287301
+   ],
+   "total_per_finished_with_human": [
+    3.199036,
+    4.069265
+   ],
+   "savings_vs_sonnet": [
+    -0.648839,
+    -0.35281
+   ]
+  },
+  "auto-expected-cost-cascade": {
+   "success_rate": [
+    0.972,
+    0.9825
+   ],
+   "cost_per_finished": [
+    0.445248,
+    0.639047
+   ],
+   "total_per_finished_with_human": [
+    2.765244,
+    3.447103
+   ],
+   "savings_vs_sonnet": [
+    0.175678,
+    0.340599
+   ]
+  },
+  "oracle": {
+   "success_rate": [
+    0.9825,
+    0.991
+   ],
+   "cost_per_finished": [
+    0.126482,
+    0.228472
+   ],
+   "total_per_finished_with_human": [
+    1.783634,
+    2.277518
+   ],
+   "savings_vs_sonnet": [
+    0.700194,
+    0.820763
+   ]
+  }
+ },
+ "calibration": {
+  "deepseek-v4.1-flash-1017": {
+   "ability": 159.41,
+   "hard": 0.2889,
+   "frontier_swe": 0.286,
+   "swe_mix": 0.8494,
+   "swe_verified": 0.8062
+  },
+  "deepseek-v4.1-flash": {
+   "ability": 161.0,
+   "hard": 0.3403,
+   "frontier_swe": 0.3373,
+   "swe_mix": 0.8564,
+   "swe_verified": 0.8183
+  },
+  "deepseek-v4-pro": {
+   "ability": 146.04,
+   "hard": 0.0404,
+   "frontier_swe": 0.0507,
+   "swe_mix": 0.7435,
+   "swe_verified": 0.6807
+  },
+  "glm-5.3": {
+   "ability": 159.57,
+   "hard": 0.2939,
+   "frontier_swe": 0.291,
+   "swe_mix": 0.8501,
+   "swe_verified": 0.8074
+  },
+  "glm-5.3-flash": {
+   "ability": 155.26,
+   "hard": 0.1754,
+   "frontier_swe": 0.1765,
+   "swe_mix": 0.8278,
+   "swe_verified": 0.7717
+  },
+  "minimax-m3": {
+   "ability": 143.53,
+   "hard": 0.0252,
+   "frontier_swe": 0.0353,
+   "swe_mix": 0.7065,
+   "swe_verified": 0.6528
+  },
+  "muse-spark": {
+   "ability": 158.47,
+   "hard": 0.2604,
+   "frontier_swe": 0.258,
+   "swe_mix": 0.845,
+   "swe_verified": 0.7987
+  },
+  "muse-spark-open": {
+   "ability": 155.42,
+   "hard": 0.1792,
+   "frontier_swe": 0.18,
+   "swe_mix": 0.8287,
+   "swe_verified": 0.7731
+  },
+  "llama-4-maverick": {
+   "ability": 132.08,
+   "hard": 0.0021,
+   "frontier_swe": 0.0065,
+   "swe_mix": 0.4547,
+   "swe_verified": 0.5147
+  },
+  "kimi-k3.1": {
+   "ability": 161.37,
+   "hard": 0.3527,
+   "frontier_swe": 0.3499,
+   "swe_mix": 0.858,
+   "swe_verified": 0.8211
+  },
+  "kimi-k3": {
+   "ability": 159.81,
+   "hard": 0.3015,
+   "frontier_swe": 0.2985,
+   "swe_mix": 0.8512,
+   "swe_verified": 0.8093
+  },
+  "qwen3-coder": {
+   "ability": 143.5,
+   "hard": 0.025,
+   "frontier_swe": 0.0351,
+   "swe_mix": 0.706,
+   "swe_verified": 0.6525
+  },
+  "mistral-large-4": {
+   "ability": 158.89,
+   "hard": 0.273,
+   "frontier_swe": 0.2703,
+   "swe_mix": 0.847,
+   "swe_verified": 0.8021
+  },
+  "gemma-4-31b": {
+   "ability": 144.27,
+   "hard": 0.029,
+   "frontier_swe": 0.0393,
+   "swe_mix": 0.7182,
+   "swe_verified": 0.6612
+  },
+  "nemotron-3-ultra": {
+   "ability": 142.49,
+   "hard": 0.0205,
+   "frontier_swe": 0.0303,
+   "swe_mix": 0.689,
+   "swe_verified": 0.641
+  },
+  "gpt-oss-120b": {
+   "ability": 140.16,
+   "hard": 0.0127,
+   "frontier_swe": 0.0215,
+   "swe_mix": 0.6452,
+   "swe_verified": 0.6137
+  },
+  "gpt-oss-20b": {
+   "ability": 134.97,
+   "hard": 0.0041,
+   "frontier_swe": 0.01,
+   "swe_mix": 0.528,
+   "swe_verified": 0.5507
+  },
+  "claude-fable": {
+   "ability": 171.08,
+   "hard": 0.6934,
+   "frontier_swe": 0.6993,
+   "swe_mix": 0.8922,
+   "swe_verified": 0.8817
+  },
+  "claude-opus": {
+   "ability": 167.41,
+   "hard": 0.5683,
+   "frontier_swe": 0.5722,
+   "swe_mix": 0.8807,
+   "swe_verified": 0.8612
+  },
+  "claude-sonnet": {
+   "ability": 166.75,
+   "hard": 0.5446,
+   "frontier_swe": 0.5477,
+   "swe_mix": 0.8785,
+   "swe_verified": 0.8572
+  },
+  "claude-haiku": {
+   "ability": 162.99,
+   "hard": 0.4089,
+   "frontier_swe": 0.4073,
+   "swe_mix": 0.8646,
+   "swe_verified": 0.8326
+  },
+  "gpt-astra": {
+   "ability": 167.54,
+   "hard": 0.5729,
+   "frontier_swe": 0.577,
+   "swe_mix": 0.8812,
+   "swe_verified": 0.862
+  },
+  "gpt-sol": {
+   "ability": 163.95,
+   "hard": 0.4432,
+   "frontier_swe": 0.4426,
+   "swe_mix": 0.8683,
+   "swe_verified": 0.8392
+  },
+  "gpt-terra": {
+   "ability": 167.67,
+   "hard": 0.5776,
+   "frontier_swe": 0.5818,
+   "swe_mix": 0.8816,
+   "swe_verified": 0.8628
+  },
+  "gpt-luna": {
+   "ability": 160.32,
+   "hard": 0.3179,
+   "frontier_swe": 0.3148,
+   "swe_mix": 0.8535,
+   "swe_verified": 0.8132
+  },
+  "gemini-carbon": {
+   "ability": 168.5,
+   "hard": 0.6068,
+   "frontier_swe": 0.6119,
+   "swe_mix": 0.8843,
+   "swe_verified": 0.8676
+  },
+  "gemini-argon": {
+   "ability": 164.75,
+   "hard": 0.4721,
+   "frontier_swe": 0.4725,
+   "swe_mix": 0.8713,
+   "swe_verified": 0.8446
+  },
+  "gemini-flash": {
+   "ability": 157.93,
+   "hard": 0.2448,
+   "frontier_swe": 0.2427,
+   "swe_mix": 0.8423,
+   "swe_verified": 0.7944
+  },
+  "gemini-flash-lite": {
+   "ability": 145.63,
+   "hard": 0.0375,
+   "frontier_swe": 0.0478,
+   "swe_mix": 0.738,
+   "swe_verified": 0.6762
+  },
+  "grok": {
+   "ability": 161.21,
+   "hard": 0.3473,
+   "frontier_swe": 0.3445,
+   "swe_mix": 0.8573,
+   "swe_verified": 0.8199
+  }
+ },
+ "population": {
+  "classes": {
+   "coding-easy": 559,
+   "coding-medium": 740,
+   "coding-hard": 128,
+   "coding-very-hard": 10,
+   "chat-short": 159,
+   "chat": 278,
+   "analysis": 126
+  },
+  "misleading": 269,
+  "ambiguous": 131
+ },
+ "config": {
+  "backends": [
+   "anthropic",
+   "gemini",
+   "openai",
+   "openrouter",
+   "xai"
+  ],
+  "prices_updated": "2026-11-12T12:28:15+00:00",
+  "quality_updated": "2026-11-12T12:28:15+00:00"
+ },
+ "sensitivity": {
+  "mix": {
+   "easier": {
+    "always-sonnet": {
+     "cost_per_finished": 0.498705,
+     "success_rate": 0.9875,
+     "total_per_finished_with_human": 2.397439
+    },
+    "auto-threshold": {
+     "cost_per_finished": 0.557446,
+     "success_rate": 0.995,
+     "total_per_finished_with_human": 2.178049
+    },
+    "auto-cost-per-success": {
+     "cost_per_finished": 0.250662,
+     "success_rate": 0.9825,
+     "total_per_finished_with_human": 2.349899
+    },
+    "auto-expected-cost": {
+     "cost_per_finished": 0.254811,
+     "success_rate": 0.99,
+     "total_per_finished_with_human": 2.14875
+    }
+   },
+   "standard": {
+    "always-sonnet": {
+     "cost_per_finished": 0.64214,
+     "success_rate": 0.9875,
+     "total_per_finished_with_human": 2.882646
+    },
+    "auto-threshold": {
+     "cost_per_finished": 0.808313,
+     "success_rate": 0.99,
+     "total_per_finished_with_human": 2.891647
+    },
+    "auto-cost-per-success": {
+     "cost_per_finished": 0.314369,
+     "success_rate": 0.9875,
+     "total_per_finished_with_human": 2.630825
+    },
+    "auto-expected-cost": {
+     "cost_per_finished": 0.3247,
+     "success_rate": 0.99,
+     "total_per_finished_with_human": 2.597427
+    }
+   },
+   "harder": {
+    "always-sonnet": {
+     "cost_per_finished": 2.086463,
+     "success_rate": 0.9075,
+     "total_per_finished_with_human": 8.945967
+    },
+    "auto-threshold": {
+     "cost_per_finished": 3.520895,
+     "success_rate": 0.93,
+     "total_per_finished_with_human": 9.287024
+    },
+    "auto-cost-per-success": {
+     "cost_per_finished": 1.524786,
+     "success_rate": 0.89,
+     "total_per_finished_with_human": 9.193326
+    },
+    "auto-expected-cost": {
+     "cost_per_finished": 1.521563,
+     "success_rate": 0.9,
+     "total_per_finished_with_human": 8.688229
+    }
+   }
+  },
+  "pause_share": {
+   "0.0": {
+    "always-sonnet": {
+     "cost_per_finished": 0.504438,
+     "success_rate": 0.9875,
+     "total_per_finished_with_human": 2.744944
+    },
+    "auto-threshold": {
+     "cost_per_finished": 0.63473,
+     "success_rate": 0.99,
+     "total_per_finished_with_human": 2.718063
+    },
+    "auto-cost-per-success": {
+     "cost_per_finished": 0.211883,
+     "success_rate": 0.9875,
+     "total_per_finished_with_human": 2.528339
+    },
+    "auto-expected-cost": {
+     "cost_per_finished": 0.219993,
+     "success_rate": 0.9875,
+     "total_per_finished_with_human": 2.498474
+    }
+   },
+   "0.1": {
+    "always-sonnet": {
+     "cost_per_finished": 0.64214,
+     "success_rate": 0.9875,
+     "total_per_finished_with_human": 2.882646
+    },
+    "auto-threshold": {
+     "cost_per_finished": 0.808313,
+     "success_rate": 0.99,
+     "total_per_finished_with_human": 2.891647
+    },
+    "auto-cost-per-success": {
+     "cost_per_finished": 0.314369,
+     "success_rate": 0.9875,
+     "total_per_finished_with_human": 2.630825
+    },
+    "auto-expected-cost": {
+     "cost_per_finished": 0.3247,
+     "success_rate": 0.99,
+     "total_per_finished_with_human": 2.597427
+    }
+   },
+   "0.3": {
+    "always-sonnet": {
+     "cost_per_finished": 0.658304,
+     "success_rate": 0.9875,
+     "total_per_finished_with_human": 2.898811
+    },
+    "auto-threshold": {
+     "cost_per_finished": 0.916482,
+     "success_rate": 0.99,
+     "total_per_finished_with_human": 2.999816
+    },
+    "auto-cost-per-success": {
+     "cost_per_finished": 0.564011,
+     "success_rate": 0.9875,
+     "total_per_finished_with_human": 2.880467
+    },
+    "auto-expected-cost": {
+     "cost_per_finished": 0.58765,
+     "success_rate": 0.9875,
+     "total_per_finished_with_human": 2.904106
+    }
+   }
+  },
+  "quality_error": {
+   "0.0": {
+    "always-sonnet": {
+     "cost_per_finished": 0.64214,
+     "success_rate": 0.9875,
+     "total_per_finished_with_human": 2.882646
+    },
+    "auto-threshold": {
+     "cost_per_finished": 0.808313,
+     "success_rate": 0.99,
+     "total_per_finished_with_human": 2.891647
+    },
+    "auto-cost-per-success": {
+     "cost_per_finished": 0.314369,
+     "success_rate": 0.9875,
+     "total_per_finished_with_human": 2.630825
+    },
+    "auto-expected-cost": {
+     "cost_per_finished": 0.3247,
+     "success_rate": 0.99,
+     "total_per_finished_with_human": 2.597427
+    }
+   },
+   "3.0": {
+    "always-sonnet": {
+     "cost_per_finished": 0.634226,
+     "success_rate": 0.9875,
+     "total_per_finished_with_human": 2.836758
+    },
+    "auto-threshold": {
+     "cost_per_finished": 0.900614,
+     "success_rate": 0.9825,
+     "total_per_finished_with_human": 3.267027
+    },
+    "auto-cost-per-success": {
+     "cost_per_finished": 0.343279,
+     "success_rate": 0.9825,
+     "total_per_finished_with_human": 2.900531
+    },
+    "auto-expected-cost": {
+     "cost_per_finished": 0.350588,
+     "success_rate": 0.9825,
+     "total_per_finished_with_human": 2.831504
+    }
+   }
+  }
+ }
+}

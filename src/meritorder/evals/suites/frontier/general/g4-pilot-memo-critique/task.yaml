@@ -1,0 +1,38 @@
+id: g4-pilot-memo-critique
+task: general
+level: 4
+kind: judged
+prompt_file: prompt.md
+summary: "Find exactly three planted flaws (self-selected pilot, ticket-splitting inflates the metric, quarterly vs annual attrition) in a memo that pre-empts the usual objections; must quantify with the memo's numbers"
+checks:
+  - {constraints: {words: [200, 1200]}}
+rubric:
+  - "Identifies as a flaw that the pilot teams volunteered (were self-selected), including last year's three award-winning teams, so the pilot and comparison groups are not comparable."
+  - "Proposes a remedy for the selection problem, such as comparing each group against its own pre-pilot baseline (difference-in-differences) or randomly assigning teams to the pilot."
+  - "Identifies as a flaw that tickets closed is inflated by the pilot teams being coached to split work into smaller tickets (average size fell from 5.0 to 3.4 story points while the comparison group stayed at 5.0)."
+  - "Uses the memo's numbers to show that in story points the pilot delivered less: about 31 points per engineer per week (9.2 x 3.4) against 39 (7.8 x 5.0), roughly 20% lower."
+  - "Identifies as a flaw that the attrition comparison sets a 13-week figure (2 of 61, 3.3%) against an annual rate (9% per year)."
+  - "Notes that on a comparable annual basis the pilot's attrition is roughly 12-13%, i.e. not lower than (indeed above) the 9% company rate."
+  - "Does not count the ticket-counting method or the measurement period as one of the three flaws (the memo says both were identical across groups)."
+  - "Concludes that the recommendation, including the claim of 223 engineers of extra capacity, is not supported by the evidence presented."
+reference_answer: |
+  1. Self-selected pilot group (section 1). The seven pilot teams volunteered and included all three of last year's
+  Delivery Excellence award winners, so they were likely more productive and more engaged before the pilot began. The
+  18% gap against the 12 non-volunteer teams could be entirely pre-existing. Fix: compare each group's change from its
+  own pre-pilot baseline (difference-in-differences), or randomly assign teams to the pilot.
+
+  2. The productivity metric was gamed by design (section 2). Pilot teams were coached to split work into smaller
+  tickets, and their average ticket fell from 5.0 to 3.4 story points while the comparison group stayed at 5.0.
+  Counting tickets therefore inflates the pilot's output. In story points the pilot delivered 9.2 x 3.4 = 31.3 points
+  per engineer per week against 7.8 x 5.0 = 39.0 for the comparison group, about 20% less, not 18% more. Fix: measure
+  output in a unit unaffected by ticket granularity (story points, or completed features or customer outcomes).
+
+  3. Attrition periods don't match (section 3). 2 of 61 over 13 weeks is a quarterly rate of 3.3%, compared with an
+  annual company rate of 9%. Annualised, the pilot's rate is roughly 1 - (1 - 0.033)^4, about 12.5% (about 13% if you
+  simply multiply by four), which is higher than 9%. And two departures is far too few events to support any
+  conclusion. Fix: compare attrition over the same 13-week window for the comparison group (or annualise both), ideally
+  over a longer period.
+
+  The measurement process, the shared calendar period, the CSAT comparison and the engagement survey are not flaws as
+  presented. Verdict: the recommendation, and with it the claim of 223 engineers of free capacity, is not supported:
+  the memo's own numbers are consistent with the four-day week reducing output while attrition is no better.

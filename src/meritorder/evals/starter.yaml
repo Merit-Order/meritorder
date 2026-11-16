@@ -1,0 +1,62 @@
+# Merit Order starter eval suite.
+#
+# Small, mechanically graded tasks at difficulty levels 1-5 for the two task types
+# auto routing uses (coding, general). It calibrates the quality scores in your config;
+# your own suite (same format, from your real work) will calibrate them far better.
+#
+# Checks: contains, not_contains, equals, regex, number (last number in the reply,
+# with tolerance), json (parses, includes the given keys/values), tool_call (name and
+# argument subset), regex_behaves (the reply is a regex; it must match / reject samples).
+
+name: starter
+tasks:
+  # ---------------------------------------------------------------- general
+  - {id: g1-capital, task: general, level: 1, prompt: "What is the capital of Australia? Answer with one word.", checks: [{contains: Canberra}]}
+  - {id: g1-echo, task: general, level: 1, prompt: "Reply with exactly the word OK and nothing else.", checks: [{equals: OK}]}
+  - {id: g2-minutes, task: general, level: 2, prompt: "Convert 3.5 hours to minutes. Reply with just the number.", checks: [{number: 210}]}
+  - id: g2-extract
+    task: general
+    level: 2
+    prompt: "Extract the person's name and age as JSON with keys name and age (age as a number) from: 'Maria Lopez, 34, lives in Madrid'. Reply with only the JSON."
+    checks: [{json: {name: Maria Lopez, age: 34}}]
+  - {id: g3-trip, task: general, level: 3, prompt: "A train leaves at 14:35 and arrives at 17:10 the same day. How many minutes is the trip? Reply with just the number.", checks: [{number: 155}]}
+  - {id: g3-sort, task: general, level: 3, prompt: "Sort these words alphabetically and reply with only a comma-separated list: pear, apple, mango, banana", checks: [{regex: '^\s*apple,\s*banana,\s*mango,\s*pear\s*\.?\s*$'}]}
+  - {id: g4-order, task: general, level: 4, prompt: "Alice is older than Bob. Bob is older than Carol. Dan is younger than Carol. Who is the second youngest? End with a line 'Final answer: <name>'.", checks: [{final: Carol}]}
+  - {id: g4-letters, task: general, level: 4, prompt: "How many times does the letter r appear in the phrase 'strawberry raspberry'? Reply with just the number.", checks: [{number: 6}]}
+  - {id: g5-algebra, task: general, level: 5, prompt: "Solve for x: 3x + 7 = 2x - 5 + 4x. Reply with just the number.", checks: [{number: 4}]}
+  - {id: g5-pens, task: general, level: 5, prompt: "A shop sells pens at $1.20 each, or packs of 10 for $10. What is the cheapest way to pay for exactly 23 pens? Reply with just the total, like $12.34", checks: [{regex: '\$\s?23\.60'}]}
+  - {id: g5-days, task: general, level: 5, prompt: "If today is Wednesday, what day of the week will it be 100 days from today? One word.", checks: [{contains: Friday}]}
+  # ---------------------------------------------------------------- coding
+  - {id: c1-add, task: coding, level: 1, prompt: "Write a Python function add(a, b) that returns the sum. Reply with only the code.", checks: [{regex: 'def\s+add\s*\(\s*a\s*,\s*b\s*\)'}, {contains: return}]}
+  - {id: c1-len, task: coding, level: 1, prompt: "What does this Python code print? print(len('hello'))  Reply with just the output.", checks: [{number: 5}]}
+  - id: c2-tool
+    task: coding
+    level: 2
+    prompt: "What's the weather in Oslo right now?"
+    tools: [{type: function, function: {name: get_weather, description: Current weather for a city, parameters: {type: object, properties: {city: {type: string}}, required: [city]}}}]
+    checks: [{tool_call: {name: get_weather, arguments: {city: Oslo}}}]
+  - {id: c2-sum, task: coding, level: 2, prompt: "What does this Python code print? print(sum(i*i for i in range(4)))  Reply with just the output.", checks: [{number: 14}]}
+  - {id: c3-alias, task: coding, level: 3, prompt: "What does this Python code print? x = [1, 2, 3]; y = x; y.append(4); print(len(x))  Reply with just the output.", checks: [{number: 4}]}
+  - {id: c3-float, task: coding, level: 3, prompt: "What does this Python code print? print(0.1 + 0.2 == 0.3)  Reply with just the output.", checks: [{equals: "False"}]}
+  - {id: c3-comp, task: coding, level: 3, prompt: "What does this Python code print? print([i for i in range(10) if i % 3 == 0][-1] * 2)  Reply with just the output.", checks: [{number: 18}]}
+  - id: c3-zip
+    task: coding
+    level: 3
+    prompt: "Write a regular expression that matches a whole US ZIP code: 5 digits, optionally followed by a hyphen and 4 digits (like 12345 or 12345-6789). Reply with only the regex, no slashes or explanation."
+    checks: [{regex_behaves: {match: ["12345", "98765-4321"], reject: ["1234", "123456", "12345-678", "abcde"]}}]
+  - {id: c4-fib, task: coding, level: 4, prompt: "What does f(10) return? def f(n): return n if n < 2 else f(n - 1) + f(n - 2)  Reply with just the number.", checks: [{number: 55}]}
+  - id: c4-bug
+    task: coding
+    level: 4
+    prompt: "This function should return the largest number in a non-empty list: def m(xs):\n    best = 0\n    for x in xs:\n        best = max(best, x)\n    return best\nWhich of these inputs gives a wrong answer: [3, 1, 2], [-3, -1, -2], or [5]? Reply with only that input."
+    checks: [{regex: '\[\s*-3\s*,\s*-1\s*,\s*-2\s*\]'}, {not_contains: "[5]"}]
+  - id: c4-flight
+    task: coding
+    level: 4
+    prompt: "Find me a flight from San Francisco (SFO) to New York (JFK) on December 1, 2026."
+    tools:
+      - {type: function, function: {name: search_flights, description: Search flights, parameters: {type: object, properties: {origin: {type: string, description: IATA code}, destination: {type: string, description: IATA code}, date: {type: string, description: YYYY-MM-DD}}, required: [origin, destination, date]}}}
+      - {type: function, function: {name: book_flight, description: Book a flight by id, parameters: {type: object, properties: {flight_id: {type: string}}, required: [flight_id]}}}
+    checks: [{tool_call: {name: search_flights, arguments: {origin: SFO, destination: JFK, date: "2026-12-01"}}}]
+  - {id: c5-shallow, task: coding, level: 5, prompt: "What does this Python code print? a = {'x': [1]}; b = dict(a); b['x'].append(2); print(a['x'])  Reply with just the output.", checks: [{regex: '\[\s*1\s*,\s*2\s*\]'}]}
+  - {id: c5-closure, task: coding, level: 5, prompt: "What does this Python code print? fs = [lambda: i for i in range(3)]; print([f() for f in fs])  Reply with just the output.", checks: [{regex: '\[\s*2\s*,\s*2\s*,\s*2\s*\]'}]}

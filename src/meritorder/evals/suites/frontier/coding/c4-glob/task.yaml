@@ -1,0 +1,12 @@
+id: c4-glob
+task: coding
+level: 4
+kind: code
+prompt_file: prompt.md
+code:
+  tests: tests.py
+  timeout: 30
+  forbid: [re, fnmatch, glob, pathlib]
+reference: reference.py
+wrong: wrong.py
+summary: "Glob matcher without re: globstars, bracket-expression parsing corners, a leading-dot rule, eager validation, polynomial time, plus gitignore-like rules"

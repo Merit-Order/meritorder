@@ -1,0 +1,160 @@
+id: like-for-like-evals
+task: coding
+level: 5
+kind: agent
+commit: de973a6
+summary: "Evals must compare like with like: the gateway gets an output allowance per request (model maximum, context, cost limit, reported in headers), long non-streaming replies are streamed from the provider and assembled from events, eval runs pin effort and route per model, explain cut-offs and record what the work took; touches proxy, backends, a new assemble module, config, catalog, admin and the eval runner"
+env: meritorder.evals.envs.codebase:CodebaseEnv
+env_args: {task: like-for-like-evals}
+max_turns: 120
+est_turns: 75
+est_tool_tokens: 5000    # new tokens per turn (tool results and the reply), from runs of this suite
+est_output_tokens: 2500
+preamble_file: ../PREAMBLE.md
+prompt: |
+  ## Issue: evals cut long answers off and run models at different efforts; compare like with like and say what the work took
+
+  The last eval run made Fable look worse than it is, twice over. Its two hardest code answers were cut off at the
+  task's 32,000-token `max_tokens` (thinking counts toward it), a limit the model doesn't have. And the models ran
+  at different efforts, their API defaults (Opus 5.5 and Haiku 5.5 medium, Fable and Sonnet high), on whichever
+  route the router picked that minute. The runs also kept nothing to review: no answers, no tool calls, no
+  judges' reasons, and no idea of what a task cost in time or tokens. Three things need to change: the gateway's
+  handling of output limits, long replies, and the eval harness itself.
+
+  ### A. A request without `max_tokens` may write as much as its model can
+
+  Models get a `max_output_tokens` setting (the most output, thinking included, the model can write in one
+  response), filled from the price catalog when unset: prices.json gains a `max_output` section (`{model name:
+  tokens}`), which `meritorder prices refresh` fills from OpenRouter's catalog entry `top_provider.max_completion_tokens`
+  (the first route that has one; sorted by name like the other sections).
+
+  For each request and candidate route the gateway works out an output allowance, `(tokens, source)`:
+
+  - the client's own `max_tokens` or `max_completion_tokens`: `(n, "client")`, or `(model maximum, "model-capped")`
+    when it asks for more than the model can write;
+  - otherwise the model's maximum, `"model"`, or `(default_max_tokens, "default")` when the maximum isn't known;
+    then, if the model's context window is known and `window - prompt_tokens * 4 // 3` is smaller (the prompt
+    estimate runs low on dense text, so a third more is allowed for), that room, at least 1, `"context"`; then,
+    if a per-request cost limit (`safeguards.max_request_usd`) is set, the backend isn't self-hosted and the
+    route's output price is above zero, and `int((limit - prompt_tokens * input_price / 1e6) * 1e6 / output_price)`
+    is smaller still, that room, at least 0, `"cost limit"`.
+
+  The cost-limit check uses the allowance as the worst case instead of a fixed default: a client's own limit is
+  still refused when it could cost too much (the message keeps saying `per-request limit`), while a request
+  without one is trimmed instead. A candidate whose allowance is 0 is out; when nothing is left the 400 says
+  `(N input tokens, before any output)` in place of `(N input tokens, up to M output)`.
+
+  The upstream request carries `max_tokens` set to the allowance when the backend speaks Anthropic's format
+  (which requires a limit; this replaces the `default_max_tokens` fallback there), when the source is
+  `model-capped`, `context` or `cost limit`, or when the source is `model` and the backend is a provider API
+  (`kind: api`; some providers default to 4,096). `max_completion_tokens` is dropped when `max_tokens` is set this
+  way. A client's own limit within the model's maximum is sent as the client wrote it. A self-hosted server with
+  no client limit gets none (vLLM already allows the rest of the context window). Every reply says what was
+  allowed: headers `x-meritorder-max-tokens` (the number) and `x-meritorder-max-tokens-source`.
+
+  Eval runs need one route per model. A key whose tags include `eval_run` may pin a backend with
+  `X-MeritOrder-Backend` as an admin can (anyone else still gets 403). `POST /v1/admin/keys` refuses a key with
+  that tag: 422, detail containing `reserved`.
+
+  ### B. Long replies stream from the provider
+
+  Anthropic's SDKs refuse a non-streaming request that could run past 10 minutes: more than 21,333 output tokens
+  at their estimate of 128,000 an hour, and idle connections get dropped. When a non-streaming request to a
+  provider API (`kind: api`, never self-hosted) may run long, that is when its output limit is above 21,333 or
+  there is none (Anthropic format: `max_tokens`, which the gateway always sets; OpenAI format: `max_tokens`,
+  `max_completion_tokens` or the backend's `max_tokens_field`, none of them meaning no limit; an unparseable
+  value counts as long), the backend asks the provider for a stream (`stream: true`; OpenAI format also
+  `stream_options: {"include_usage": true}`) and returns the whole reply assembled as the single response a
+  non-streaming request gets (`events` None, `body` set). A provider that answers such a request with a body
+  that isn't an event stream (a JSON reply) is read as the non-streaming reply it is. A provider error event in
+  the stream becomes a `BackendError` with the provider's status (529 for Anthropic's `overloaded_error`),
+  retryable for 5xx, 408 and 429; a stream that breaks off with a transport error becomes a retryable 502 whose
+  message contains `broke off`. Short requests are sent exactly as before (no `stream` key at all). A `[DONE]`
+  line is ignored. The ledger and the response headers are those of the assembled reply (output tokens from its
+  usage).
+
+  New module `meritorder.formats.assemble`:
+
+  - `anthropic_message(events: list[dict]) -> dict`: the Messages API response from its stream events. The
+    `message_start` message is the base (its `usage` copied); content blocks come from `content_block_start` by
+    index, with `text_delta`, `thinking_delta` and `signature_delta` appended to `text`, `thinking` and
+    `signature`, `input_json_delta` fragments joined and parsed into `input` at `content_block_stop` (`{}` when
+    the JSON is invalid or the stream stopped inside it), and `citations_delta` citations appended to the block's
+    `citations` list; `message_delta` copies its `delta` fields (`stop_reason`, ...) onto the message and merges
+    its non-null `usage` values over the start's; `ping` and the rest are ignored. `content` is the blocks in
+    index order; `type` defaults to `message` and `role` to `assistant`.
+  - `openai_completion(chunks: list[dict]) -> dict`: a Chat Completions response (`object: chat.completion`)
+    from its chunks: `id`, `created`, `model` (also `system_fingerprint`, `provider`, `service_tier`) from any
+    chunk carrying them, `usage` from the chunk that has it, one choice per index with `message.role`
+    `assistant`, the deltas' `content`, `reasoning_content`, `reasoning` and `refusal` strings joined, tool calls
+    merged by their `index` into `{"id", "type": "function", "function": {"name", "arguments"}}` with names and
+    arguments joined, and `finish_reason` from the chunk that sets it. A choice with neither content nor tool
+    calls has `content: ""`; no choices at all gives one choice (index 0, content `""`, finish_reason None).
+    OpenRouter's `reasoning_details` fragments (one per chunk, sharing `index` and `type`) are merged back into
+    whole entries, one per (index, type), with `text`, `summary` and `data` joined and other keys taking the last
+    non-null value, so Gemini can get them back unchanged with tool results. Pieces
+    `{"type": "reasoning.text", "text": "Let ", "index": 0, "format": "google-gemini-v1"}`,
+    `{..., "text": "me see", "index": 0, "signature": null}` and `{..., "text": "", "index": 0, "signature": "sig"}`
+    become `{"type": "reasoning.text", "text": "Let me see", "index": 0, "format": "google-gemini-v1", "signature": "sig"}`.
+
+  ### C. Eval runs compare like with like
+
+  In `meritorder.evals.runner`:
+
+  - Requests set no `max_tokens` unless the task has one (`t["max_tokens"]`); the judges' requests set none
+    either. The built-in frontier tasks drop theirs: no task in the frontier general suite has `max_tokens` any
+    more (the suite layout test checks this), and `max_tokens` is no longer a required key for frontier tasks.
+  - `RunContext` gains `effort` (`{model: {level as a string: effort}}`) and `backends` (`{model: backend}`),
+    both empty by default. A task's request carries `reasoning_effort` = the task's own `effort` if set, else the
+    context's effort for that model and level; none means it isn't sent. When the context names a backend for
+    the model, requests carry the header `x-meritorder-backend` with it (judges likewise, by their own names).
+  - `TaskResult` gains, all with defaults: `effort` (what was sent, or None), `backend` (from the reply header
+    `x-meritorder-backend`), `output_tokens` and `input_tokens` (summed from each reply's `usage.completion_tokens`
+    and `usage.prompt_tokens`), `model_ms` (time spent waiting for the gateway's replies only, so at most
+    `latency_ms`), `tool_calls` (the tool calls the model made), `truncated`, `answer` (the reply's text; for an
+    agent its final answer; clipped at 60,000 characters), `steps` (an agent's tool calls in order, each
+    `name(arguments)` with the arguments string as the model sent it, e.g. `add({"n": 1})`) and `judging` (one
+    entry per judge, in order: `{"judge": name, "criteria": [{"n", "met", "why", "criterion"}, ...]}` with `why`
+    from the judge's verdict and `criterion` the rubric text; `parse_verdict` keeps returning booleans).
+  - A reply with `finish_reason: length` stopped short. The result is `truncated`, and why depends on the reply's
+    `x-meritorder-max-tokens-source`, with N the `x-meritorder-max-tokens` header formatted with thousands
+    separators:
+    - `model` or `model-capped`: `ran out of output: wrote all N tokens the model allows (thinking included) without finishing`
+    - `context`: `ran out of context: the reply filled the N tokens left in the context window`
+    - `cost limit`: this gateway's limit, not the model's ability, so the result is skipped (not graded) with
+      `error` = `not graded: the per-request cost limit allowed N output tokens and the model needed more (raise Max cost per request on Controls to test it)`
+    - anything else (a task's own limit): `ran out of output: hit the task's limit of N tokens`
+    A failed, unskipped result has that message first in `reasons`. A judged task whose answer was cut off fails
+    without calling the judges (`judging` stays empty). An agent stops after the cut-off turn (which counts), and
+    that message is its only reason, not `no final answer within ...`.
+  - `score()` adds `efficiency` to each model's entry and to each `tasks[<type>]` entry, over the same results it
+    scores: `median_s` and `p90_s` (seconds of `model_ms`, percentiles by linear interpolation between sorted
+    values, so 1, 2, 3, 4 s give 2.5 and 3.7; one decimal), `turns` and `tool_calls` (averages per task, two
+    decimals), `output_tokens` and `input_tokens` (averages, whole numbers), `cost_per_task` (six decimals),
+    `cost_per_pass` (total cost / tasks passed, None when none passed) and `cut_off` (truncated results).
+
+  In `meritorder.evals.jobs`, from the admin models view (`{name: {"effort_levels": [...], "routes": [{"backend",
+  "live", ...}]}}`):
+
+  - `efforts(models, names, by_level) -> {name: {str(level): effort}}`: for each model, each level in `by_level`
+    (`routing.effort_by_floor`; keys int or str, in level order) whose effort the model accepts
+    (`effort_levels`); a model that takes no effort gets `{}`.
+  - `routes(models, names) -> {name: backend}`: each model's first live route; models with none are left out.
+    Configs list a model's own provider first, so a run measures the provider's API.
+
+  `POST /v1/admin/evals/runs` accepts optional `effort` and `backends` in the same shapes; the stored
+  `request` carries both, worked out as above when not given (backends for the run's models and judges). A
+  backend given for a model that has no live route on it is refused: 409, detail naming each `<model> on
+  <backend>`. The worker and the CLI run with them in the `RunContext`.
+
+  **Interface**
+
+  - `Gateway.output_allowance(body: dict, cand: Candidate, prompt_tokens: int = 0) -> tuple[int, str]`;
+    `Gateway.build_upstream(..., session=None, prompt_tokens: int = 0)` (the existing return value).
+  - `ModelConfig.max_output_tokens: int | None`; prices.json `max_output`; `catalog.refresh_prices` output
+    `data["max_output"]`.
+  - Headers `x-meritorder-max-tokens`, `x-meritorder-max-tokens-source`; the `eval_run` key tag.
+  - `meritorder.backends.http.LONG_REPLY_TOKENS = 21_333`, `runs_long(max_tokens) -> bool`.
+  - `meritorder.formats.assemble.anthropic_message`, `openai_completion`.
+  - `RunContext.effort`, `RunContext.backends`; the `TaskResult` fields above; `score()[model]["efficiency"]`
+    and `score()[model]["tasks"][task]["efficiency"]`; `jobs.efforts`, `jobs.routes`; the run request fields.

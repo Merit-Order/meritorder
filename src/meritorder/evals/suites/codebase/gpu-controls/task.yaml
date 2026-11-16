@@ -1,0 +1,128 @@
+id: gpu-controls
+task: coding
+level: 5
+kind: agent
+commit: 29af88d
+summary: "Admin GPU controls (stop/drain, pin, stop-all) applied through the controller's state machine and a fleet planner with budget and burn-rate caps, GPU cost accrual and an activity log, routing that honours stops at once, and org-budget and per-request spend safeguards"
+env: meritorder.evals.envs.codebase:CodebaseEnv
+env_args: {task: gpu-controls}
+max_turns: 120
+est_turns: 75
+est_tool_tokens: 5000    # new tokens per turn (tool results and the reply), from runs of this suite
+est_output_tokens: 2500
+preamble_file: ../PREAMBLE.md
+prompt: |
+  ## Issue: GPU controls, GPU cost accounting, and organization-wide spend safeguards
+
+  Self-hosted GPU deployments follow demand on their own; nobody can stop one, keep one running, or stop them all
+  when a bill is running away. The controller never records what GPU time costs, so the GPU budget can't be
+  compared with anything, and the only spend limits are per team or per user: nothing caps the organization as
+  a whole or a single enormous request.
+
+  ### 1. Controls on a deployment
+
+  Admins set controls, stored as a setting named `gpu_controls` in the store (`store.set_setting("gpu_controls",
+  ...)` / `get_setting`) and mirrored to the shared state under the key `gpu:controls` so gateways see them at
+  once. Shape:
+
+  ```
+  {"deployments": {"<backend>": {"mode": "off" | "on", "replicas": <n or null>, "drain": <bool>,
+                                 "until": <unix seconds or null>, "reason": <str or null>, "by": <user>, "at": ...}},
+   "paused": true, "paused_by": <user>, "paused_at": ..., "reason": ..., "drain": <bool>}   # stop-all, keys present only while paused
+  ```
+
+  A control whose `until` has passed is ignored. `mode: "off"` stops the deployment: draining first when `drain`
+  is true (default for a single stop), immediately otherwise. `mode: "on"` pins it to `replicas` replicas,
+  clamped to its `max_replicas`. The fleet-wide stop (`paused`) stops everything (draining only if its `drain`
+  is true, default false) and wins over per-deployment controls.
+
+  Endpoints (all under `/v1/admin`, authenticated like the other admin routes):
+
+  - `POST /v1/admin/gpu/{backend}/control` (admin only; 404 unless the backend is self-hosted with a `serve`
+    section): body `{"mode": "auto" | "off" | "on", "replicas"?, "drain"? (default true), "hours"?, "reason"?}`.
+    `auto` removes the control.
+  - `POST /v1/admin/gpu/stop-all` with `{"reason"?, "drain"? (default false)}` and `POST /v1/admin/gpu/resume`
+    (admin only; a team lead gets 403). Both return `{"controls": <the stored controls>, "controller": {...}}`,
+    plus a `"warning"` string when the capacity controller isn't alive (no recent heartbeat), since then routing
+    stops but cloud GPUs aren't changed. After resume no `paused` key remains.
+  - Every change is written to a GPU activity log and `GET /v1/admin/gpu/events` (team leads and up) returns
+    `{"events": [...]}` newest first, each with `ts`, `kind`, `backend`, `actor` (the user id), `detail`. Kinds:
+    `control`, `stop_all`, `resume` for admin actions; `state` (detail `{"from", "to", "reason"}`), `scale`,
+    `error` for the controller.
+  - `GET /v1/admin/controls` (finance and admins; others 403): `{"month", "safeguards", "spend": {"org":
+    {"spent", "projected", "budget"}, "gpu": {"spent", "projected", "budget", "by_backend"}}, "fleet",
+    "gpu_controls", "controller", "teams": [...]}`, teams in config order each with `name`, `spent`,
+    `projected`, `budget_usd_month`, `user_budget_usd_month`, `max_session_usd`, `rate_limits`. `budget` is the
+    safeguard value or null.
+  - `GET /v1/reports/gpu` gains `paused` (null, or `{"mode": "off", "fleet": true, "by", "at", "reason",
+    "drain"}` while stopped), `controller` (`{"alive": bool, "at", "host", "interval"}` from a heartbeat the
+    controller writes each cycle; `alive` is false when there is none), `fleet`, `gpu_month`, `limits`, `daily`.
+  - `GET /v1/console/attention` lists an item titled exactly `All GPUs are stopped` while paused.
+
+  Gateways honour controls in `refresh_deployments()` without waiting for the controller: a deployment stopped
+  with drain becomes `draining` (only warm sessions finish there); stopped without drain, or any deployment while
+  paused without drain, becomes unavailable.
+
+  ### 2. The controller applies controls and safeguards
+
+  `decide(rec, serve, desired, status, now, force=None, drain=True, why=None)` gains three keyword arguments.
+  `force="off"`: from `warm`, move to `draining` when `drain` else stop now; from `draining`, keep draining
+  (returning demand doesn't cancel a stop) and stop once `drain_minutes` have passed since the drain began;
+  from `provisioning`, stop now; from `api_only` (or an empty record), stay there with no action. Stopping now
+  means action `down`, state `api_only`, and `reason` set to `why` when given. `force="on"`: from `api_only`,
+  start `desired` replicas at once, skipping the scale-up timer and any `cooldown_until`.
+
+  Records also track the run: `started_at` (set when a run starts, so `now` on the transition to
+  `provisioning`), `warm_at`, `run_cost` (dollars accrued so far), and when a run ends `started_at` becomes
+  None and `last_run = {"started_at", "ended_at", "cost"}` with `cost` the run's `run_cost` rounded to cents.
+
+  A fleet planner, `plan_fleet(items, controls, guards, gpu_spent_month, now=None) -> dict[name, Plan]`, applies
+  controls and safeguards across all deployments at once. `items` is a list of dicts with `name`, `desired`
+  (from demand), `price` (dollars per replica-hour), `max_replicas`, `value` (addressable demand in $/h).
+  `Plan(desired: int, force: str | None = None, drain: bool = True, note: str | None = None)` is a value: two
+  plans with the same four fields compare equal, so a deployment nothing applies to gets a plan equal to
+  `Plan(desired)`. Rules, in order: `paused` -> every plan forced
+  off with the pause's `drain`; a per-deployment `off` -> forced off with its `drain`, note mentioning who
+  (`by`); `on` -> force `"on"` with the clamped replica count. Then safeguards (`Safeguards`, below): when GPU
+  spend this month has reached `gpu_budget_usd_month`, everything is forced off with drain and a note containing
+  `GPU budget`. Otherwise `max_gpu_replicas` and `max_gpu_usd_per_hour` cap the fleet: capacity is granted
+  pinned deployments first, then in order of `value / price` (whose demand best covers its cost), each getting as
+  many of its replicas as fit; one held back gets its note containing `fleet limit`, and one granted nothing is
+  forced off. Example: a $30/h cap with a (2 wanted, $10, value 100) and b (2 wanted, $10, value 30) gives a 2
+  and b 1.
+
+  Each controller cycle (`tick()`) must read the stored controls, mirror them to `gpu:controls`, and make every
+  deployment's state and actions follow the fleet rules above: a deployment stopped by an admin ends up in
+  `api_only` with the provisioner told `down` and the admin's name in its `reason`. Before deciding anything it
+  accrues cost for the time since its previous cycle: `replicas x gpu_cost_per_hour x elapsed`, for every
+  deployment not in `api_only`, added to the record's `run_cost` and to a GPU usage ledger in the store,
+  queryable with `store.gpu_spend_since(since) -> {backend: dollars}`. It logs a `state` event on every state
+  change and keeps the stop retrying if `down` fails. The store also exposes
+  `store.gpu_events(limit=100, backend=None) -> list[dict]` (newest first) for the activity log, and the
+  controller writes a heartbeat the API reads for `controller.alive`.
+
+  Replica placement: `Status` gains `replicas_info` (where each replica runs), and `parse_replica_table(text)`
+  parses the replica table of `sky serve status <name>` (columns split on two or more spaces, header holding
+  `ID`, `INFRA`, `RESOURCES`) into dicts with `id`, `status` (first word), `infra`, `cloud`, `region`, `zone`
+  (from `AWS (us-east-1, us-east-1a)`: cloud, region, zone; `GCP (us-central1)` has zone None), `resources`,
+  `spot`, `launched`, `endpoint` (None for `-`).
+
+  ### 3. Spend safeguards
+
+  New config section `safeguards:` -> `Config.safeguards: Safeguards` with `org_budget_usd_month`,
+  `gpu_budget_usd_month`, `max_gpu_usd_per_hour`, `max_gpu_replicas`, `max_request_usd` (all optional, None =
+  no limit; budgets and caps may be 0, `max_request_usd` must be positive) and `alert_at: list[float] = [0.8,
+  1.0]`. The shipped configuration should set a per-request ceiling of 25 dollars and leave the other limits
+  off.
+
+  - `org_budget_usd_month`: once the organization's spend this month has reached it (`>=`, so a budget of 0
+    refuses everything), chat requests get 429 with a message containing `organization`.
+  - `max_request_usd`: a request's worst case is `prompt tokens x input price + max output tokens x output
+    price` on a candidate route (max output = `max_tokens`, else `max_completion_tokens`, else the config's
+    `default_max_tokens`; self-hosted routes cost nothing per request). Candidates over the limit are dropped;
+    when none remain the request gets 400 with a message containing `per-request limit`.
+
+  **Interface**: `meritorder.config.Safeguards`; `meritorder.gpu.Plan`,
+  `plan_fleet`, `parse_replica_table`, `decide(..., force=, drain=, why=)`, `Status.replicas_info`;
+  `store.gpu_spend_since`, `store.gpu_events`, setting `gpu_controls`; state key `gpu:controls`; the endpoints
+  and record keys above.

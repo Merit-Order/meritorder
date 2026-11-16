@@ -1,0 +1,11 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended", ":pinDependencies", "helpers:pinGitHubActionDigests"],
+  "minimumReleaseAge": "7 days",
+  "internalChecksFilter": "strict",
+  "lockFileMaintenance": {"enabled": true, "schedule": ["before 6am on monday"]},
+  "packageRules": [
+    {"matchManagers": ["pep621"], "rangeStrategy": "widen"},
+    {"matchUpdateTypes": ["major"], "dependencyDashboardApproval": true}
+  ]
+}

@@ -1,0 +1,89 @@
+id: eval-retries
+task: coding
+level: 5
+kind: agent
+commit: 089dfc8
+summary: "Two changes to the eval harness: retry passing server errors and lost connections per request, and build each model's latest result task by task across its finished runs"
+env: meritorder.evals.envs.codebase:CodebaseEnv
+env_args: {task: eval-retries}
+max_turns: 80
+est_turns: 40
+est_tool_tokens: 5000    # new tokens per turn (tool results and the reply), from runs of this suite
+est_output_tokens: 1500
+preamble_file: ../PREAMBLE.md
+prompt: |
+  ## Issue: evals lose tasks to passing server errors, and rerunning those tasks replaces the whole result
+
+  Two problems with the eval harness, both seen in a real run.
+
+  ### 1. Server errors and lost connections end a task on the first try
+
+  When the runner sends a request to the gateway, only a "wait" reply (HTTP 429, 503 or 529) is tried again,
+  within the `RETRY_FOR` budget of seconds. Any other server error (HTTP 500, 502, 504: typically a stream that
+  broke off upstream) skips the task at once, and a lost connection to the gateway (an `httpx.TransportError`
+  such as `ConnectError` or `ReadError`) is recorded as a wrong answer, with the exception as the error. Neither
+  says anything about the model, and both are usually gone a moment later.
+
+  Wanted:
+
+  - A reply with status 500 or above that isn't one of the "wait" statuses, and a lost connection, are tried
+    again: 3 tries in all, counting both kinds together. Pause 5 seconds after the first failed try and 10
+    seconds after the second. The pauses wait the same way the runner already waits out rate limits. A "wait" reply is handled as today and
+    isn't one of the three tries.
+  - The pauses count against the same `RETRY_FOR` budget as the rate-limit waits. A pause is never longer than
+    what's left of the budget, and when nothing is left after a failed try, there's no further try: with a
+    budget of 0, a lost connection is given up after one try.
+  - Only the failed request is sent again, not the whole task, so an agent task carries on from where it was.
+  - What each reply cost (its `x-meritorder-cost-usd` header) counts toward the task's cost, failed tries
+    included: a 502 that cost $0.01 followed by a good reply that cost $0.02 gives a task cost of $0.03.
+  - Failed tries and the pauses aren't the model's time (`model_ms`).
+  - When the tries run out, the task is skipped (`skipped=True`), never failed. After an HTTP error the error
+    text is what it is today (for example `HTTP 500: oops`). After a lost connection the error is exactly
+    `not graded: lost the connection to the gateway (after N tries): <ExceptionType>: <message>`, with `1 try`
+    when N is 1: for example `not graded: lost the connection to the gateway (after 1 try): ConnectError: refused`
+    and `not graded: lost the connection to the gateway (after 3 tries): ReadError: connection reset`.
+  - Any other `httpx.HTTPError` while running a task (a reply the runner got but couldn't read) also skips the
+    task, with an error starting `not graded: `.
+  - A wrong answer is never tried again: that would count a model's best of several tries. A reply with
+    status 200 goes through grading as today, with no pause.
+
+  ### 2. Rerunning the skipped tasks replaces the model's whole result
+
+  The Evals page's measured results (`meritorder.evals.jobs.latest_view`) take each model's results from its
+  latest run alone. Running only the tasks a run skipped (`meritorder eval --only ...`) therefore
+  replaces the model's whole result with those few tasks: Kimi K3.1's rerun of 5 tasks left its score resting
+  on those 5. A model's latest result should instead be put together task by task:
+
+  - The runs that count for a model are its latest run (the one its entry in the `evals` setting points at,
+    or the `run` passed in) plus every earlier run whose status is `done` and whose request's `models`
+    includes the model. A cancelled or failed run never counts, whatever results it holds.
+  - Each task's results come from the newest of those runs that graded it: all of that run's results for the
+    task (with `--repeat` there are several). A result doesn't count as graded when it's skipped, or when its
+    error is one that scoring already treats as not the model's fault (HTTP 402, 429 or 5xx); add lost
+    connections to those (`ConnectError`, `ReadError`, `WriteError`, `PoolTimeout` and the like,
+    `RemoteProtocolError`, `NetworkError`).
+  - A task no run graded keeps its newest result, so it still shows as skipped.
+  - Scores, pass counts, the `failed` list and `skipped` count are then worked out from the combined results
+    as they are today from one run's. Example: run 1 graded tasks c5-0 to c5-9 (all passed), got HTTP 402 on
+    c5-x and skipped c5-y; run 2 reran c5-0 (failed) and c5-x (failed). The model's coding `hard` counts are
+    `{"passed": 9, "runs": 11}`, `skipped` is 1, `failed` holds c5-0 and c5-x.
+  - Each model's entry in the view gets a `runs` key: the ids of the runs its results came from, newest first
+    (`["ev_2", "ev_1"]` in the example). `run_id` stays the latest run's id.
+  - The Tasks page's per-task results (the admin task-detail endpoint) should show the results that count under
+    this rule.
+
+  Also expose which results count, as `async def latest_results(store, run=None)` in `meritorder.evals.jobs`.
+  It returns a dict keyed by model name, one entry for every model in the view, each a 2-tuple
+  `(entry, pairs)`: `entry` is the model's stored entry from the `evals` setting (with `run_id`, `suite`,
+  `ran_at`), and `pairs` is the list of `(run_id, result_dict)` the model is scored on, where `result_dict` is a
+  stored result as the run holds it. For a model recorded without stored results (an old run, or `meritorder
+  eval` before runs were kept), `pairs` is None, and the view scores such a model as today. `run` means what it
+  does for `latest_view`.
+
+  **Interface**
+
+  - `meritorder.evals.runner`: `RETRY_FOR` as today;
+    `run_task` returns a `TaskResult` with `skipped`, `error` and `cost` as described.
+  - `meritorder.evals.jobs.latest_results(store, run=None)` (async) -> `dict[str, tuple[dict, list[tuple[str, dict]] | None]]`.
+  - `meritorder.evals.jobs.latest_view(store, run=None)` as today, with the combined results and the new `runs`
+    list per model.

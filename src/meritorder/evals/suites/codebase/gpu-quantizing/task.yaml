@@ -1,0 +1,107 @@
+id: gpu-quantizing
+task: coding
+level: 5
+kind: agent
+commit: 44da510
+summary: "GPU break-even with real weight sizes by precision (safetensors file sizes, packed 4-bit detection), serving quantized to FP8 or 4 bits, compute precision per GPU generation, several candidate machines per model and the one that pays, and the best hostable level per task"
+env: meritorder.evals.envs.codebase:CodebaseEnv
+env_args: {task: gpu-quantizing}
+max_turns: 120
+est_turns: 75
+est_tool_tokens: 5000    # new tokens per turn (tool results and the reply), from runs of this suite
+est_output_tokens: 2000
+preamble_file: ../PREAMBLE.md
+prompt: |
+  ## Issue: GPU break-even gets weight sizes wrong for packed 4-bit models and can't size quantized serving
+
+  The GPU break-even report (`/v1/reports/gpu/breakeven`, `gpu_sizing.py`, `gpu.breakeven`) sizes a replica
+  from a model's weights in bytes, worked out as parameters times bytes per dtype. That is wrong for the models
+  people most want to host: gpt-oss and Kimi ship MXFP4 experts as `U8` tensors with about half a byte per
+  parameter, so they're counted at twice their size, and FP8 is the only quantizing the report knows
+  (`fp8_share`, `as_fp8`, the `fp8` query parameter), while 4-bit checkpoints (AWQ, GPTQ, NVFP4) are what make
+  big models fit. The report also considers one machine per model, the cheapest that holds the weights, so a
+  model whose cheapest machine is too slow to ever pay shows as "never pays" even when a faster one would.
+
+  ### What a model needs (`fetch_model_size`)
+
+  Sizes come from the Hugging Face model API, which can also give the repository's files with their sizes, and
+  are split by precision. The result replaces `fp8_share` and `sixteen_bit_bytes` with: `bytes_by_bits` and `params_by_bits`
+  (dicts keyed `"16"`, `"8"`, `"4"`, all three keys always present, integer values), `bits` (the precision most
+  parameters are in: 16, 8 or 4) and `published_bits` (the same, at fetch time), besides `weight_bytes`,
+  `total_params`, `active_params` and `basis`.
+
+  - Bytes per parameter: 16-bit dtypes (`BF16`, `F16`) 2; `F8_*` 1; others as before. `I8` and `U8` are either
+    real 8-bit weights (a byte each) or packed 4-bit weights: they're packed when, after taking the 16-bit,
+    8-bit-float and other dtypes' bytes out of the files' size, what's left is under about three quarters of a
+    byte per `I8`/`U8` parameter. Then those leftover bytes are the `"4"` bucket and those parameters are 4-bit;
+    `basis` mentions `packed 4-bit`. Otherwise they count as 8-bit.
+  - `weight_bytes` is the sum of the repository's top-level `.safetensors` files (ignore files in subfolders,
+    such as gpt-oss's `original/` copy; where a repo ships both `consolidated-*` and other shards, count only the
+    others: the same weights twice) when every such file has a size. Files that hold fewer bytes than the
+    parameter counts need aren't the whole model: fall back to the counts. With no files, bytes come from the
+    counts (`basis` mentions `parameter counts`).
+  - No parsable metadata but files and a parameter count in the name (`Large-1T-A50B`): the precision is the
+    ratio bytes/parameter (about 2 is 16-bit, about 1 is FP8, about 0.5 is 4-bit), and `basis` names it in
+    parentheses, e.g. `(FP8)`. No files and no metadata: 16 bits from the name, as today.
+  - Examples: `{BF16: 1e9, F8_E4M3: 3e9}` without files -> `weight_bytes` 5e9, `bits` 8, `bytes_by_bits`
+    `{"16": 2e9, "8": 3e9, "4": 0}`. `{BF16: 2e9, U8: 114e9}` with two 33 GB shards plus a 66 GB `original/`
+    copy -> 66e9, `bits` 4, `bytes_by_bits` `{"16": 4e9, "8": 0, "4": 62e9}`, `params_by_bits["4"]` 114e9.
+    `{BF16: 1e9, I8: 9e9}` with an 11 GB file -> `bits` 8, `{"16": 2e9, "8": 9e9, "4": 0}`.
+
+  Stored sizes carry `"version": SIZES_VERSION` (a module constant, now 2); `current()` fetches sizes again when
+  the stored version differs.
+
+  ### Serving quantized (`quantized(size, weights)`)
+
+  `weights` is `"published"`, `"fp8"` or `"4bit"`. `published`, a size with `error`, or a size stored before
+  this change (no `bytes_by_bits`) comes back unchanged (the same object). `fp8` is vLLM's `--quantization fp8`:
+  it only applies to a checkpoint with no 8-bit or 4-bit bytes, halving the 16-bit bytes (`bits` 8,
+  `published_bits` unchanged, `basis` ends with `served at FP8`); a checkpoint already quantized stays as it is
+  with `served as published` added to its `basis`. `4bit` serves everything above 4 bits at 4.25 bits a weight
+  (one 8-bit scale per 32 weights, as MXFP4 and the usual 4-bit checkpoints): 16-bit bytes become `x 4.25/16`, 8-bit `x 4.25/8`,
+  moved into the `"4"` bucket with their parameters; `bits` becomes 4; `basis` gains `served at 4-bit (about 4.25
+  bits a weight with its scales)`. When nothing is above 4 bits, unchanged except `basis` gains `already 4-bit as
+  published`.
+
+  ### What GPUs compute in
+
+  `compute_precision(acc, bits) -> "FP8" | "16-bit"`: FP8 weights compute at FP8 on GPUs with FP8 tensor cores;
+  4-bit weights compute at FP8 only on Blackwell (B200, B300: their FP4 kernels take 8-bit activations) and at 16
+  bits everywhere else (Hopper and older dequantize them); everything else at 16 bits. `peak_tflops(acc, bits)`
+  (replacing the `fp8_share` argument) returns the dense rate for that precision: B200 at 4 bits 4500, H100 at 4
+  bits 989, H100 at 8 bits 1979, A100-80GB at 8 bits 312, B200 at 16 bits 2250.
+
+  ### The machines worth considering
+
+  `replica_options(size, offers, clouds, spot, fit=FIT, accelerators=None, regions=None) -> list[dict] | dict`:
+  every offer that holds the weights, cheapest per hour first, keeping only machines with more compute than every
+  cheaper one; the same `{error}` results as `size_replica`, which now returns the first option. A size without
+  `bits` (an old one) is treated as 16-bit. Each replica dict also carries `computes_in` (from
+  `compute_precision`). `replica_plans(cfg, catalog, sizes, clouds, spot,
+  weights="published", replica_prices=None)` replaces its `fp8` flag with `weights`; a plan sized from the
+  catalog has `options` (the list, whose first element is the plan's `replica` object); a plan on a configured
+  deployment has no `options` key.
+
+  ### The break-even picks the machine that pays
+
+  In `gpu.breakeven`, at each level and for each model, among the machines a model could have: the cheapest per
+  hour that pays at that level's API price; if none pays, the lowest cost per token, except that a cheaper machine
+  within 10% of that cost per token is preferred (the same verdict without eight GPUs for a model that fits on
+  one). Each `gpu` summary gains `computes_in`, `weights`, `published_weights`, `quality_note`; each model's
+  `size` gains `weights`, `published_weights` (`"16-bit"`, `"FP8"`, `"4-bit"`, or null when unknown) and
+  `quality_note`: null when served as published, otherwise exactly `Quality scores are for the <published>
+  weights as published; at <served> it may score lower, so measure it with an eval before routing on it`.
+
+  The result gains `hostable`: per task type, `{"level": <int quality>, "model", "quality", "gpu", "better_unrunnable"}`
+  for the runnable open model (one with a `gpu`) of highest quality (cheaper per token on a tie), all null when
+  none; `better_unrunnable` is `{"model", "quality", "why"}` for the best-scoring model without a replica that
+  beats it, or null.
+
+  The endpoint's `fp8` query parameter becomes `weights` (`published` default; anything else is 422) and
+  `assumptions` reports `weights` instead of `fp8`.
+
+  **Interface**: `gpu_sizing.SIZES_VERSION`, `ACCELERATORS` (its entries keep working with the two functions
+  below), `compute_precision`, `peak_tflops(acc, bits)`, `quantized`, `replica_options`, `replica_plans(...,
+  weights=)`, `_dominant(params_by_bits) -> int` (the precision with the most parameters, a helper other code
+  may build sizes with), size dict keys, replica `computes_in`, plan `options`, report fields and `weights`
+  parameter as above.

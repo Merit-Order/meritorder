@@ -1,0 +1,68 @@
+# Embedding models (served at /v1/embeddings).
+#
+# Never substituted for one another: vectors from different models aren't
+# comparable, so a request for a model only goes to backends serving that exact
+# model. Merit Order picks the cheapest healthy one and falls back on failure.
+
+models:
+  text-embedding-3-small:
+    kind: embedding
+    aliases: ["openai/text-embedding-3-small"]
+    routes:
+      - {backend: openai, model: text-embedding-3-small}
+      - {backend: azure-openai, model: "${AZURE_OPENAI_EMBEDDING_DEPLOYMENT:-text-embedding-3-small}", price_key: text-embedding-3-small}
+      - {backend: openrouter, model: openai/text-embedding-3-small}
+  text-embedding-3-large:
+    kind: embedding
+    aliases: ["openai/text-embedding-3-large"]
+    routes:
+      - {backend: openai, model: text-embedding-3-large}
+      - {backend: openrouter, model: openai/text-embedding-3-large}
+  qwen3-embedding-8b:
+    kind: embedding
+    aliases: ["qwen/qwen3-embedding-8b", "Qwen/Qwen3-Embedding-8B"]
+    hf_id: Qwen/Qwen3-Embedding-8B
+    routes:
+      - {backend: openrouter, model: qwen/qwen3-embedding-8b}
+  bge-m3:
+    kind: embedding
+    aliases: ["baai/bge-m3", "BAAI/bge-m3"]
+    hf_id: BAAI/bge-m3
+    routes:
+      - {backend: openrouter, model: baai/bge-m3}
+  voyage-4:
+    kind: embedding
+    aliases: ["mongodb/voyage-4", "voyage-4"]
+    routes:
+      - {backend: openrouter, model: mongodb/voyage-4}
+  voyage-code-4:
+    kind: embedding
+    aliases: ["mongodb/voyage-code-4"]
+    routes:
+      - {backend: openrouter, model: mongodb/voyage-code-4}
+  cohere-embed-5-fast:
+    kind: embedding
+    aliases: ["cohere/embed-5-fast"]
+    routes:
+      - {backend: openrouter, model: cohere/embed-5-fast}
+  gemini-embedding-001:          # the Gemini API (GEMINI_API_KEY); batches through asyncBatchEmbedContent at half price
+    kind: embedding
+    aliases: ["google/gemini-embedding-001", "models/gemini-embedding-001"]
+    routes:
+      - {backend: gemini, model: gemini-embedding-001}
+  gemini-embedding-2:            # text, image, audio, video and PDF in; text is what /v1/embeddings sends
+    kind: embedding
+    aliases: ["google/gemini-embedding-2", "models/gemini-embedding-2"]
+    routes:
+      - {backend: gemini, model: gemini-embedding-2}
+  mistral-embed:
+    kind: embedding
+    aliases: ["mistralai/mistral-embed*"]
+    routes:
+      - {backend: mistral, model: mistral-embed}
+      - {backend: openrouter, model: mistralai/mistral-embed-2312}
+  titan-embed-text-v2:
+    kind: embedding
+    aliases: ["amazon/titan-embed-text-v2"]
+    routes:
+      - {backend: openrouter, model: amazon/titan-embed-text-v2}

@@ -1,0 +1,55 @@
+# Configuration for the console's browser tests (ui/e2e). Mock backends only: no keys, no network.
+baseline_model: big
+backends:
+  mock-anthropic: {kind: mock, format: anthropic, mock_latency_ms: 0}
+  mock-openai: {kind: mock, format: openai, mock_latency_ms: 0}
+  gpu-static:                    # a self-hosted deployment, so the GPUs page has a card (never started)
+    kind: self_hosted
+    format: openai
+    gpu_cost_per_hour: 4.0
+    capacity_tokens_per_second: 2000
+    max_concurrency: 32
+    serve: {provisioner: static, model: coder-oss, static_url: "http://127.0.0.1:9/v1"}
+  gpu-k8s:                       # one on a Kubernetes cluster (no controller runs in these tests, so it never starts)
+    kind: self_hosted
+    format: openai
+    gpu_cost_per_hour: 20.0
+    serve:
+      provisioner: kubernetes
+      model: coder-oss
+      accelerators: "H100:4"
+      kubernetes: {api: kserve, node_type: p5.48xlarge, cpu: "32", memory: 256Gi}
+kubernetes:
+  namespace: gpus
+  node_types:
+    p5.48xlarge: {usd_per_hour: 55.04, gpus: 8}
+models:
+  big:
+    quality: {coding: 5, general: 5}
+    routes:
+      - {backend: mock-anthropic, model: big-1, price: {input: 3, output: 15, cache_read: 0.3, cache_write: 3.75}}
+  small:
+    quality: {coding: 3, general: 3}
+    routes:
+      - {backend: mock-openai, model: small-1, price: {input: 0.2, output: 1.0, cache_read: 0.02}}
+  coder-oss:
+    quality: {coding: 4, general: 2}
+    routes:
+      - {backend: gpu-static, model: coder-oss, price: {input: 0.3, output: 1.2}}
+      - {backend: mock-openai, model: coder-oss-api, price: {input: 0.4, output: 1.6}}
+teams:
+  default: {budget_usd_month: 500, user_budget_usd_month: 50}
+  eng: {budget_usd_month: 1000, user_budget_usd_month: 100, max_session_usd: 20, stored_responses: {enabled: true, retention_days: 30}}
+safeguards: {org_budget_usd_month: 10000}
+routing: {learned: {mode: shadow}}  # record the seeded traffic's features for the learned router (Reports → Learned router)
+reporting:                       # a ClickHouse that can never be reached (closed port): Config → Reporting shows it, Postgres answers
+  clickhouse: {url: "http://127.0.0.1:9", timeout_seconds: 2}
+batches: {poll_seconds: 0.001}   # the seed's one worker pass finds the mock batches due, and settles them
+billing:                         # one bill source that can never be fetched (no key, closed port): Reports → Bills shows why
+  sources:
+    mock-bill: {type: anthropic, backends: [mock-anthropic], base_url: "http://127.0.0.1:9", auth: {type: api_key, value_env: MERITORDER_BACKEND_E2E_BILLING_UNSET}}
+auth:
+  static_keys:
+    - {key_env: E2E_ADMIN_KEY, user: root, team: default, role: admin}
+    - {key_env: E2E_LEAD_KEY, user: lee, team: eng, role: team_lead}
+    - {key_env: E2E_USER_KEY, user: alice, team: eng, role: user}

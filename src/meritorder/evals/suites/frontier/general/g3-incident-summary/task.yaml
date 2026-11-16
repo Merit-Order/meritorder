@@ -1,0 +1,36 @@
+id: g3-incident-summary
+task: general
+level: 3
+kind: judged
+prompt_file: prompt.md
+summary: "Executive summary of a 2,100-word incident review: must use the revised figures (18,412 not 31,000), keep a coincidental DB failover and an unrelated same-day incident out, and hit 150-220 words"
+checks:
+  - {constraints: {words: [140, 240], bullets: 0}}
+rubric:
+  - "States that customers were affected for 47 minutes, from 14:12 to 14:59 UTC on 17 October 2024 (an equivalent correctly converted time zone is acceptable)."
+  - "Identifies the cause as the expiry of the service mesh's intermediate certificate, which broke the mTLS connection from checkout-api to payments-gateway."
+  - "States that the certificate expired because the automatic renewal job (cert-rotator) had been suspended during the September 2024 mesh migration and never resumed."
+  - "Does not present the orders-database failover as a cause of the outage (either omits it or says it was coincidental)."
+  - "Gives 18,412 failed checkout attempts as the failed-checkout count and does not present the earlier 31,000 estimate as the figure."
+  - "States that about 6,950 unique customers were affected."
+  - "States the estimated net lost revenue of about $198,000 (the $514,300 gross cart value may also appear, but not as the net loss)."
+  - "States that no customer was charged for a failed checkout or charged twice."
+  - "Mentions that cert-rotator has already been resumed and that expiry alerting for internal certificates is being added."
+  - "Does not mention the unrelated INC-2290 image CDN slowdown as part of this incident."
+reference_answer: |
+  On Thursday 17 October 2024, customers could not complete checkout for 47 minutes, from 14:12 to 14:59 UTC.
+  The cause was an expired certificate: the service mesh's intermediate certificate authority expired at 14:12,
+  so checkout-api could no longer open mTLS connections to payments-gateway. It expired because cert-rotator, the
+  job that renews it 30 days ahead, had been suspended on 3 September for the mesh control-plane migration and was
+  never resumed; the resume step sat in an unowned checklist, and internal certificates had no expiry monitoring.
+  A database failover at 14:21 was coincidental and cost responders about fifteen minutes before it was ruled out.
+  Service was restored by issuing a new intermediate through the break-glass procedure.
+
+  Impact: 18,412 failed checkout attempts from 6,950 unique customers (the early 31,000 estimate counted automatic
+  retries and bots). 4,120 of those customers ordered later the same day; Finance estimates net lost revenue at
+  $198,000. Nobody was charged for a failed attempt or charged twice, because no card authorisation was sent.
+
+  cert-rotator was resumed the same afternoon. The priority follow-ups are expiry alerting for all internal
+  certificates (SRE, due 1 November) and making "resume suspended jobs" a gating step in the migration runbook
+  (due 8 November). We are also shortening the alert window to two minutes and requiring a status-page update
+  within ten minutes of a SEV-1.

@@ -1,0 +1,1808 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How it decides · Merit Order docs</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Source+Sans+3:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a design-notes reader. Sticky chapter rail on the left, one long readable column on the right; rail folds into a scrolling chip row on phones. */
+:root {
+  --bg: #f4f7f6;
+  --surface: #ffffff;
+  --fg: #142120;
+  --muted: #566866;
+  --line: #d6e0de;
+  --accent: #0b7566;
+  --accent-soft: #e0f0ec;
+  --code-bg: #ecf2f1;
+  --z1: #e3f3ea; --i1: #1d6a3a;
+  --z2: #fcf1d8; --i2: #865600;
+  --z3: #fbe4e3; --i3: #9a1f1c;
+  --curve: #2556c4; --over: #c0392b;
+  --font-display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Source Sans 3", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d1413; --surface: #141d1c; --fg: #e2ebe9; --muted: #92a6a2; --line: #253331;
+    --accent: #4fcab4; --accent-soft: #15302b; --code-bg: #17221f;
+    --z1: #132c1d; --i1: #82d6a0; --z2: #2f260e; --i2: #f0c566; --z3: #351817; --i3: #f39b95;
+    --curve: #7da4ff; --over: #ff7d6e;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0d1413; --surface: #141d1c; --fg: #e2ebe9; --muted: #92a6a2; --line: #253331;
+  --accent: #4fcab4; --accent-soft: #15302b; --code-bg: #17221f;
+  --z1: #132c1d; --i1: #82d6a0; --z2: #2f260e; --i2: #f0c566; --z3: #351817; --i3: #f39b95;
+  --curve: #7da4ff; --over: #ff7d6e;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 24px; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body {
+  background: var(--bg); color: var(--fg);
+  font-family: var(--font-body); font-size: 17px; line-height: 1.6;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+
+.hero { max-width: 1180px; margin: 0 auto; padding-block: 56px 36px; display: grid; gap: 14px; border-bottom: 1px solid var(--line); }
+.eyebrow { font-family: var(--font-mono); font-size: 12.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+.hero h1 { font-family: var(--font-display); font-weight: 700; font-size: clamp(2.1rem, 5vw, 3.4rem); line-height: 1.05; letter-spacing: -.02em; margin: 0; text-wrap: balance; }
+.hero .lede { max-width: 68ch; color: var(--fg); }
+.hero .lede p { margin: 0 0 .7em; }
+.hero .lede ol { margin: 0 0 .7em; padding-left: 1.3em; display: grid; gap: 4px; }
+.hero .lede strong { color: var(--accent); }
+.also { color: var(--muted); font-size: 15.5px; }
+.contents { margin-top: 6px; max-width: 68ch; }
+.contents summary { cursor: pointer; font-family: var(--font-mono); font-size: 12.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+.contents ol { margin: 10px 0 0; padding-left: 1.3em; columns: 2 260px; column-gap: 32px; }
+.contents li { break-inside: avoid; margin: 0 0 4px; }
+h2[id], h3[id], h4[id] { scroll-margin-top: 72px; }
+
+.layout { max-width: 1180px; margin: 0 auto; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 56px; padding-block: 36px 96px; }
+.rail { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 24px); align-self: start; }
+.rail p { font-family: var(--font-mono); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0 0 10px; }
+.rail ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.rail a { display: flex; gap: 10px; align-items: baseline; padding: 6px 10px; border-radius: 6px; color: var(--fg); text-decoration: none; font-size: 15.5px; line-height: 1.3; }
+.rail a:hover { background: var(--accent-soft); }
+.rail a.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.rail a:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.n { font-family: var(--font-mono); font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.rail a.active .n { color: var(--accent); }
+
+main { min-width: 0; max-width: 860px; }
+section { padding-bottom: 56px; margin-bottom: 56px; border-bottom: 1px solid var(--line); }
+section:last-child { border-bottom: 0; }
+.sec-head { display: flex; align-items: baseline; gap: 14px; margin-bottom: 18px; }
+.sec-head .n { font-size: 14px; color: var(--accent); }
+h2 { font-family: var(--font-display); font-weight: 700; font-size: clamp(1.7rem, 3.4vw, 2.3rem); letter-spacing: -.015em; line-height: 1.1; margin: 0; text-wrap: balance; }
+h3 { font-family: var(--font-display); font-weight: 600; font-size: 1.3rem; letter-spacing: -.01em; margin: 2.2em 0 .5em; text-wrap: balance; }
+h4 { font-family: var(--font-body); font-weight: 600; font-size: 1.05rem; margin: 1.6em 0 .4em; }
+p, ul, ol { max-width: 68ch; }
+ul, ol { padding-left: 1.3em; }
+li { margin: .25em 0; }
+a { color: var(--accent); text-underline-offset: 3px; }
+strong { font-weight: 600; }
+
+code { font-family: var(--font-mono); font-size: .84em; background: var(--code-bg); padding: .1em .35em; border-radius: 4px; }
+pre:not(.mermaid) { background: var(--code-bg); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; overflow-x: auto; font-size: 14px; line-height: 1.5; }
+pre:not(.mermaid) code { background: none; padding: 0; font-size: inherit; }
+
+.table-wrap { overflow-x: auto; margin: 1em 0 1.4em; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 15.5px; }
+th, td { text-align: left; vertical-align: top; padding: 9px 14px; border-bottom: 1px solid var(--line); }
+tr:last-child td { border-bottom: 0; }
+th { font-family: var(--font-mono); font-size: 12px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); background: var(--code-bg); }
+td { font-variant-numeric: tabular-nums; }
+
+figure { margin: 1.4em 0 1.8em; }
+.diagram { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px; overflow-x: auto; }
+.diagram pre.mermaid { margin: 0; display: flex; justify-content: center; background: none; }
+
+.chart { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px; overflow-x: auto; }
+.chart svg { display: block; width: 100%; min-width: 520px; max-width: 720px; height: auto; margin: 0 auto; font-family: var(--font-body); }
+.chart figcaption { color: var(--muted); font-size: 15px; margin-top: 10px; max-width: 68ch; }
+.chart .z1 { fill: var(--z1); } .chart .z2 { fill: var(--z2); } .chart .z3 { fill: var(--z3); }
+.chart .t { font-size: 13px; font-weight: 600; }
+.chart .i1 { fill: var(--i1); } .chart .i2 { fill: var(--i2); } .chart .i3 { fill: var(--i3); }
+.chart .lbl { font-size: 13px; fill: var(--fg); }
+.chart .tick { font-size: 12px; fill: var(--muted); }
+.chart .tick.i3 { fill: var(--i3); }
+.chart .axis { stroke: var(--fg); stroke-width: 1.5; fill: none; }
+.chart .ref { stroke: var(--muted); stroke-width: 1.5; stroke-dasharray: 6 5; fill: none; }
+.chart .curve { stroke: var(--curve); stroke-width: 3.5; fill: none; }
+.chart .over { stroke: var(--over); stroke-width: 3.5; fill: none; }
+.chart .dot { fill: var(--over); }
+
+@media (max-width: 860px) {
+  .layout { grid-template-columns: minmax(0, 1fr); gap: 20px; padding-top: 20px; }
+  .rail { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); margin-inline: calc(-1 * max(16px, env(safe-area-inset-left, 0px))); padding: 10px max(16px, env(safe-area-inset-left, 0px)); border-bottom: 1px solid var(--line); }
+  .rail p { display: none; }
+  .rail ol { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; }
+  .rail a { white-space: nowrap; border: 1px solid var(--line); background: var(--surface); }
+  body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+  .hero { padding-block: 36px 24px; }
+  body { font-size: 16px; }
+}
+</style>
+</head>
+<body>
+
+
+<header class="hero">
+  <div class="eyebrow">Merit Order docs · 10</div>
+  <h1>How it decides</h1>
+  <div class="lede"><p class="also"><a href="index.html">All docs on one page</a> · <a href="how-it-all-works.html">How it all works</a></p><details class="contents"><summary>On this page</summary><ol><li><a href="#a-request-start-to-finish">A request, start to finish</a></li><li><a href="#which-model">Which model</a></li><li><a href="#which-backend-gpu-or-api">Which backend: GPU or API</a></li><li><a href="#when-a-backend-fails-or-a-model-refuses">When a backend fails or a model refuses</a></li><li><a href="#when-gpus-start-scale-and-stop">When GPUs start, scale, and stop</a></li><li><a href="#when-a-gpu-is-full">When a GPU is full</a></li><li><a href="#what-happens-when">What happens when…</a></li><li><a href="#every-threshold-in-one-table">Every threshold in one table</a></li></ol></details></div>
+</header>
+
+<div class="layout">
+  <nav class="rail" aria-label="Chapters">
+    <p>Docs</p>
+    <ol><li><a href="overview.html"><span class="n">&nbsp;&nbsp;</span>Overview</a></li><li><a href="how-it-all-works.html"><span class="n">00</span>How it all works (start here)</a></li><li><a href="architecture.html"><span class="n">01</span>Architecture</a></li><li><a href="request-flow.html"><span class="n">02</span>Request flow</a></li><li><a href="routing.html"><span class="n">03</span>Routing</a></li><li><a href="caching-and-sessions.html"><span class="n">04</span>Caching &amp; sessions</a></li><li><a href="gpu-autoscaling.html"><span class="n">05</span>GPU autoscaling</a></li><li><a href="auth-and-spend.html"><span class="n">06</span>Auth &amp; spend</a></li><li><a href="deployment.html"><span class="n">07</span>Deployment</a></li><li><a href="reporting.html"><span class="n">08</span>Reporting</a></li><li><a href="decisions.html"><span class="n">09</span>Decisions</a></li><li><a href="how-it-decides.html" class="active" aria-current="page"><span class="n">10</span>How it decides</a></li><li><a href="evals.html"><span class="n">11</span>Evals: measuring model quality</a></li><li><a href="feature-sheet.html"><span class="n"></span>Merit Order feature sheet</a></li></ol>
+  </nav>
+  <main>
+    
+    <section id="doc"><p>Every decision Merit Order makes, in the order it makes them, with the exact rules and defaults.
+Each rule names the setting that controls it. The code is the source of truth:
+<code>proxy.py</code> (request pipeline), <code>router.py</code> (model and backend choice), <code>classifier.py</code> (levels), <code>learned.py</code> and
+<code>learned_jobs.py</code> (the opt-in learned router), <code>success.py</code> (expected total cost: the success predictor and the cascade),
+<code>tokens.py</code> (prompt sizes),
+<code>config.py</code> (each model's chance of success at each level), <code>backends/base.py</code> (skipping failing backends),
+<code>affinity.py</code> (which GPU replica holds a session's cache), <code>gpu.py</code> and <code>controller.py</code> (GPU scaling),
+<code>batches/gpu.py</code> (batch work on running GPUs).</p>
+<ul>
+<li><a href="#a-request-start-to-finish">A request, start to finish</a></li>
+<li><a href="#which-model">Which model</a></li>
+<li><a href="#which-backend-gpu-or-api">Which backend: GPU or API</a></li>
+<li><a href="#when-a-backend-fails-or-a-model-refuses">When a backend fails or a model refuses</a></li>
+<li><a href="#when-gpus-start-scale-and-stop">When GPUs start, scale, and stop</a></li>
+<li><a href="#when-a-gpu-is-full">When a GPU is full</a></li>
+<li><a href="#what-happens-when">What happens when…</a></li>
+<li><a href="#every-threshold-in-one-table">Every threshold in one table</a></li>
+</ul>
+<h2 id="a-request-start-to-finish">A request, start to finish</h2>
+<p>Checks run in this order. The first one that fails ends the request with the error shown.</p>
+<figure class="diagram"><pre class="mermaid">flowchart TD
+    A[&quot;Request arrives&quot;] --&gt; K{&quot;Valid key?&lt;br/&gt;person not disabled?&quot;}
+    K -- &quot;no&quot; --&gt; E401[&quot;401&quot;]
+    K -- &quot;yes&quot; --&gt; B{&quot;Org, personal, and team&lt;br/&gt;monthly budgets left?&quot;}
+    B -- &quot;no&quot; --&gt; E429a[&quot;429: which budget, how much spent&quot;]
+    B -- &quot;yes&quot; --&gt; RL{&quot;Within requests/tokens&lt;br/&gt;per minute?&quot;}
+    RL -- &quot;no&quot; --&gt; E429b[&quot;429 + Retry-After&quot;]
+    RL -- &quot;yes&quot; --&gt; SC{&quot;Session under its&lt;br/&gt;spend cap?&quot;}
+    SC -- &quot;no&quot; --&gt; E429c[&quot;429: start a new session&quot;]
+    SC -- &quot;yes&quot; --&gt; M[&quot;Pick the model&lt;br/&gt;(next section)&quot;]
+    M --&gt; BK[&quot;List and rank backends&lt;br/&gt;(GPU or API)&quot;]
+    BK -- &quot;nothing can serve it&quot; --&gt; E503[&quot;503; for a named model,&lt;br/&gt;the reason for each route&quot;]
+    BK --&gt; PIN{&quot;X-MeritOrder-Backend set?&quot;}
+    PIN -- &quot;not an admin&lt;br/&gt;or eval-run key&quot; --&gt; E403[&quot;403&quot;]
+    PIN -- &quot;no, or allowed&quot; --&gt; MR{&quot;Worst case under&lt;br/&gt;max_request_usd?&quot;}
+    MR -- &quot;no candidate fits&quot; --&gt; E400[&quot;400: what it could cost&quot;]
+    MR -- &quot;yes&quot; --&gt; RC{&quot;Response cache on and a hit?&lt;br/&gt;(not for /v1/responses)&quot;}
+    RC -- &quot;hit&quot; --&gt; HIT[&quot;Return the cached answer ($0)&quot;]
+    RC -- &quot;miss / off&quot; --&gt; CP[&quot;Compress tool results, if on:&lt;br/&gt;rules, then model-based&lt;br/&gt;(each result decided once, stored)&quot;]
+    CP --&gt; TRY[&quot;Try candidates in order&lt;br/&gt;(failures and refusals below)&quot;]
+    TRY --&gt; OK[&quot;Stream the answer back&lt;br/&gt;in the client&#x27;s format&quot;]
+    OK --&gt; LED[&quot;Record cost, baseline, savings;&lt;br/&gt;update session and spend counters&quot;]</pre></figure>
+<h2 id="which-model">Which model</h2>
+<figure class="diagram"><pre class="mermaid">flowchart TD
+    R{&quot;What did the&lt;br/&gt;client ask for?&quot;}
+    R -- &quot;a model name&quot; --&gt; NAMED[&quot;That model, never swapped&quot;]
+    R -- &quot;auto&quot; --&gt; SESS{&quot;Existing session, same task,&lt;br/&gt;and it still fits the model?&quot;}
+    SESS -- &quot;yes&quot; --&gt; KEEP[&quot;Keep the session&#x27;s model&quot;]
+    SESS -- &quot;no: new session, new human prompt,&lt;br/&gt;or the harness compacted history&quot; --&gt; CL[&quot;Classify the work → quality floor&lt;br/&gt;e.g. coding:3 (never from its length);&lt;br/&gt;learned router (opt-in): its level when sure;&lt;br/&gt;routing.level_map; exploration (opt-in):&lt;br/&gt;a few task starts a level down or up&quot;]
+    SESS -- &quot;no: the conversation outgrew&lt;br/&gt;the model&#x27;s context window&quot; --&gt; SAME[&quot;Keep the session&#x27;s floor&quot;]
+    SAME --&gt; CANDS
+    CL --&gt; CANDS[&quot;Every chat model the team may use&lt;br/&gt;with quality ≥ floor&quot;]
+    CANDS -. &quot;model_choice: cost_per_success&quot; .-&gt; CPS[&quot;Also models below the floor whose chance&lt;br/&gt;at it is ≥ min_success_chance;&lt;br/&gt;ranked by expected cost per success&quot;]
+    CANDS -. &quot;model_choice: expected_cost&quot; .-&gt; ETC[&quot;The same models in reach;&lt;br/&gt;ranked by expected total cost to finish&lt;br/&gt;(a person&#x27;s time and the next attempt counted)&quot;]
+    KEEP -. &quot;expected_cost: failures in a row,&lt;br/&gt;or a correction&quot; .-&gt; ESC[&quot;Escalate to a stronger model&lt;br/&gt;when continuing costs more&quot;]
+    CANDS -- &quot;none meets the floor&quot; --&gt; BEST[&quot;The best models available&quot;]
+    CANDS --&gt; FIT{&quot;Prompt + reply within 95%&lt;br/&gt;of the model&#x27;s window?&quot;}
+    BEST --&gt; FIT
+    FIT -- &quot;some fit&quot; --&gt; ROOM[&quot;Only those&lt;br/&gt;(the reason names the rest and their windows)&quot;]
+    FIT -- &quot;none fits&quot; --&gt; LARGEST[&quot;The largest window;&lt;br/&gt;the provider decides&quot;]
+    KEEP -- &quot;it has nowhere to run&lt;br/&gt;(e.g. its GPUs were stopped)&quot; --&gt; CL
+    NAMED -- &quot;it has nowhere to run&quot; --&gt; SUB{&quot;Team turned on&lt;br/&gt;substitute_unavailable?&quot;}
+    SUB -- &quot;no&quot; --&gt; E503[&quot;503: why, per route;&lt;br/&gt;suggests auto&quot;]
+    SUB -- &quot;yes&quot; --&gt; EQ[&quot;Models at least as good&lt;br/&gt;for this task (never weaker);&lt;br/&gt;response says which was replaced&quot;]</pre></figure>
+<p><strong>The classifier</strong> (rules, no model call; <code>routing.levels</code>, Config → Routing → How requests get a level,
+shown to everyone under Reports → Levels):</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Request</th>
+<th>Floor</th>
+<th>Setting</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Has tools or code-like text (code fences, <code>def</code>, <code>import</code>, file names, "refactor", "bug", SQL, …)</td>
+<td><code>coding:3</code></td>
+<td><code>coding</code>, <code>coding_words</code></td>
+</tr>
+<tr>
+<td>…and simple wording, nothing harder (write tests, rename, typo, lint, docstring, explain, bump, …)</td>
+<td><code>coding:2</code></td>
+<td><code>simple</code>, <code>simple_words</code></td>
+</tr>
+<tr>
+<td>…and "hard" wording (race condition, security, performance, migration, multi-file, "under load", flaky, …)</td>
+<td>+1 for each distinct match, up to 2; at most 5</td>
+<td><code>hard_raise</code>, <code>hard_signals</code>, <code>hard_words</code></td>
+</tr>
+<tr>
+<td>…and the hardest wording (architecture, "design a", system design, prove, codebase-wide, …)</td>
+<td><code>coding:5</code></td>
+<td><code>hardest</code>, <code>hardest_words</code></td>
+</tr>
+<tr>
+<td>…and the newest prompt says the last answer was wrong ("that's wrong", "revert", …)</td>
+<td>+1, at most 5</td>
+<td><code>correction_raise</code></td>
+</tr>
+<tr>
+<td>…with 5+ tools, only with <code>agent_by_tools: true</code> (off: tools say it's coding, not how hard)</td>
+<td><code>coding:4</code>, simple wording ignored</td>
+<td><code>agent_by_tools</code>, <code>agent</code>, <code>agent_tools</code></td>
+</tr>
+<tr>
+<td>Anything else</td>
+<td><code>general:2</code></td>
+<td><code>general</code></td>
+</tr>
+<tr>
+<td>…the whole request under 400 tokens (no tools)</td>
+<td><code>general:1</code></td>
+<td><code>short</code>, <code>short_tokens</code></td>
+</tr>
+<tr>
+<td>…analysis wording (analyze, compare, trade-offs, plan, …)</td>
+<td><code>general:3</code></td>
+<td><code>analysis</code>, <code>analysis_words</code></td>
+</tr>
+<tr>
+<td><code>X-Route-Hint: cheap</code> / <code>smart</code></td>
+<td>−1 / +1</td>
+<td></td>
+</tr>
+<tr>
+<td>Claude Code side request (<code>x-claude-code-request-class: auxiliary</code>)</td>
+<td>at most 1</td>
+<td><code>request_class_levels</code></td>
+</tr>
+<tr>
+<td>Claude Code compaction summary (<code>compaction</code>), and the summary the gateway writes for <code>POST /v1/responses/compact</code></td>
+<td>at most 3</td>
+<td><code>request_class_levels</code></td>
+</tr>
+<tr>
+<td><code>X-Route-Floor: coding:4</code></td>
+<td>exactly that, skipping the rules (never capped)</td>
+<td></td>
+</tr>
+<tr>
+<td>The learned router, in route mode, at least <code>min_confidence</code> (0.8) sure</td>
+<td>its level instead of the rules' (Claude Code's caps still apply)</td>
+<td><code>routing.learned</code></td>
+</tr>
+</tbody>
+</table></div>
+<p>Wording is looked for in the last two messages from the person: tool results aren't read, and a user message made
+only of tool results (Anthropic's agent loops send one per step) is passed over, so the prompt behind a task counts
+mid-task. What the harness adds is left out too: Claude Code's system reminders (CLAUDE.md) and Codex's AGENTS.md and
+environment context. Where lists overlap, the hardest wins. Coding agents send dozens of tools on every request, so the
+tool count no longer sets the level (decision 61): "write tests" from Claude Code is <code>coding:2</code>, "fix the race
+condition" <code>coding:4</code>, "design a plugin system" <code>coding:5</code>. The level is set at a task boundary and held until the next
+one. The word lists are Python regular expressions, matched ignoring case; a pattern that doesn't compile, or matches empty
+text and so every request, is refused when the configuration is saved, as is a level outside 1–5.</p>
+<p><strong>Length never raises the floor.</strong> It only rules out models whose window can't hold the prompt plus the
+reply (the flowchart above, and the table under <a href="#which-backend-gpu-or-api">Which backend</a>). The one length
+rule left, the short question, can only lower a level. The routing reason, kept in the ledger and shown
+under Reports → Requests, names the rules that set the floor and the models ruled out by their windows.</p>
+<p>The Claude Code caps are <code>routing.request_class_levels</code> (Config → Routing → Claude Code request types);
+other classes (<code>main</code>, <code>subagent</code>, <code>workflow</code>) aren't capped. Claude Code sends the header to a gateway
+only with <code>CLAUDE_CODE_GATEWAY_HINT_HEADERS=1</code>, which <code>meritorder setup claude-code</code> sets. The Responses API's
+compaction endpoint routes its summary as a <code>compaction</code> request, whichever client called it
+(<a href="caching-and-sessions.html#compaction">04</a>).</p>
+<p><strong>The learned router</strong> (<code>routing.learned</code>, off by default; <a href="routing.html#the-learned-router">03, Routing</a>) predicts a
+level next to the rules' wherever they give one, from the request's hashed words and named facts, trained on what
+followed earlier answers. In <code>shadow</code> mode that's recorded with what it would have picked, and nothing changes; in
+<code>route</code> mode it's used when it's sure. The rules decide whenever there's no model, the model is stale (older than
+<code>max_age_days</code>, the level rules changed, or the feature key did), it's under <code>min_confidence</code>, or it fails; a client's
+<code>X-Route-Floor</code> is never second-guessed. The routing reason says what it predicted, how sure it was, its version, and
+why it was or wasn't used. It's asked only when an <code>auto</code> request is classified (a new task); a request that names its
+model only has its features recorded, as training data.</p>
+<figure class="diagram"><pre class="mermaid">flowchart TD
+    A[&quot;auto request, new task:&lt;br/&gt;the rules give a level&quot;] --&gt; X{&quot;Client sent&lt;br/&gt;X-Route-Floor?&quot;}
+    X -- &quot;yes&quot; --&gt; CL[&quot;The client&#x27;s level,&lt;br/&gt;never capped&quot;]
+    X -- &quot;no&quot; --&gt; MODE{&quot;routing.learned.mode&quot;}
+    MODE -- &quot;off&quot; --&gt; RULES[&quot;The rules&#x27; level&quot;]
+    MODE -- &quot;shadow or route&quot; --&gt; M{&quot;A trained model, its feature key&lt;br/&gt;loaded, and not stale?&quot;}
+    M -- &quot;no&quot; --&gt; RULES
+    M -- &quot;yes&quot; --&gt; P[&quot;Predict a level&lt;br/&gt;and how sure it is&quot;]
+    P -- &quot;fails&quot; --&gt; RULES
+    P --&gt; AG{&quot;Same level&lt;br/&gt;as the rules?&quot;}
+    AG -- &quot;yes&quot; --&gt; RULES
+    AG -- &quot;no&quot; --&gt; SURE{&quot;At least&lt;br/&gt;min_confidence (0.8)?&quot;}
+    SURE -- &quot;no&quot; --&gt; RULES
+    SURE -- &quot;yes, shadow&quot; --&gt; SH[&quot;The rules&#x27; level; the learned one&lt;br/&gt;is recorded with what it would&lt;br/&gt;have picked and cost&quot;]
+    SURE -- &quot;yes, route&quot; --&gt; USE[&quot;The learned level&quot;]
+    RULES --&gt; CAP[&quot;Claude Code&#x27;s class caps apply&lt;br/&gt;to whichever level is used&quot;]
+    SH --&gt; CAP
+    USE --&gt; CAP</pre></figure>
+<p>Quality scores (1–5 per task type) come from published benchmarks, refreshed daily (<code>quality:</code>;
+see <a href="how-it-all-works.html#3-every-model-gets-a-score-for-each-kind-of-work">00, How it all works</a>).
+A model the source doesn't cover isn't a candidate for <code>auto</code> unless it has a <code>quality_override</code>.</p>
+<p><strong>What the client can force</strong></p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Client sends</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A model name</td>
+<td>That model; only the backend varies</td>
+</tr>
+<tr>
+<td><code>reasoning_effort</code> / <code>output_config.effort</code></td>
+<td>Passed through, translated across formats (an Anthropic client's effort reaches an OpenAI-format model at the nearest level it accepts). Merit Order only picks an effort for <code>auto</code> requests that don't set one</td>
+</tr>
+<tr>
+<td><code>X-Route-Floor</code>, <code>X-Route-Hint</code></td>
+<td>Changes the floor for <code>auto</code> when it classifies (mid-task, the session's floor stands)</td>
+</tr>
+<tr>
+<td><code>X-MeritOrder-Priority: cost</code> / <code>balanced</code> / <code>speed</code></td>
+<td>How much more a faster route may cost (below); anything else is a 400</td>
+</tr>
+<tr>
+<td><code>X-MeritOrder-Backend</code></td>
+<td>Pins the backend (admins and eval-run keys only; anyone else gets a 403)</td>
+</tr>
+<tr>
+<td><code>X-MeritOrder-Cache: on</code> / <code>off</code></td>
+<td>Uses the response cache even where the team has it off, or skips it</td>
+</tr>
+<tr>
+<td><code>X-Session-Id</code> (or <code>X-MeritOrder-Session</code>)</td>
+<td>Names the session; otherwise it's inferred from the conversation</td>
+</tr>
+<tr>
+<td><code>x-claude-code-session-id</code>, <code>x-claude-code-agent-id</code></td>
+<td>The session, and a subagent's own thread within it (own model, level, cache; spend still counts the session)</td>
+</tr>
+<tr>
+<td>Codex CLI's <code>session-id</code>, and <code>thread-id</code> with <code>x-codex-parent-thread-id</code></td>
+<td>The same, for Codex: the session, and a subagent's own thread</td>
+</tr>
+</tbody>
+</table></div>
+<p>Team policy (allowed models and backends) applies before any of this, so nothing above can escape it.</p>
+<h3 id="threshold-or-cost-per-success">Threshold or cost per success</h3>
+<p><code>routing.model_choice</code> (or a team's <code>model_choice</code>) sets how <code>auto</code> chooses among models for a new task:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Choice</th>
+<th>Picks</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>threshold</code></td>
+<td>The cheapest route of a model whose score is at least the level</td>
+</tr>
+<tr>
+<td><code>cost_per_success</code></td>
+<td>The lowest expected cost per solved task, among models whose chance of solving work at the level is at least <code>min_success_chance</code> (0.6), whatever their score</td>
+</tr>
+<tr>
+<td><code>expected_cost</code> (default)</td>
+<td>The lowest expected total cost to finish the task, among the same models: the try, plus the chance of failing times what a failure costs (the person's time the request puts at stake, <code>human_cost_usd</code> scaled by its level and size, and the next attempt); and escalation inside the task (<a href="#expected-total-cost">below</a>)</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>A model's chance at each level</strong> comes from its score in use (<code>apply_chances</code> in <code>config.py</code>). The scale says
+what a score means on the reference work (<code>absolute</code>, the default: 5 × the model's chance ÷ the anchor; <code>best</code>: ÷ the best
+model's), so a score read back
+gives its chance there, and a level gives the chance of a model scoring exactly that level. Level-L work is taken
+to be as much easier than the reference as a model scoring L is weaker than a 5: a model exactly at a level
+solves that level's work as often as a 5 solves the reference work (the anchor: 69.9% for coding and 76.9% for general,
+what Claude Fable 5.2 solved of FrontierSWE-hard tasks on 12 November 2026). Every other model sits by its distance from the
+level on Epoch's logistic ability scale:</p>
+<pre><code>chance at level L = sigmoid( logit(chance of its score) − logit(chance of a score of L) + logit(chance of a 5) )
+</code></pre>
+<p>Level 5 is the reference work itself. For coding, that gives:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Model</th>
+<th>Coding score</th>
+<th>Level 1</th>
+<th>2</th>
+<th>3</th>
+<th>4</th>
+<th>5</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Claude Fable 5.2</td>
+<td>5.0</td>
+<td>97%</td>
+<td>93%</td>
+<td>88%</td>
+<td>81%</td>
+<td>70%</td>
+</tr>
+<tr>
+<td>Gemini 4 Carbon</td>
+<td>4.4</td>
+<td>96%</td>
+<td>91%</td>
+<td>84%</td>
+<td>75%</td>
+<td>62%</td>
+</tr>
+<tr>
+<td>GPT-6.1 Terra</td>
+<td>4.2</td>
+<td>95%</td>
+<td>90%</td>
+<td>82%</td>
+<td>72%</td>
+<td>59%</td>
+</tr>
+<tr>
+<td>Claude Sonnet 5.5</td>
+<td>3.9</td>
+<td>94%</td>
+<td>88%</td>
+<td>79%</td>
+<td>69%</td>
+<td>55%</td>
+</tr>
+<tr>
+<td>Claude Haiku 5.5</td>
+<td>3.0</td>
+<td>91%</td>
+<td>81%</td>
+<td>70%</td>
+<td>57%</td>
+<td>42%</td>
+</tr>
+<tr>
+<td>DeepSeek V4.1 Flash</td>
+<td>2.4</td>
+<td>88%</td>
+<td>75%</td>
+<td>62%</td>
+<td>48%</td>
+<td>34%</td>
+</tr>
+<tr>
+<td>GPT-6 Luna</td>
+<td>2.3</td>
+<td>87%</td>
+<td>74%</td>
+<td>60%</td>
+<td>46%</td>
+<td>32%</td>
+</tr>
+<tr>
+<td>gpt-oss-20b</td>
+<td>1.0</td>
+<td>70%</td>
+<td>49%</td>
+<td>34%</td>
+<td>23%</td>
+<td>14%</td>
+</tr>
+</tbody>
+</table></div>
+<p>Reading the chance from the score rather than from the published chance keeps the threshold's own rules: an
+override counts, and the floor of 1 still makes every model fit for level-1 work. Where the chances come from:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Quality source</th>
+<th>What a 5 solves</th>
+<th>Scores that get chances</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>epoch</code></td>
+<td><code>quality.anchor</code> (scale <code>absolute</code>), or the best configured model's published chance on the reference (<code>best</code>)</td>
+<td>The source's own, and overrides</td>
+</tr>
+<tr>
+<td><code>config</code></td>
+<td><code>quality.measured_best_rate</code>: the best measured model's pass rate on hard eval tasks, written when an eval run's scores are applied as <code>quality</code></td>
+<td>The configured scores, and overrides</td>
+</tr>
+<tr>
+<td><code>artificial_analysis</code></td>
+<td>Nothing: the index isn't a chance</td>
+<td>None</td>
+</tr>
+</tbody>
+</table></div>
+<p>A model without a chance (a mock, a score written in the config while a live source is in use, a task type with
+no measured rate) is judged by the threshold: it's a candidate only at or above the level, and counts at the chance
+of a model exactly at it. With no chances for the task type at all, the threshold decides.</p>
+<p><strong>Expected cost per success.</strong> One try costs the route's estimate (below: the session from here, with its warm
+cache or rebuild) and succeeds with the model's chance at the level. A failed try is still paid for, and the work
+is then done again on the <strong>redo route</strong>: the one the threshold would pick (the cheapest route of a model that
+meets the level; if none does, the most likely to succeed), tried until it succeeds.</p>
+<pre><code>redo     = redo route's cost ÷ its chance
+expected = cost + (1 − chance) × redo
+</code></pre>
+<p>For the redo route itself that's its cost ÷ its chance. A model below the level wins only when the try it saves on
+costs less than redoing its extra failures: cost &lt; chance × redo. Failures are assumed independent, and the time a
+person spends noticing one isn't counted; the minimum chance is what guards against both.</p>
+<figure class="diagram"><pre class="mermaid">flowchart TD
+    A[&quot;auto, new task (or a session that outgrew&lt;br/&gt;its model), team routes by cost_per_success&quot;] --&gt; F{&quot;Level set by the client&lt;br/&gt;(X-Route-Floor, or a substitution)?&quot;}
+    F -- &quot;yes&quot; --&gt; T[&quot;The threshold decides&quot;]
+    F -- &quot;no&quot; --&gt; C{&quot;Chances known&lt;br/&gt;for this task type?&quot;}
+    C -- &quot;no&quot; --&gt; T
+    C -- &quot;yes&quot; --&gt; R[&quot;In reach: allowed models with a chance at the level&lt;br/&gt;≥ min_success_chance (0.6), whatever their score,&lt;br/&gt;plus models without a chance that meet the level&quot;]
+    R -- &quot;none&quot; --&gt; T
+    R --&gt; RUN{&quot;Any of them&lt;br/&gt;can run now?&quot;}
+    RUN -- &quot;no&quot; --&gt; T
+    RUN -- &quot;yes&quot; --&gt; E[&quot;Each route: expected = cost + (1 − chance) × redo,&lt;br/&gt;redo = the threshold&#x27;s route cost ÷ its chance&quot;]
+    E --&gt; RANK[&quot;Lowest expected cost per success first;&lt;br/&gt;then priority, stickiness, speed checks&lt;br/&gt;on those expected costs&quot;]</pre></figure>
+<p><strong>The rules around it:</strong></p>
+<ul>
+<li><strong>The minimum holds for every model with a chance</strong>, at the level too. A model exactly at the level has 70%
+  for coding, so the default 0.6 only rules out models below the level; a minimum above 70% leaves only models
+  above it.</li>
+<li><strong>The threshold steps in</strong> when no model reaches the minimum, or none that does can run right now.</li>
+<li><strong>A level the client sets</strong> (<code>X-Route-Floor</code>, also how a named model is substituted) is a minimum it asked for:
+  the threshold decides.</li>
+<li><strong>Mid-task the session keeps its model</strong>, as always. Cost per success changes where a new task goes, and where a
+  session that outgrew its model moves.</li>
+<li><strong>Everything after compares expected costs per success</strong>: the priority's premium (2%, 20%, 100%), stickiness
+  (a move must save 10% + $0.01), and the speed checks. Cache warmth counts through each route's cost: a warm
+  session's rebuild is zero, so a cheaper model elsewhere has to beat it after paying to rebuild there.</li>
+<li><strong>Effort and the output limit follow the level</strong>, whichever model wins.</li>
+<li><strong>Teams</strong> set their own <code>model_choice</code> and <code>min_success_chance</code>; blank uses the organization's.</li>
+<li><strong>Levels are untouched</strong>: <code>routing.levels</code> still sets them. Reports → Levels shows, for a team routing by cost
+  per success, the models below each level that are in reach, with their chance there.</li>
+</ul>
+<p>The routing reason (the ledger's <code>route_reason</code>, shown on Reports → Requests) ends with what it compared:
+<code>classified coding:3 (coding: 1 tool); cost per success: deepseek-v4.1-flash, expected $0.0051 per success (62% at
+coding:3) vs $0.0086 (70%) on claude-haiku, the cheapest at the level</code>. When the threshold decides instead, it says
+why (<code>cost per success: no chances of success for coding, so the threshold decides</code>).</p>
+<p>What it changes, for new sessions on the shipped configuration and price list of 12 November 2026 (minimum 0.6), with
+pauses on one later turn in ten (the prior, <a href="#which-backend-gpu-or-api">below</a>):</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Request</th>
+<th>Threshold</th>
+<th>Cost per success</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>coding:3, 30,000 tokens</td>
+<td>Claude Haiku 5.5 (Anthropic): $0.0060 a try, 70%, so $0.0086 per success</td>
+<td>DeepSeek V4.1 Flash: $0.0018, 62%, $0.0051</td>
+</tr>
+<tr>
+<td>coding:4 (hard wording), 40,000 tokens</td>
+<td>GPT-6.1 Terra: $0.064, 72%, $0.089</td>
+<td>the same (Gemini 4 Carbon: $0.15)</td>
+</tr>
+<tr>
+<td>coding:5 (the hardest wording), 90,000 tokens</td>
+<td>Claude Fable 5.2 (Anthropic): $1.07, 70%, $1.53</td>
+<td>Gemini 4 Carbon: $0.26, 62%, $0.85</td>
+</tr>
+<tr>
+<td>general:2, 2,000 tokens</td>
+<td>Claude Haiku 5.5: $0.0016, 78%, $0.0021</td>
+<td>DeepSeek V4.1 Flash: $0.0009, 67%, $0.0015</td>
+</tr>
+<tr>
+<td>general:3, 3,000 tokens</td>
+<td>GPT-6.1 Terra: $0.016, 84%, $0.019</td>
+<td>Claude Haiku 5.5: $0.0018, 65%, $0.0086</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="expected-total-cost">Expected total cost</h3>
+<p>With <code>model_choice: expected_cost</code> (decisions 62 and 67; <a href="routing.html#expected-total-cost-to-finish-the-task">03</a>),
+the models in reach are the same as cost per success's, and each route is ranked by</p>
+<pre><code>E(m)         = try(m) + (1 − P(m)) × (H × stakes + next attempt)
+stakes       = (1/3)^(5 − level) × min(1, prompt tokens / 8,000); counted at level 5 after a correction
+next attempt = the cheapest of: m again, or a stronger model e (a higher chance) from a cold cache,
+               each E(· | m failed) with one attempt fewer left; nothing once max_escalations are planned
+</code></pre>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Part</th>
+<th>What it is</th>
+<th>Setting (default)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>try(m)</td>
+<td>The route's cost for the rest of the session, as above (warm cache or rebuild, the 1-hour cache, pauses)</td>
+<td></td>
+</tr>
+<tr>
+<td>H</td>
+<td>What a failed attempt at the top of the scale (a level-5 agent task) costs the person: their minutes times their rate</td>
+<td><code>routing.human_cost_usd</code> ($1); team <code>human_cost_usd</code>; Config → Routing → Expected total cost, Controls</td>
+</tr>
+<tr>
+<td>stakes</td>
+<td>The share of H a failure of this request puts at risk: a third for each level below 5 (level 3: 1/9, level 1: 1/81), times the prompt's size up to 8,000 tokens; the whole level-5 share after a correction ("that's wrong", "revert")</td>
+<td>fixed (<code>success.STAKES_LEVEL</code>, <code>STAKES_TOKENS</code>)</td>
+</tr>
+<tr>
+<td>P(m)</td>
+<td>The benchmark prior at the task's difficulty, read between levels; widened by the learned router's spread in route mode; the fitted layer in its place once it's routing and beat the prior</td>
+<td><code>routing.success.mode</code> (off)</td>
+</tr>
+<tr>
+<td>A failure's effect on the next attempt</td>
+<td>Each model's chance on the task moves with a hidden difficulty 1 log-odds wide, so a task one model failed is harder for the next too</td>
+<td>fixed (<code>success.SPREAD</code>)</td>
+</tr>
+<tr>
+<td>Attempts planned after the first</td>
+<td>None by default: a failure costs the person's time; with the cascade on, as many as it may escalate</td>
+<td><code>routing.cascade.max_escalations</code> (0; up to 2)</td>
+</tr>
+</tbody>
+</table></div>
+<figure class="diagram"><pre class="mermaid">flowchart TD
+    A[&quot;auto, new task, team routes by expected_cost&quot;] --&gt; F{&quot;Level set by the client&lt;br/&gt;(X-Route-Floor, or a substitution)?&quot;}
+    F -- &quot;yes&quot; --&gt; T[&quot;The threshold decides&quot;]
+    F -- &quot;no&quot; --&gt; C{&quot;Chances known&lt;br/&gt;for this task type?&quot;}
+    C -- &quot;no&quot; --&gt; T
+    C -- &quot;yes&quot; --&gt; R[&quot;In reach: chance at the level ≥ min_success_chance (0.6)&quot;]
+    R -- &quot;none, or none can run&quot; --&gt; T
+    R --&gt; P[&quot;P(m): prior at the difficulty → spread (learned router, route mode)&lt;br/&gt;→ fitted layer (success.mode: route, beat the prior)&quot;]
+    P --&gt; E[&quot;E(m) = try + (1 − P) × (H × stakes + best next attempt)&quot;]
+    E --&gt; RANK[&quot;Lowest E first; then priority, stickiness, speed checks on E,&lt;br/&gt;their margins a share of the money in E, not the person&#x27;s time&quot;]</pre></figure>
+<p><strong>Inside a task</strong>, with the cascade on (<code>routing.cascade.max_escalations</code> 1 or 2; off by default, since on the routing
+simulator it saved nothing in total, counting failed attempts at a price per failed attempt, for a third more model spend), a team routing by <code>expected_cost</code> may escalate:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>When</th>
+<th>What's compared</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Mid-task, after <code>failures_now</code> (3) failures in a row (failed test or build runs, or error tool results)</td>
+<td>Continuing: the rest of the task on its model, at its chance now (its chance at the task's start moved by the evidence, table in <a href="routing.html#escalation-inside-a-task">03</a>), a failure there escalating later. Escalating: the rest of the task on a stronger model from a cold cache, one escalation fewer left. Escalates when that's cheaper by more than <code>switch_margin_usd</code> ($0.01)</td>
+</tr>
+<tr>
+<td>At a human message that carries on the task: a correction, or the code left failing (the last run after the last edit failed) and a prompt that, classified first, is the same kind of work at no higher a level than the task's</td>
+<td>The same; the task, its row and its evidence go on. A correction puts the level-5 share of H at stake, so it's where an escalation most often pays</td>
+</tr>
+<tr>
+<td>At any other human message</td>
+<td>A new task, chosen afresh: the only way a task goes back down</td>
+</tr>
+</tbody>
+</table></div>
+<p>Never for a named model, never past the team's models, never once a budget is 90% spent, never more than
+<code>max_escalations</code> per task, never into a refusal by <code>max_request_usd</code>. Every request of an escalated task is tagged
+<code>escalation</code> and <code>escalated_from</code>; its first request (the answer's row, once) takes the failed attempt's
+baseline cost off its routing savings.</p>
+<p>The reason says what was compared, and what's at stake: <code>classified coding:3 (coding: 1 tool); expected total cost:
+claude-haiku ~$0.055 to finish: try $0.0060, chance 70% (benchmark), difficulty 3.0 (level 3), a failure costs $0.11 of a
+person's time (of $1.00: 1/9 at level 3), then claude-haiku again; deepseek-v4.1-flash ~$0.063, chance 62% (benchmark)</code>,
+and for an escalation (cascade on), at the person's "that's wrong" after a failing run: <code>escalated at the next human
+message (1 of 1): claude-haiku's chance now 24% (was 70%: tests failing after the last edit -0.6, corrected (wrong) -1.4);
+continuing ~$1.00 vs escalating to gpt-terra ~$0.28 (82%, cache rebuild included); at coding:3 (coding: 1 tool)</code>.</p>
+<p>What it picks for new sessions on the shipped configuration and price list of 12 November 2026, with the benchmark prior
+alone (nothing fitted yet; a try's cost and the model's chance at the level):</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Request</th>
+<th>Threshold</th>
+<th>Expected total cost, H = $0.25</th>
+<th>H = $1 (default)</th>
+<th>H = $5</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>general:1, 20 tokens ("What's the capital of Portugal?")</td>
+<td>GLM-5.3 Flash, $0.00038, 77%</td>
+<td>GLM-5.3 Flash</td>
+<td>GLM-5.3 Flash</td>
+<td>GLM-5.3 Flash</td>
+</tr>
+<tr>
+<td>coding:2, 20,000 tokens ("write unit tests", an agent)</td>
+<td>DeepSeek V4.1 Flash, $0.0015, 75%</td>
+<td>DeepSeek V4.1 Flash</td>
+<td>DeepSeek V4.1 Flash</td>
+<td>Claude Haiku 5.5, $0.0046, 81%</td>
+</tr>
+<tr>
+<td>coding:3, 30,000 tokens</td>
+<td>Claude Haiku 5.5, $0.0060, 70%</td>
+<td>DeepSeek V4.1 Flash, $0.0018, 62%</td>
+<td>Claude Haiku 5.5</td>
+<td>GPT-6.1 Terra, $0.051, 82%</td>
+</tr>
+<tr>
+<td>coding:4 (agent), 40,000 tokens</td>
+<td>GPT-6.1 Terra, $0.064, 72%</td>
+<td>GPT-6.1 Terra</td>
+<td>GPT-6.1 Terra</td>
+<td>GPT-6.1 Terra</td>
+</tr>
+<tr>
+<td>coding:5 (agent, hard wording), 90,000 tokens</td>
+<td>Claude Fable 5.2, $1.07, 70%</td>
+<td>Gemini 4 Carbon, $0.26, 62%</td>
+<td>Gemini 4 Carbon</td>
+<td>Gemini 4 Carbon</td>
+</tr>
+<tr>
+<td>general:2, 2,000 tokens</td>
+<td>Claude Haiku 5.5, $0.0016, 78%</td>
+<td>DeepSeek V4.1 Flash, $0.00085, 67%</td>
+<td>Claude Haiku 5.5</td>
+<td>Claude Haiku 5.5</td>
+</tr>
+<tr>
+<td>general:3, 3,000 tokens</td>
+<td>GPT-6.1 Terra, $0.016, 84%</td>
+<td>Claude Haiku 5.5, $0.0018, 65%</td>
+<td>Claude Haiku 5.5</td>
+<td>GPT-6.1 Terra</td>
+</tr>
+</tbody>
+</table></div>
+<p>Under decision 62 alone (the full H on every request) the default sent the first three rows and both general rows to
+GPT-6.1 Terra or Gemini 4 Carbon, at 2 to 40 times the threshold's try. The benchmark's chances are FrontierSWE-scaled,
+more pessimistic than most traffic, and the stakes keep that from buying strong models for easy work; at levels 4 and 5 a
+failure still costs most of H. On the routing simulator the default $1 spends no more than the threshold on any task
+class; $2 and up spend more on analysis and chat (<a href="routing.html#is-it-the-right-default">03</a>). Turn
+<code>routing.success.mode</code> to shadow (with the learned router on), and to route once Reports → Learned router shows the
+fitted layer beat the prior.</p>
+<h3 id="exploration-and-the-level-map">Exploration and the level map</h3>
+<p>A team that explores (<code>teams.&lt;name&gt;.exploration</code>, off by default) has a few of its task starts routed a level down or
+up from the level they'd get, at random, so Reports → Levels can say whether each level is too high or too low for the
+work (<a href="routing.html#your-own-traffic-as-the-benchmark">03</a>). Before that, a level the outcome report's recommendation
+moved is applied (<code>routing.level_map</code>, e.g. <code>{"coding:3": 2}</code>).</p>
+<figure class="diagram"><pre class="mermaid">flowchart TD
+    L[&quot;The level: the rules&#x27;, or the learned router&#x27;s&lt;br/&gt;(Claude Code&#x27;s caps applied)&quot;] --&gt; M{&quot;In routing.level_map?&lt;br/&gt;(never a client&#x27;s X-Route-Floor)&quot;}
+    M -- &quot;yes&quot; --&gt; MV[&quot;The mapped level&quot;]
+    M -- &quot;no&quot; --&gt; K[&quot;As it is&quot;]
+    MV &amp; K --&gt; X{&quot;Team explores; learned router on;&lt;br/&gt;a new task with no cache warm;&lt;br/&gt;no X-Route-Floor; not a capped side request;&lt;br/&gt;not a named model, batch, eval or pinned backend?&quot;}
+    X -- &quot;no&quot; --&gt; USE[&quot;Route at that level&quot;]
+    X -- &quot;yes&quot; --&gt; CAN{&quot;A canary at the level&lt;br/&gt;the team may use?&quot;}
+    CAN -- &quot;drawn (canary_share, 20%)&quot; --&gt; CA[&quot;Only the canary&quot;]
+    CAN -- &quot;not drawn, or none&quot; --&gt; DR{&quot;Draw&quot;}
+    DR -- &quot;share ÷ 2 (2%), level &gt; 1&quot; --&gt; DOWN[&quot;One level down&quot;]
+    DR -- &quot;share ÷ 2 (2%), level &lt; 5,&lt;br/&gt;every budget under 90%&quot; --&gt; UP[&quot;One level up&quot;]
+    DR -- &quot;otherwise&quot; --&gt; SV[&quot;The level, the canary left out&quot;]
+    DOWN &amp; UP --&gt; ANY{&quot;A model the team may&lt;br/&gt;use at that level?&quot;}
+    ANY -- &quot;no&quot; --&gt; USE
+    ANY -- &quot;yes&quot; --&gt; GO[&quot;Route there; tag the task&lt;br/&gt;explore, explore_from&quot;]</pre></figure>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Arm</th>
+<th>Its chance (default share 4%, a canary's 20%)</th>
+<th>Recorded</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>served</td>
+<td>96% (with a canary at the level: 76.8%)</td>
+<td><code>arm</code> served, <code>propensity</code></td>
+</tr>
+<tr>
+<td>down, up</td>
+<td>2% each (with a canary: 1.6%); at level 1 or 5 the whole 4% one way; up's half stays served near a budget</td>
+<td><code>arm</code>, <code>arm_from</code>, <code>propensity</code>, ledger tags <code>explore</code>, <code>explore_from</code></td>
+</tr>
+<tr>
+<td>canary</td>
+<td>20% of the level's task starts, until it has 30 there or 14 days pass</td>
+<td><code>arm</code> canary</td>
+</tr>
+</tbody>
+</table></div>
+<p>The report weights each task start by 1 ÷ its arm's chance, so arms and teams with different shares compare fairly. A
+recommendation ("coding level 3: level 2 does as well in 98% (n=412 explored, 9,870 served); consider lowering") needs
+200 task starts on each side and a difference clear at 90%; it raises an alert once, and an admin applies it (or the
+worker, with <code>routing.benchmark.auto_apply</code>, when the learned router's model in use beat the rules and leans the same way).</p>
+<h2 id="which-backend-gpu-or-api">Which backend: GPU or API</h2>
+<p>Each candidate model lists its routes (backends that serve it). A route is dropped when:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Dropped when</th>
+<th>Why</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>The backend isn't enabled (no key, no URL) or the team may not use it</td>
+<td>Policy and credentials</td>
+</tr>
+<tr>
+<td>The backend is being skipped after failures (see <a href="#when-a-backend-fails-or-a-model-refuses">When a backend fails</a>)</td>
+<td>Bad credentials or a network-level outage: the whole backend. Retried when the wait is up</td>
+</tr>
+<tr>
+<td>This model is being skipped on this backend: over capacity (429/503/529), its deployment doesn't exist there (404), or it failed 3 times in a row (408/409/425/500)</td>
+<td>Only that model there; the backend's other models are unaffected. A busy route is kept as a <strong>last resort</strong> if nothing else can take the request</td>
+</tr>
+<tr>
+<td>It's a GPU deployment that isn't warm (not started, starting, or stopped now)</td>
+<td>Nothing to send to</td>
+</tr>
+<tr>
+<td>It's draining and this session has no warm cache there (on any of its replicas)</td>
+<td>Draining only finishes sessions already there</td>
+</tr>
+<tr>
+<td>It's a GPU at 100% (see <a href="#when-a-gpu-is-full">When a GPU is full</a>)</td>
+<td>Saturated: new work spills to other routes. Kept as a <strong>last resort</strong> if nothing else can take the request</td>
+</tr>
+<tr>
+<td>It's a saturated GPU whose queue is also full</td>
+<td>No room to wait either</td>
+</tr>
+<tr>
+<td><code>auto</code> and the route has no known price</td>
+<td>An unknown price must never look free</td>
+</tr>
+<tr>
+<td>The model's context window is too small (prompt plus the client's <code>max_tokens</code> &gt; 95% of it) and other models fit</td>
+<td>Avoid a guaranteed error. Mid-task too: a session that outgrows its model moves to one with room, at the same floor. When nothing at the floor fits, only the largest window is kept and the provider decides</td>
+</tr>
+<tr>
+<td><code>auto</code> and it's a mock backend while real ones exist</td>
+<td>Mocks are for trying things out</td>
+</tr>
+<tr>
+<td>A batch request, and the backend has no batch API; or it's a GPU that's full or draining, or <code>batches.gpu.enabled</code> is off</td>
+<td>Batch work only goes where it can wait at batch prices</td>
+</tr>
+</tbody>
+</table></div>
+<p>The rest are ranked by <strong>what this session will cost from here</strong>:</p>
+<pre><code>cost = rebuild + expected_remaining_turns × per_turn
+rebuild   = cached context × (cache-write − cache-read price) × the share of it the backend no longer holds
+            (0 when it holds this session's cache; on a GPU, the share is the replica's, see below)
+per_turn  = cached context × cache-read + new tokens × cache-write + ~600 output tokens × output price
+            (new tokens: ~2,000, or for a known session what the prompt grew since its last turn, at least 200;
+             cached context: the rest of the prompt.
+             cache-write is the input price except where caching is explicit and writes cost extra:
+             Anthropic-format backends (Claude on Anthropic, Bedrock, Vertex, Foundry) and Claude through
+             OpenRouter, which gets a cache marker; on a backend whose cache_ttl_seconds is 3600 or more,
+             the 1-hour write price. Elsewhere caching is automatic.)
+          + after the first turn, where the cache lasts under an hour (cache_ttl_seconds &lt; 3600):
+            pause share × cached context × (cache-write − cache-read)
+            (a pause of 5 to 60 minutes rebuilds a 5-minute cache, not an hour's; the share is the team's own,
+             leaning on the organization's and a prior of 1 in 10, from pauses.py; GPUs get none)
+turns     = turns so far, clamped to 3…30 (a long session is expected to keep going)
+prices    = the route's live price (or its `price:` override) at this prompt's length (long-prompt tiers apply)
+</code></pre>
+<p>A <strong>GPU's price is a shadow price</strong>: what one token "costs" given how busy the GPU is. It scales the
+<code>price:</code> written on the GPU route, which is set to the model's API-equivalent rate (GPUs have no live
+price list); a GPU route without one is never used by <code>auto</code>.</p>
+<figure class="diagram"><pre class="mermaid">flowchart LR
+    U{&quot;GPU utilization&quot;} -- &quot;≤ 60%&quot; --&gt; F[&quot;2% of the route&#x27;s price&lt;br/&gt;(nearly free: it&#x27;s already paid for)&quot;]
+    U -- &quot;60–100%&quot; --&gt; RISE[&quot;Rises toward 100% of the route&#x27;s price&lt;br/&gt;(quadratically)&quot;]
+    U -- &quot;100% / queueing&quot; --&gt; OUT[&quot;Last resort only:&lt;br/&gt;used when no other route can take it&quot;]</pre></figure>
+<p>So GPUs win whenever they have room, even for a <strong>better</strong> model than the task needs (a "free
+upgrade", sent at low vLLM priority so traffic that needs that model goes first). As they fill up,
+APIs win again.</p>
+<p><strong>Batch requests</strong> are priced the same way against the providers' batch prices (about half): a running
+GPU with room wins, at its shadow price for its load now. The worker then runs them only in the
+headroom below the knee (60% of <code>max_concurrency</code> × replicas, less live requests), at vLLM priority 20,
+below free upgrades, and hands what hasn't run after 12 hours to the request's provider batch route
+(<a href="request-flow.html#batch-work-on-your-gpus">02</a>).</p>
+<p><strong>Then the tie-breakers:</strong></p>
+<ol>
+<li><strong>Close on price, then quality and speed.</strong> The same model often costs the same everywhere
+   (Claude on Anthropic, Bedrock, Foundry and OpenRouter), so price alone can't choose. Routes that
+   cost at most the priority's premium more than the cheapest compete on speed instead:</li>
+</ol>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Priority</th>
+<th>A faster route may cost up to</th>
+<th>Within that range</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>cost</code> (default)</td>
+<td>2% more (a tie)</td>
+<td>the higher-quality model (<code>auto</code>), then the faster route</td>
+</tr>
+<tr>
+<td><code>balanced</code></td>
+<td>20% more</td>
+<td>the faster route, then the higher-quality model</td>
+</tr>
+<tr>
+<td><code>speed</code></td>
+<td>100% more</td>
+<td>the faster route, then the higher-quality model</td>
+</tr>
+</tbody>
+</table></div>
+<p>With expected total cost the range is the premium of the cheapest route's money (the tokens in its expected
+   total), not of its total with the person's time, so a 2% tie stays 2% of what's spent (decision 67).
+   The organization default is <code>routing.priority</code>; a team can set its own (<code>priority</code>), and a request
+   can send <code>X-MeritOrder-Priority: cost|balanced|speed</code>. Speed is the expected time for a typical
+   reply (<code>routing.est_output_tokens</code>, 600 tokens): time to the first token plus the writing time, both
+   moving averages of real replies on that route (backend + upstream model). Timing starts when the
+   route is called, so a route that took over after a failure isn't charged for it. A route is trusted
+   after 2 replies; until then it ranks after measured ones, keeping cost order.
+2. <strong>Measuring the alternatives.</strong> Otherwise the first route measured would win forever. Every 10th
+   new session (<code>routing.speed_check_every</code>; 0 turns it off) can go to a route in that price range
+   that hasn't been measured, or not in the last 10 minutes. Never mid-session, so no cache is lost.
+3. <strong>Stickiness:</strong> a session stays on its current backend unless the cheapest one saves more than
+   10% + $0.01 over the rest of the session (with expected total cost, the difference in expected totals has to beat
+   10% of the current route's money plus $0.01), which is usually only true once its cache has expired
+   (as long as the request's last cache marker asked: 5 minutes, or an hour for the gateway's own markers from a
+   session's second turn on the shipped Claude backends; <code>cache_ttl_seconds</code> per backend). That's what stops a session bouncing
+   between Bedrock and Anthropic and paying to rebuild its cache each time. Speed never moves a
+   session either: a warm cache is cheaper, and usually faster, than any other route.</p>
+<p>Each gateway process learns speeds from its own traffic. The console's <strong>Backends</strong> page shows them
+per model (first token, tokens per second).</p>
+<p><strong>Which replica of a GPU deployment.</strong> Each replica has its own KV cache. When the gateway can reach
+replicas one by one (SkyPilot's clusters, Kubernetes pods, or a static server's <code>static_urls</code>), it prices each with the
+same formula, at that replica's load and with the share of the session's prefix that replica probably still
+holds, and sends the request to the cheapest:</p>
+<figure class="diagram"><pre class="mermaid">flowchart TD
+    R[&quot;Ready replicas&lt;br/&gt;(gone, shutting down, or unreachable&lt;br/&gt;in the last 60 s: skipped;&lt;br/&gt;draining: only where the session is warm)&quot;] --&gt; F{&quot;At 100% load?&quot;}
+    F -- &quot;yes&quot; --&gt; SKIP[&quot;Skipped while another has room;&lt;br/&gt;all full: queue on the shortest queue&quot;]
+    F -- &quot;no&quot; --&gt; C[&quot;cost = rebuild of the share it no longer holds&lt;br/&gt;+ turns × per turn at its load&quot;]
+    C --&gt; S{&quot;The session&#x27;s replica, it still holds part&lt;br/&gt;of the cache, and the cheapest saves&lt;br/&gt;no more than 10% + $0.01?&quot;}
+    S -- &quot;yes&quot; --&gt; STAY[&quot;Stay on the session&#x27;s replica&quot;]
+    S -- &quot;no&quot; --&gt; MOVE[&quot;Cheapest replica&lt;br/&gt;(equal cost: the less loaded)&quot;]</pre></figure>
+<p>The share still held comes from vLLM's KV events (<code>serve.kv_events</code>), else an estimate from the replica's
+KV-cache metrics (what it has written since the session's last turn against what it had free), else the
+cache TTL (<a href="caching-and-sessions.html#gpu-replicas-which-one-holds-the-cache">04</a>). Behind a load balancer
+that doesn't know sessions, it's divided by the number of replicas. A replica the gateway can't connect to
+is skipped for 60 s, and the deployment's endpoint is used.</p>
+<h2 id="when-a-backend-fails-or-a-model-refuses">When a backend fails or a model refuses</h2>
+<figure class="diagram"><pre class="mermaid">flowchart TD
+    S[&quot;Send to the top candidate&quot;] --&gt; R{&quot;Result&quot;}
+    R -- &quot;can&#x27;t connect to the&lt;br/&gt;chosen GPU replica&quot; --&gt; UR[&quot;Skip that replica for 60 s;&lt;br/&gt;send to the deployment&#x27;s endpoint&lt;br/&gt;(not counted as a try)&quot;]
+    UR --&gt; S
+    R -- &quot;402 saying how much the&lt;br/&gt;account can afford, and the&lt;br/&gt;client set no max_tokens&quot; --&gt; AFF[&quot;Ask the same route for that many&lt;br/&gt;output tokens (up to 3 times;&lt;br/&gt;not counted as a try)&quot;]
+    AFF --&gt; S
+    R -- &quot;over capacity (429/503/529),&lt;br/&gt;unknown model (404), 408/409/425/500&quot; --&gt; NEXTM[&quot;Count a failure against this model here;&lt;br/&gt;skip it on this backend for this request;&lt;br/&gt;try the next&quot;]
+    R -- &quot;timeout, network error, 402/502/504,&lt;br/&gt;bad key or no access (401/403)&quot; --&gt; NEXT[&quot;Count a failure against the backend;&lt;br/&gt;skip every candidate on it;&lt;br/&gt;try the next&quot;]
+    R -- &quot;200, then an error before any content&lt;br/&gt;(Anthropic&#x27;s in-stream overload,&lt;br/&gt;an OpenRouter error chunk or body)&quot; --&gt; AS[&quot;Handled as a failure with the error&#x27;s status&lt;br/&gt;(overload = 529; no status given = 502)&quot;]
+    AS -.-&gt; R
+    R -- &quot;stream sends nothing within&lt;br/&gt;first_byte_timeout_seconds&quot; --&gt; NEXT
+    R -- &quot;400/413: the prompt doesn&#x27;t fit&lt;br/&gt;(prompt is too long, maximum context length…)&quot; --&gt; BIG{&quot;auto, and a qualifying model&lt;br/&gt;with a bigger window?&quot;}
+    BIG -- &quot;yes&quot; --&gt; NB[&quot;Try it: from the candidates, or re-decided&lt;br/&gt;when the session&#x27;s model was the only one&quot;]
+    BIG -- &quot;no&quot; --&gt; TL[&quot;Return the error as&lt;br/&gt;&#x27;prompt is too long: …&#x27;&lt;br/&gt;(Claude Code compacts on it)&quot;]
+    NB --&gt; LIM
+    R -- &quot;other 4xx (bad request)&quot; --&gt; STOP[&quot;Return the error:&lt;br/&gt;another backend would reject it too&quot;]
+    R -- &quot;200, but the model refused&lt;br/&gt;(before any content)&quot; --&gt; REF{&quot;auto, team allows refusal_fallback,&lt;br/&gt;and another model left?&quot;}
+    REF -- &quot;yes&quot; --&gt; NM[&quot;Try the next model&lt;br/&gt;(refused attempt is billed and logged)&quot;]
+    REF -- &quot;no&quot; --&gt; PASS[&quot;Return the refusal&quot;]
+    R -- &quot;200&quot; --&gt; DONE[&quot;Respond&quot;]
+    NEXT --&gt; LIM{&quot;Candidates left, and fewer&lt;br/&gt;than max_attempts (3) tries?&quot;}
+    NEXTM --&gt; LIM
+    NM --&gt; LIM
+    LIM -- &quot;yes&quot; --&gt; S
+    LIM -- &quot;no&quot; --&gt; ERR[&quot;Return the last error&lt;br/&gt;(with the provider&#x27;s Retry-After;&lt;br/&gt;a too-long one worded &#x27;prompt is too long: …&#x27;)&quot;]</pre></figure>
+<p>The gateway reads the start of every stream, up to its first content, before passing it on. So an error
+that arrives after a <code>200</code> still goes to the next source, and nothing reaches the client twice. Once
+content has started, an error is passed through: switching then would repeat output. The ledger records that
+request with the provider's error and status, and the tokens it billed. A too-long prompt
+isn't counted against the backend, and with <code>X-MeritOrder-Backend</code> set it isn't re-decided.</p>
+<p>How long a failing backend or model is skipped:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Failure</th>
+<th>Skipped</th>
+<th>For</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Over capacity (429, 503, 529)</td>
+<td>That model on that backend</td>
+<td>The provider's <code>Retry-After</code> if it sends one, else 10 s doubling; at most 5 min either way. Still tried as a last resort</td>
+</tr>
+<tr>
+<td>Model or deployment not found (404)</td>
+<td>That model on that backend</td>
+<td>5 min, doubling to 1 hour while it stays missing (a model not deployed there yet is checked less and less often). Turn a backend off in <code>.env</code> (<code>MERITORDER_BEDROCK=false</code>, <code>MERITORDER_FOUNDRY_CLAUDE=false</code>) until its models exist</td>
+</tr>
+<tr>
+<td>Credentials rejected (401, 403)</td>
+<td>The backend</td>
+<td>1 min doubling to 10 min</td>
+</tr>
+<tr>
+<td>Anything else (5xx, timeouts, network)</td>
+<td>The model (408, 409, 425, 500) or the backend (402, 502, 504, network)</td>
+<td>After 3 in a row: 5 s doubling to 60 s. A <code>Retry-After</code> on a retryable error (not 402) applies at once, up to 5 min</td>
+</tr>
+</tbody>
+</table></div>
+<p>When something starts being skipped, an alert goes to the console's "needs attention" list, the log,
+and <code>MERITORDER_ALERT_WEBHOOK_URL</code>. It says why and where its traffic goes meanwhile. That's at most once
+per backend and model every 30 minutes, with a second alert when it works again. The Backends page shows
+what's skipped and for how long. <code>meritorder_failovers_total{backend,status}</code> counts every failed
+attempt except bad requests (other 4xx and too-long prompts), and responses served after one carry
+<code>X-MeritOrder-Failed-Over: backend/model status</code> (or <code>prompt too long</code>).</p>
+<p>A request gets at most <code>max_attempts</code> (3) tries in all: failovers, moves to a bigger window, and
+refusal retries count; asking a route again for what its credit covers (HTTP 402) doesn't, and neither does
+sending a request to a deployment's endpoint after its replica couldn't be reached. Once a
+stream has started sending content to the client, a failure can't be retried: the client gets an
+error event, and the partial usage is still recorded.</p>
+<h2 id="when-gpus-start-scale-and-stop">When GPUs start, scale, and stop</h2>
+<p>The capacity controller (<code>meritorder controller</code>) runs every 60 s and wakes within 2 s when an admin changes a GPU
+control. It needs Postgres, and only one is active at a time (a Postgres advisory lock); a second one stands by.</p>
+<figure class="diagram"><pre class="mermaid">flowchart TD
+    C0[&quot;Add up what running replicas cost&lt;br/&gt;since the last cycle&quot;] --&gt; C1[&quot;Addressable demand for each deployment:&lt;br/&gt;traffic its model is good enough for,&lt;br/&gt;valued at API prices (free upgrades and batch work excluded),&lt;br/&gt;max of last hour and 4 × last 15 min&quot;]
+    C1 --&gt; C2[&quot;Price of one replica:&lt;br/&gt;cheapest SkyPilot catalog offer in allowed&lt;br/&gt;clouds/regions, or on Kubernetes its node type&#x27;s&lt;br/&gt;configured rate, else gpu_cost_per_hour&quot;]
+    C2 --&gt; C3[&quot;Wanted replicas = enough for the throughput&lt;br/&gt;(at 70% load), but no more than demand pays for&lt;br/&gt;with a 20% margin; a replica not running yet must&lt;br/&gt;also pay back its cold start over the 30 min hold;&lt;br/&gt;within min/max_replicas&quot;]
+    C3 --&gt; P1{&quot;Stop all GPUs&lt;br/&gt;is on?&quot;}
+    P1 -- &quot;yes&quot; --&gt; OFF[&quot;Stop every deployment&quot;]
+    P1 -- &quot;no&quot; --&gt; P2{&quot;Admin control&lt;br/&gt;on this deployment?&quot;}
+    P2 -- &quot;stop&quot; --&gt; OFF1[&quot;Stop it (drain or now)&quot;]
+    P2 -- &quot;pin N&quot; --&gt; ON[&quot;Run exactly N&quot;]
+    P2 -- &quot;none / expired&quot; --&gt; AUTO[&quot;Follow demand&quot;]
+    OFF1 --&gt; G1
+    ON --&gt; G1
+    AUTO --&gt; G1{&quot;GPU budget for the&lt;br/&gt;month used up?&quot;}
+    G1 -- &quot;yes&quot; --&gt; DR[&quot;Drain and stop everything,&lt;br/&gt;pins included&quot;]
+    G1 -- &quot;no&quot; --&gt; G2{&quot;Fleet over max $/hour&lt;br/&gt;or max replicas?&quot;}
+    G2 -- &quot;yes&quot; --&gt; CAP[&quot;Pins first, then the deployments whose&lt;br/&gt;demand best covers their cost;&lt;br/&gt;the rest are held back or stopped&quot;]
+    G2 -- &quot;no&quot; --&gt; SM[&quot;State machine (below)&quot;]
+    CAP --&gt; SM
+    DR --&gt; SM
+    OFF --&gt; SM
+    SM --&gt; PUB[&quot;Publish state, endpoint, where replicas run,&lt;br/&gt;prices → Redis; gateways follow within 5 s&quot;]</pre></figure>
+<p><strong>The state machine</strong> (per deployment):</p>
+<figure class="diagram"><pre class="mermaid">stateDiagram-v2
+    direction LR
+    [*] --&gt; api_only
+    api_only --&gt; provisioning: start
+    provisioning --&gt; warm: ready
+    provisioning --&gt; api_only: failed, timed out, or stopped
+    warm --&gt; warm: scale
+    warm --&gt; draining: demand gone, or stop (drain)
+    warm --&gt; api_only: stop now
+    warm --&gt; provisioning: lost readiness
+    draining --&gt; warm: demand returns
+    draining --&gt; api_only: drained, or stop now</pre></figure>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Transition</th>
+<th>Exactly when</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>start</strong></td>
+<td>Wanted ≥ 1 continuously for 10 min and not in a cooldown. At once when an admin pins replicas (ignoring any cooldown from before the pin) or <code>min_replicas &gt; 0</code> (once any cooldown is over)</td>
+</tr>
+<tr>
+<td><strong>ready</strong></td>
+<td>The replicas answer <code>/v1/models</code></td>
+</tr>
+<tr>
+<td><strong>failed, timed out</strong></td>
+<td>The start call fails, every replica's SkyPilot launch fails (or a cluster dies before vLLM was ever ready), Kubernetes refuses the pods for good (a quota or policy, an image that can't be pulled, a missing Secret, vLLM crashing three times, credentials the cluster rejects, the resource deleted outside Merit Order), or 45 min pass; the replicas are shut down and the deployment cools down for 30 min. A start whose teardown fails too stays tracked as starting (and billing), and the teardown is tried again every cycle. The reason is in the activity log</td>
+</tr>
+<tr>
+<td><strong>stopped</strong> (while starting)</td>
+<td>An admin stop, Stop all GPUs, the GPU budget, or a fleet cap: provisioning is cancelled at once</td>
+</tr>
+<tr>
+<td><strong>scale</strong></td>
+<td>Wanted changes while warm: on SkyPilot a cluster launched or torn down per replica, on Kubernetes a patch of the replica count. A scale that fails keeps the replicas that ran, and is tried again next cycle</td>
+</tr>
+<tr>
+<td><strong>demand gone</strong></td>
+<td>Wanted = 0 for 10 min, and the deployment has been warm at least 30 min</td>
+</tr>
+<tr>
+<td><strong>stop (drain)</strong></td>
+<td>An admin stop with "drain first", the GPU budget, or a fleet cap. Skips the 30-minute hold</td>
+</tr>
+<tr>
+<td><strong>stop now</strong></td>
+<td>An admin stop with "stop now", or Stop all GPUs (unless set to drain)</td>
+</tr>
+<tr>
+<td><strong>lost readiness</strong></td>
+<td>Replicas stop answering (e.g. a spot preemption: the controller launches the SkyPilot cluster again, or Kubernetes replaces the pod); traffic goes to APIs until they're back</td>
+</tr>
+<tr>
+<td><strong>demand returns</strong></td>
+<td>Wanted ≥ 1 again while draining, unless it was stopped</td>
+</tr>
+<tr>
+<td><strong>drained</strong></td>
+<td>15 min after draining started</td>
+</tr>
+</tbody>
+</table></div>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>State</th>
+<th>Gets traffic?</th>
+<th>Billing?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>api_only</code></td>
+<td>No; its models' traffic goes to APIs (or other models for <code>auto</code>)</td>
+<td>No</td>
+</tr>
+<tr>
+<td><code>provisioning</code></td>
+<td>No</td>
+<td>Yes, from the moment the provisioner starts it (the SkyPilot launches, or the Kubernetes resource is created)</td>
+</tr>
+<tr>
+<td><code>warm</code></td>
+<td>Yes, first choice while it has headroom</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td><code>draining</code></td>
+<td>Only sessions whose cache is already there</td>
+<td>Yes</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="when-a-gpu-is-full">When a GPU is full</h2>
+<p><strong>How "full" is measured.</strong> Two signals; a backend is saturated when either reaches 100%:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Signal</th>
+<th>Source</th>
+<th>How fresh</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>vLLM's own load: KV-cache use, pushed to 100% by ~10 waiting requests</td>
+<td>The controller reads <code>/metrics</code> once per cycle</td>
+<td>Up to one cycle (60 s) old</td>
+</tr>
+<tr>
+<td>Requests in flight ÷ (<code>max_concurrency</code> × replicas)</td>
+<td>Every gateway counts its own requests to the backend and publishes the count to Redis every 2 s</td>
+<td>Live for this gateway, ≤ 2 s for others</td>
+</tr>
+</tbody>
+</table></div>
+<p>The second signal only exists when the backend sets <code>max_concurrency</code> (vLLM's <code>--max-num-seqs</code>, or
+what its KV cache fits). Without it, a burst can pile up in vLLM for up to a minute before the
+gateways notice. Set it.</p>
+<p><strong>Where requests wait.</strong> Merit Order has no queue of its own, in Redis or anywhere else: LLM calls
+are interactive and streaming, so the gateway forwards each request at once and holds the
+connection open. The only queue is <strong>vLLM's scheduler</strong>, on the GPU.</p>
+<figure class="diagram"><pre class="mermaid">flowchart TD
+    S{&quot;GPU saturated?&quot;} -- &quot;no&quot; --&gt; USE[&quot;Candidate at its shadow price&quot;]
+    S -- &quot;yes&quot; --&gt; OTHER{&quot;Another route can take it?&lt;br/&gt;(same model on an API, or&lt;br/&gt;another model for auto)&quot;}
+    OTHER -- &quot;yes&quot; --&gt; SPILL[&quot;Goes there.&lt;br/&gt;Warm sessions too: rebuilding the cache&lt;br/&gt;beats waiting behind a full GPU&quot;]
+    OTHER -- &quot;no&quot; --&gt; Q{&quot;Waiting requests &amp;lt;&lt;br/&gt;max_waiting × replicas?&quot;}
+    Q -- &quot;yes&quot; --&gt; QUEUE[&quot;Sent to the GPU anyway: waits in vLLM.&lt;br/&gt;Response header x-meritorder-queued: 1&quot;]
+    Q -- &quot;no&quot; --&gt; REJ[&quot;503 overloaded_error:&lt;br/&gt;saturated and its queue is full&quot;]</pre></figure>
+<p>Waiting requests are in-flight requests beyond <code>max_concurrency × replicas</code>; without
+<code>max_concurrency</code>, the controller's last count of vLLM's waiting requests is used. When that count is
+more than 5 minutes old (the controller stopped, say), every request the gateways have in flight there
+counts as waiting, so the bound still holds; it may then turn requests away before vLLM's queue is
+really full. Meanwhile the controller sees the demand and adds replicas (after
+<code>scale_up_after_minutes</code>, up to <code>max_replicas</code>).</p>
+<h2 id="what-happens-when">What happens when…</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>When</th>
+<th>What happens</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>A GPU is saturated</strong></td>
+<td>New requests go to an API route for the same model, or (for <code>auto</code>) another model; sessions on it move too and rebuild their cache. If nothing else can take a request, it waits in vLLM's queue (<code>x-meritorder-queued: 1</code>)</td>
+</tr>
+<tr>
+<td><strong>A GPU is saturated, it's the only route, and its queue is full</strong></td>
+<td>503 <code>overloaded_error</code> saying so; the client retries. The controller adds replicas if the demand lasts</td>
+</tr>
+<tr>
+<td><strong>A burst hits a GPU</strong></td>
+<td>With <code>max_concurrency</code> set, gateways see it within 2 s and spill the excess; without it, up to a minute of requests queue in vLLM first</td>
+</tr>
+<tr>
+<td><strong>Demand drops</strong></td>
+<td>After 10 min below break-even (and 30 min warm), the deployment drains for 15 min, then stops</td>
+</tr>
+<tr>
+<td><strong>A batch arrives while a GPU has room</strong></td>
+<td>Its requests for models the GPU serves (or, for <code>auto</code>, levels it meets) go there, near free; the worker runs them in the headroom at low priority. Batch work never counts as demand, so it never starts or keeps a GPU</td>
+</tr>
+<tr>
+<td><strong>A GPU hasn't run a batch's requests 12 hours in, or it stops or drains</strong></td>
+<td>What's left goes to each request's provider batch route (handed on, at about half price), as does a request the GPU failed twice; a request with no such route waits for the GPU until the batch's 24-hour deadline, then expires</td>
+</tr>
+<tr>
+<td><strong>Demand rises</strong></td>
+<td>After 10 min above break-even, GPUs start; traffic stays on APIs until they're ready (10–20+ min for big models)</td>
+</tr>
+<tr>
+<td><strong>An admin stops a GPU (drain)</strong></td>
+<td>No new sessions there at once; warm sessions finish for up to 15 min; then it's shut down</td>
+</tr>
+<tr>
+<td><strong>An admin stops a GPU (now)</strong></td>
+<td>Gateways stop sending to it within seconds; the next request in each session goes elsewhere and rebuilds its cache there; shutdown starts within seconds (the cloud takes a few minutes)</td>
+</tr>
+<tr>
+<td><strong>An admin pins N replicas</strong></td>
+<td>Started at once (no 10-min wait, no cooldown), kept regardless of demand, until unpinned or the pin expires; safeguards still apply. A start that fails while pinned cools down for 30 min; pinning again retries at once</td>
+</tr>
+<tr>
+<td><strong>Stop all GPUs</strong></td>
+<td>Every deployment stops, none start, until someone resumes</td>
+</tr>
+<tr>
+<td><strong>An <code>auto</code> session's model has nowhere to run</strong></td>
+<td>It's routed again from scratch to another model meeting the floor</td>
+</tr>
+<tr>
+<td><strong>The learned router is in shadow mode</strong></td>
+<td>Each new task's features and the learned level are recorded with what that level would have picked and cost; routing is exactly what the rules give. Reports → Learned router compares them</td>
+</tr>
+<tr>
+<td><strong>The learned router has no model, or it's stale, unsure, or fails</strong></td>
+<td>The rules decide, and the routing reason says why. A model is stale once it's older than <code>max_age_days</code> (30), the level rules change, or the feature key does</td>
+</tr>
+<tr>
+<td><strong>A new learned-router model is trained</strong></td>
+<td>It's used only if it predicts the newest fifth of the requests better than the rules alone by more than chance; gateways load it within seconds. <code>meritorder router use</code> goes back to another version</td>
+</tr>
+<tr>
+<td><strong>A team routes by cost per success</strong></td>
+<td>New tasks may go to a cheaper model a little below their level, when its chance there is at least the minimum and it costs less per solved task; with no chances to go on, or nothing in reach that can run, the threshold decides</td>
+</tr>
+<tr>
+<td><strong>A named model has nowhere to run</strong></td>
+<td>503 explaining each route ("stopped by dana: cost review", "OPENROUTER_API_KEY is not set") unless the team turned on <code>substitute_unavailable</code>; then a model at least as good, with <code>x-meritorder-substituted-for</code></td>
+</tr>
+<tr>
+<td><strong>The GPU budget runs out</strong></td>
+<td>All GPUs drain and none start until next month or the budget is raised; traffic goes to APIs</td>
+</tr>
+<tr>
+<td><strong>The fleet hits max $/hour or max replicas</strong></td>
+<td>Lower-value deployments are held to fewer replicas or stopped</td>
+</tr>
+<tr>
+<td><strong>The org budget runs out</strong></td>
+<td>Every request gets a 429 until next month or it's raised</td>
+</tr>
+<tr>
+<td><strong>A team or person hits their budget</strong></td>
+<td>Their requests get a 429; everyone else is unaffected</td>
+</tr>
+<tr>
+<td><strong>An agent loops</strong></td>
+<td>The session stops at <code>max_session_usd</code>; a spend-spike alert fires when someone's hour is 5× their norm (and at least $5)</td>
+</tr>
+<tr>
+<td><strong>A provider's account can't cover the reply (HTTP 402)</strong></td>
+<td>If it says how much it can (OpenRouter: "can only afford N tokens") and the client didn't set <code>max_tokens</code>, the same route is asked again for N (<code>x-meritorder-max-tokens-source: provider credit</code>), up to three times, since requests in flight reserve credit too and N can shrink between tries; otherwise the next backend</td>
+</tr>
+<tr>
+<td><strong>A request could cost more than <code>max_request_usd</code></strong></td>
+<td>With <code>max_tokens</code> set: cheaper candidates are used; if none fit, a 400 says what it could have cost. Without: the reply is allowed only as many tokens as fit under the limit</td>
+</tr>
+<tr>
+<td><strong>Provisioning fails or takes &gt; 45 min</strong></td>
+<td>Shut down, 30-min cooldown, alert; traffic stays on APIs. On Kubernetes, waiting for a GPU node isn't a failure (a cluster autoscaler may be adding one) until the 45 min pass</td>
+</tr>
+<tr>
+<td><strong>A spot replica is preempted</strong></td>
+<td>The controller launches its SkyPilot cluster again (or the Kubernetes Deployment replaces the pod); if no replica is ready, the deployment shows "starting" and traffic goes to APIs meanwhile</td>
+</tr>
+<tr>
+<td><strong>A SkyPilot launch fails</strong> (no capacity in any allowed cloud or region)</td>
+<td>Whatever it made is torn down; that replica is tried again after 10 min. When every wanted replica failed, it's a failed start: 30-min cooldown</td>
+</tr>
+<tr>
+<td><strong>A stop fails at the cloud</strong></td>
+<td>The deployment stays marked running and the controller keeps retrying; the console shows it in red</td>
+</tr>
+<tr>
+<td><strong>The Kubernetes API stops answering</strong></td>
+<td>A warm deployment whose replicas still answer stays warm; one that is starting keeps waiting (the 45-minute limit still applies)</td>
+</tr>
+<tr>
+<td><strong>The controller isn't running</strong> (or can't reach its replicas: its machine sleeps, the network dropped, <code>~/.sky</code> was lost)</td>
+<td>Nothing scales them. Each SkyPilot replica stops vLLM when its lease runs out (<code>lease_minutes</code>, 15) and SkyPilot deletes the machine <code>autostop_minutes</code> (5) later; Kubernetes replicas stay as they are. Gateways keep using the last published state; the console flags it if GPUs are up</td>
+</tr>
+<tr>
+<td><strong>A SkyPilot cluster no deployment wants</strong> (a renamed or removed backend, a teardown that failed, a crash halfway through a scale)</td>
+<td>Torn down by the next controller cycle's sweep (and the first one after a start), and logged in the activity log</td>
+</tr>
+<tr>
+<td><strong>A provider is over capacity</strong> (429/529, or overloaded inside a stream)</td>
+<td>The next candidate: the same model on another backend (e.g. Anthropic → Bedrock), or, for <code>auto</code>, another model. Mid-task the session keeps its model while any of its routes can answer; once every route for it is over capacity, the session moves to another qualifying model, and the busy routes are tried only if nothing else can take it. That model is skipped there for <code>Retry-After</code> (or 10 s doubling); its other models keep working; alert</td>
+</tr>
+<tr>
+<td><strong>A provider is down</strong> (timeouts, connection errors, 5xx)</td>
+<td>Same: next backend; skipped after 3 failures in a row; alert, and another when it recovers</td>
+</tr>
+<tr>
+<td><strong>A provider accepts a stream but never answers</strong></td>
+<td>Abandoned after <code>first_byte_timeout_seconds</code> (120 s; off for self-hosted GPUs) and sent to the next backend</td>
+</tr>
+<tr>
+<td><strong>A provider rejects the key (401/403)</strong></td>
+<td>Next backend; the backend is skipped for a minute (doubling). Fix the key; <code>meritorder check</code> shows what's usable</td>
+</tr>
+<tr>
+<td><strong>A model refuses</strong> (<code>stop_reason: refusal</code>, <code>content_filter</code>)</td>
+<td><code>auto</code>: retried on the next model, refusal billed and logged. Named model: the refusal is returned</td>
+</tr>
+<tr>
+<td><strong>The harness compacts history</strong></td>
+<td>Every cache for that session is dead, so it's a free moment to re-route</td>
+</tr>
+<tr>
+<td><strong>A conversation outgrows its model</strong> (prompt plus the client's <code>max_tokens</code> &gt; 95% of the window)</td>
+<td><code>auto</code>: the next turn moves to the cheapest model with room at the same floor, even mid-task, and rebuilds its cache there. The floor never rises with length. A named model is sent anyway; the provider decides</td>
+</tr>
+<tr>
+<td><strong>A conversation is too long for every model at its floor</strong></td>
+<td><code>auto</code>: sent to the largest window anyway (the count is an estimate); if the provider refuses, the client gets "prompt is too long: …" and Claude Code compacts</td>
+</tr>
+<tr>
+<td><strong>A provider says the prompt is too long</strong></td>
+<td><code>auto</code>: a qualifying model with a bigger window, if there is one. Otherwise, and for a named model: the error, worded "prompt is too long: …" so Claude Code compacts</td>
+</tr>
+<tr>
+<td><strong>Claude Code runs a subagent or a side request</strong></td>
+<td>Routed in its own thread of the session, so the main conversation's model and cache are untouched; side requests at level ≤ 1, compaction summaries ≤ 3</td>
+</tr>
+<tr>
+<td><strong>A session's cache expires</strong> (idle &gt; 5 min)</td>
+<td>Moving is now free, so it may move to a cheaper backend</td>
+</tr>
+<tr>
+<td><strong>A stream breaks midway</strong></td>
+<td>The client gets an error event; partial usage is recorded</td>
+</tr>
+<tr>
+<td><strong>Redis is down</strong></td>
+<td>Requests fail (sessions, budgets, and rate limits live there). Use a managed Redis with failover</td>
+</tr>
+<tr>
+<td><strong>A burst exceeds the Redis connection pool</strong></td>
+<td>Requests wait for a free connection (up to 10 s) rather than failing</td>
+</tr>
+<tr>
+<td><strong>Postgres is down</strong></td>
+<td>Static keys keep working, and cached keys for up to a minute; new sign-ins and key lookups fail; ledger rows that can't be written are logged and lost</td>
+</tr>
+<tr>
+<td><strong>Someone saves a bad config</strong></td>
+<td>It's rejected on save; gateways, the worker, and the controller keep the last good version</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="every-threshold-in-one-table">Every threshold in one table</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>What</th>
+<th>Default</th>
+<th>Setting</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>How <code>auto</code> chooses among models</td>
+<td>expected_cost (the lowest expected total cost to finish the task; threshold before decision 62)</td>
+<td><code>routing.model_choice</code>; team <code>model_choice</code></td>
+</tr>
+<tr>
+<td>Lowest chance at the level that cost per success and expected total cost accept</td>
+<td>0.6</td>
+<td><code>routing.min_success_chance</code>; team <code>min_success_chance</code></td>
+</tr>
+<tr>
+<td>What a failed attempt costs a person (expected total cost)</td>
+<td>$1 (a minute at $60 an hour) for a level-5 agent task; a request puts a share at stake: a third for each level below 5, less under 8,000 tokens, all of it after a correction</td>
+<td><code>routing.human_cost_usd</code>; team <code>human_cost_usd</code></td>
+</tr>
+<tr>
+<td>The success predictor's fitted layer</td>
+<td>off (<code>shadow</code>: trained and recorded; <code>route</code>: used once it beat the benchmark prior on the newest fifth by more than twice the standard error); needs 200 task starts with an outcome</td>
+<td><code>routing.success.mode</code></td>
+</tr>
+<tr>
+<td>Escalations per task (expected total cost)</td>
+<td>0, off (up to 2); when on, mid-task only after 3 failures in a row, else at a human message that carries on the task; never once a budget is 90% spent</td>
+<td><code>routing.cascade.max_escalations</code>, <code>failures_now</code></td>
+</tr>
+<tr>
+<td>The learned router</td>
+<td>off (<code>shadow</code>: compare, change nothing; <code>route</code>: use it when sure)</td>
+<td><code>routing.learned.mode</code></td>
+</tr>
+<tr>
+<td>How sure the learned router must be for its level to be used</td>
+<td>0.8</td>
+<td><code>routing.learned.min_confidence</code></td>
+</tr>
+<tr>
+<td>A learned-router model is stale after</td>
+<td>30 days (0: never), or once the level rules or the feature key change</td>
+<td><code>routing.learned.max_age_days</code></td>
+</tr>
+<tr>
+<td>Training the learned router</td>
+<td>when asked (<code>meritorder router train</code>, Reports → Learned router → Train now); on the last 30 days, at most the newest 20,000 requests</td>
+<td><code>routing.learned.retrain_hours</code>, <code>train_days</code>, <code>train_requests</code></td>
+</tr>
+<tr>
+<td>Training needs; a model is used if</td>
+<td>200 requests with an outcome, at least one of them with a signal; it beats the rules on the newest fifth by more than twice the standard error</td>
+<td>fixed (<code>meritorder router train --min-examples</code>)</td>
+</tr>
+<tr>
+<td>What the learned router reads</td>
+<td>the first and last 2,000 characters of the text the rules read, hashed into 65,536 buckets; named facts about the request</td>
+<td>fixed</td>
+</tr>
+<tr>
+<td>Recorded request features are kept</td>
+<td>90 days</td>
+<td><code>routing.learned.keep_days</code></td>
+</tr>
+<tr>
+<td>Judged labels for the learned router</td>
+<td>off; on: 1% of a team's eligible task starts, replayed on <code>auto</code> at level 5 and graded by the evals' judges, under a monthly cap with no default, starting within 60 seconds or dropped</td>
+<td>team <code>judged_labels</code></td>
+</tr>
+<tr>
+<td>What a quality score of 5 stands for</td>
+<td><code>absolute</code>: a fixed chance on the reference, 0.6994 for coding and 0.7685 for general</td>
+<td><code>quality.scale</code>, <code>quality.anchor</code></td>
+</tr>
+<tr>
+<td>Exploration</td>
+<td>off; on: 4% of a team's eligible task starts, half a level down and half up; a canary takes 20% of its level's</td>
+<td>team <code>exploration</code></td>
+</tr>
+<tr>
+<td>Exploring up stops when a budget is</td>
+<td>90% spent</td>
+<td>fixed</td>
+</tr>
+<tr>
+<td>A canary is done after</td>
+<td>30 recorded task starts at its level, or 14 days</td>
+<td><code>routing.benchmark.canary_outcomes</code>, <code>canary_days</code></td>
+</tr>
+<tr>
+<td>A level recommendation needs</td>
+<td>200 task starts on each side, and a clear difference at 90%: the level below at least 95% as good, or the level above clearly better</td>
+<td><code>routing.benchmark.min_outcomes</code>, <code>as_well</code></td>
+</tr>
+<tr>
+<td>Recommendations applied</td>
+<td>by an admin (or automatically when the learned router agrees)</td>
+<td><code>routing.benchmark.auto_apply</code>; <code>routing.level_map</code></td>
+</tr>
+<tr>
+<td>Share of later turns expected after a 5–60 minute pause</td>
+<td>measured per team; with little data the organization's, then 0.10, each counting as 100 turns; counts halve every 7 days</td>
+<td>fixed (<code>pauses.py</code>)</td>
+</tr>
+<tr>
+<td>What a measured 5 solves, for chances with <code>quality.source: config</code></td>
+<td>not set (no chances: the threshold)</td>
+<td><code>quality.measured_best_rate</code>, written when eval scores are applied</td>
+</tr>
+<tr>
+<td>Stickiness margin to move a session</td>
+<td>10% + $0.01</td>
+<td><code>routing.switch_margin_pct</code>, <code>switch_margin_usd</code></td>
+</tr>
+<tr>
+<td>Expected turns for cost estimates</td>
+<td>3–30</td>
+<td><code>routing.min_expected_turns</code>, <code>max_expected_turns</code></td>
+</tr>
+<tr>
+<td>Tokens per turn for cost estimates</td>
+<td>~2,000 new (a known session: the prompt's growth, at least 200); 600 output</td>
+<td><code>routing.est_new_tokens_per_turn</code>, <code>est_output_tokens</code></td>
+</tr>
+<tr>
+<td>How much more a faster route may cost</td>
+<td>cost 2%, balanced 20%, speed 100%</td>
+<td><code>routing.priority</code>, <code>priority_premium_pct</code>; team <code>priority</code>; <code>X-MeritOrder-Priority</code></td>
+</tr>
+<tr>
+<td>Checking an unmeasured or stale route's speed</td>
+<td>every 10th new session; stale after 10 min</td>
+<td><code>routing.speed_check_every</code></td>
+</tr>
+<tr>
+<td>GPU shadow price below the knee</td>
+<td>2% of API price</td>
+<td><code>routing.shadow_floor</code></td>
+</tr>
+<tr>
+<td>GPU utilization where the shadow price starts rising</td>
+<td>60%</td>
+<td><code>routing.shadow_knee</code></td>
+</tr>
+<tr>
+<td>How full batch work may fill a GPU</td>
+<td>up to the knee: 60% of <code>max_concurrency</code> × replicas, less live requests and other workers' batch requests; none once live load reaches the knee, and none on a deployment without <code>max_concurrency</code></td>
+<td><code>routing.shadow_knee</code>; <code>batches.gpu.enabled</code></td>
+</tr>
+<tr>
+<td>vLLM priority of batch work on GPUs</td>
+<td>20 (free upgrades 10, live traffic 0; lower runs first)</td>
+<td><code>batches.gpu.priority</code></td>
+</tr>
+<tr>
+<td>When batch work waiting for a GPU goes to a provider's batch API</td>
+<td>12 hours after the batch was made, at once if the deployment stops or drains, or after the GPU fails a request twice</td>
+<td><code>batches.gpu.handoff_hours</code></td>
+</tr>
+<tr>
+<td>How long the previous batch key is read after a rotation</td>
+<td>the retention period plus 2 days (9)</td>
+<td><code>batches.key_grace_days</code></td>
+</tr>
+<tr>
+<td>Tries per request (failovers, bigger-window moves, refusal retries)</td>
+<td>3</td>
+<td><code>routing.max_attempts</code></td>
+</tr>
+<tr>
+<td>Room a model needs for <code>auto</code></td>
+<td>prompt + the client's <code>max_tokens</code> ≤ 95% of its context window, the prompt in that model's tokens (estimated by content, corrected by its replies; <a href="routing.html#counting-tokens">counting tokens</a>); over 85% is noted in the routing reason</td>
+<td><code>models.*.context_window</code> (from the price catalog); 95% fixed</td>
+</tr>
+<tr>
+<td>Correcting token estimates per model</td>
+<td>from every reply's reported prompt size: a 20,000-token prompt is a full sample, none under 500; samples outside 0.4–2.5× ignored, capped at ±25% after 3 full samples; saved every minute</td>
+<td>fixed</td>
+</tr>
+<tr>
+<td>Level rules</td>
+<td>coding 3 (any tools), simple wording 2, hard wording +1 a sign (up to 2), the hardest wording 5, a correction +1 (tool count only with <code>agent_by_tools</code>); general 2, short question 1 (&lt; 400 tokens), analysis 3</td>
+<td><code>routing.levels</code></td>
+</tr>
+<tr>
+<td>Levels for Claude Code side requests and compaction summaries</td>
+<td>at most 1 and 3</td>
+<td><code>routing.request_class_levels</code></td>
+</tr>
+<tr>
+<td>Reasoning effort for <code>auto</code> by floor</td>
+<td>1–2: low, 3: medium, 4–5: high</td>
+<td><code>routing.effort_by_floor</code></td>
+</tr>
+<tr>
+<td>Output allowed when a request doesn't set <code>max_tokens</code></td>
+<td>The model's maximum (<code>max_output_tokens</code>), less what won't fit in the context window or under <code>max_request_usd</code></td>
+<td><code>models.*.max_output_tokens</code> (from the price catalog); <code>default_max_tokens</code> (16,000) only where the maximum isn't known</td>
+</tr>
+<tr>
+<td>Streaming from the provider for a non-streaming request</td>
+<td>When its output limit is over 21,333 tokens (or unset), so a long reply can't hit an idle-connection timeout</td>
+<td>fixed</td>
+</tr>
+<tr>
+<td>How long a backend keeps a session's cache warm</td>
+<td>What the request's last cache marker asked for (300 s, or 3600 s for the gateway's markers on the shipped Claude backends from a session's second turn); else the backend's <code>cache_ttl_seconds</code> (300 s by default); on a GPU, until its KV events or KV-cache metrics say it's evicted (the TTL only without either)</td>
+<td><code>backends.*.cache_ttl_seconds</code></td>
+</tr>
+<tr>
+<td>Sending a session back to the GPU replica that holds its cache</td>
+<td>on, where replicas can be addressed</td>
+<td><code>serve.replica_affinity</code>, <code>serve.static_urls</code></td>
+</tr>
+<tr>
+<td>Following vLLM's KV events</td>
+<td>off (port 5557)</td>
+<td><code>serve.kv_events</code>, <code>serve.kv_events_port</code></td>
+</tr>
+<tr>
+<td>A session counts as warm on a replica</td>
+<td>at least half its prefix still cached there</td>
+<td>fixed</td>
+</tr>
+<tr>
+<td>Skipping a GPU replica the gateway can't connect to</td>
+<td>60 s</td>
+<td>fixed</td>
+</tr>
+<tr>
+<td>Skipping a failing backend or model</td>
+<td>See <a href="#when-a-backend-fails-or-a-model-refuses">When a backend fails</a></td>
+<td>fixed; <code>Retry-After</code> from the provider</td>
+</tr>
+<tr>
+<td>Waiting for a stream to start</td>
+<td>120 s for APIs; none for self-hosted unless set</td>
+<td><code>backends.*.first_byte_timeout_seconds</code></td>
+</tr>
+<tr>
+<td>Demand before starting GPUs, and below break-even before draining</td>
+<td>10 min</td>
+<td><code>serve.scale_up_after_minutes</code></td>
+</tr>
+<tr>
+<td>Minimum time warm before draining</td>
+<td>30 min</td>
+<td><code>serve.hold_minutes</code></td>
+</tr>
+<tr>
+<td>Draining time</td>
+<td>15 min</td>
+<td><code>serve.drain_minutes</code></td>
+</tr>
+<tr>
+<td>Provisioning timeout</td>
+<td>45 min (then 30 min cooldown)</td>
+<td><code>serve.provision_timeout_minutes</code></td>
+</tr>
+<tr>
+<td>Break-even margin</td>
+<td>20%</td>
+<td><code>serve.margin</code></td>
+</tr>
+<tr>
+<td>Cold start a new replica must pay back over <code>hold_minutes</code> (paid, not serving)</td>
+<td>the average of the deployment's last 10 starts; 12 min before one is measured; 0 for <code>static</code></td>
+<td><code>serve.cold_start_minutes</code></td>
+</tr>
+<tr>
+<td>Target load per replica</td>
+<td>70%</td>
+<td><code>serve.target_utilization</code></td>
+</tr>
+<tr>
+<td>Replicas</td>
+<td>0–4</td>
+<td><code>serve.min_replicas</code>, <code>max_replicas</code></td>
+</tr>
+<tr>
+<td>Requests one replica runs at once (live saturation)</td>
+<td>not set (64 on the shipped GPU backends)</td>
+<td><code>backends.*.max_concurrency</code></td>
+</tr>
+<tr>
+<td>Requests allowed to wait per replica when a saturated GPU is the only route</td>
+<td>32</td>
+<td><code>backends.*.max_waiting</code></td>
+</tr>
+<tr>
+<td>Gateways share in-flight counts</td>
+<td>every 2 s</td>
+<td>fixed</td>
+</tr>
+<tr>
+<td>Controller cycle</td>
+<td>60 s (wakes early on admin changes)</td>
+<td><code>meritorder controller --interval</code></td>
+</tr>
+<tr>
+<td>Gateways pick up GPU state and config</td>
+<td>≤ 5 s</td>
+<td>fixed</td>
+</tr>
+<tr>
+<td>Budget alerts</td>
+<td>80%, 100%</td>
+<td><code>safeguards.alert_at</code> (org, GPU); fixed for teams and people</td>
+</tr>
+<tr>
+<td>Spend spike alert</td>
+<td>an hour at 5× the person's hourly average over the past week, and at least $5</td>
+<td>fixed</td>
+</tr>
+<tr>
+<td>Where the console's "Source" link and <code>GET /about</code> point (the AGPL's offer of the source to people using the gateway)</td>
+<td><code>https://github.com/Merit-Order/meritorder</code></td>
+<td><code>console.source_url</code> (<code>MERITORDER_SOURCE_URL</code> in the shipped config)</td>
+</tr>
+</tbody>
+</table></div></section>
+  </main>
+</div>
+
+<script>
+(function () {
+  // Only the all-in-one page: its rail links to sections of the page. One-doc pages mark their own link.
+  var links = Array.prototype.slice.call(document.querySelectorAll('.rail a')).filter(function (a) {
+    return a.getAttribute('href').charAt(0) === '#';
+  });
+  if (!links.length) {
+    var here = document.querySelector('.rail a.active');
+    if (here && here.scrollIntoView && window.matchMedia('(max-width: 860px)').matches) {
+      here.scrollIntoView({ block: 'nearest', inline: 'center' });
+      window.scrollTo(0, 0);
+    }
+    return;
+  }
+  var byId = {};
+  links.forEach(function (a) { byId[a.getAttribute('href').slice(1)] = a; });
+  function setActive(id) {
+    links.forEach(function (a) { a.classList.toggle('active', a === byId[id]); });
+    var a = byId[id];
+    if (a && a.scrollIntoView && window.matchMedia('(max-width: 860px)').matches) {
+      a.scrollIntoView({ block: 'nearest', inline: 'center' });
+    }
+  }
+  if ('IntersectionObserver' in window) {
+    var obs = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) { if (e.isIntersecting) setActive(e.target.id); });
+    }, { rootMargin: '-20% 0px -70% 0px' });
+    document.querySelectorAll('main section').forEach(function (s) { obs.observe(s); });
+  }
+  setActive((location.hash || '#overview').slice(1));
+})();
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js"></script>
+<script>
+(function () {
+  var t = document.documentElement.getAttribute('data-theme');
+  var dark = t ? t === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+  mermaid.initialize({ startOnLoad: true, theme: dark ? 'dark' : 'default', securityLevel: 'strict' });
+})();
+</script>
+</body>
+</html>

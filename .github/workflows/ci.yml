@@ -1,0 +1,124 @@
+name: ci
+on:
+  push: {branches: [main]}
+  pull_request:
+permissions:
+  contents: read
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    # Every test that uses the gateway, store, or state fixtures runs twice: in memory, and against these.
+    services:
+      postgres:
+        image: postgres:16
+        env: {POSTGRES_PASSWORD: ci, POSTGRES_DB: motest}
+        ports: ["5432:5432"]
+        options: --health-cmd "pg_isready -U postgres" --health-interval 2s --health-timeout 5s --health-retries 15
+      redis:
+        image: redis:7
+        ports: ["6379:6379"]
+        options: --health-cmd "redis-cli ping" --health-interval 2s --health-timeout 5s --health-retries 15
+      # The ledger's optional copy (tests/test_clickhouse_live.py): every report against both stores, the copy, the schema.
+      clickhouse:
+        image: clickhouse/clickhouse-server:26.3
+        env: {CLICKHOUSE_USER: ci, CLICKHOUSE_PASSWORD: ci}
+        ports: ["8123:8123"]
+        options: >-
+          --ulimit nofile=262144:262144 --health-cmd "wget -qO- http://localhost:8123/ping || exit 1"
+          --health-interval 2s --health-timeout 5s --health-retries 30
+    env:
+      MERITORDER_TEST_DATABASE_URL: postgresql://postgres:ci@localhost:5432/motest
+      MERITORDER_TEST_REDIS_URL: redis://localhost:6379/0
+      MERITORDER_TEST_CLICKHOUSE_URL: http://localhost:8123
+      MERITORDER_TEST_CLICKHOUSE_USER: ci
+      MERITORDER_TEST_CLICKHOUSE_PASSWORD: ci
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e  # v6
+        with: {version: "0.10.9"}
+      - run: uv sync --frozen
+      - name: Tests (memory and real Redis/Postgres) with a coverage floor
+        run: uv run pytest -q --cov --cov-report=term-missing:skip-covered --cov-fail-under=95
+      - name: Routing regression (offline simulator against the stored baseline; docs/11-evals.md)
+        run: uv run python scripts/routing_sim.py check
+      - name: Audit Python dependencies
+        run: uv export --frozen --no-dev --no-hashes --no-emit-project -o requirements.txt && uvx pip-audit==2.10.1 -r requirements.txt --strict
+
+  ui:
+    runs-on: ubuntu-latest
+    defaults: {run: {working-directory: ui}}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4.4.0
+        with: {node-version: "26.13.0"}
+      - run: npm ci
+      - run: npm run build
+      - run: npm audit --omit=dev --audit-level=high
+
+  helm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
+      - uses: azure/setup-helm@1a275c3b69536ee54be43f2070a358922e12c8d4  # v4.3.1
+        with: {version: v3.16.3}
+      - run: helm lint charts/meritorder
+      - run: helm template mo charts/meritorder --set controller.enabled=true --set ingress.enabled=true --set-file "configFiles.meritorder\.yaml=config/meritorder.yaml" --set secretEnv.MERITORDER_DEV_KEY=x --set reporting.clickhouse.url=https://ch.example.com:8443 > rendered.yaml
+      - run: grep -q 'https://ch.example.com:8443' rendered.yaml  # the external ClickHouse reaches every component
+      - name: Render with secrets from a cloud store (External Secrets, files, Reloader, workload identity)
+        run: |
+          helm template mo charts/meritorder --set controller.enabled=true \
+            --set externalSecret.enabled=true --set externalSecret.secretStoreRef.name=aws-secrets-manager \
+            --set 'externalSecret.dataFrom[0].extract.key=meritorder/prod' --set secrets.mountAsFiles=true \
+            --set 'serviceAccount.annotations.eks\.amazonaws\.com/role-arn=arn:aws:iam::123456789012:role/mo' > rendered-eso.yaml
+          ! helm template mo charts/meritorder --set existingSecret=a --set secretEnv.A=b 2>/dev/null  # only one source
+      - name: Render with GPUs on this cluster (the controller's ServiceAccount, Roles in two namespaces, node reads)
+        run: |
+          helm template mo charts/meritorder --set controller.enabled=true --set controller.kubernetes.enabled=true \
+            --set 'controller.kubernetes.namespaces={gpus,ml}' --set controller.kubernetes.readNodes=true > rendered-gpu.yaml
+          ! helm template mo charts/meritorder --set controller.enabled=true --set controller.kubernetes.enabled=true \
+            --set 'controller.kubernetes.apis[0]=other' 2>/dev/null  # needs kserve, llm-d, or both
+      - name: Render with SkyPilot (a writable home on a claim the chart makes, Lambda and AWS credentials)
+        run: |
+          helm template mo charts/meritorder --set controller.enabled=true --set controller.skypilot.home.persistence=true \
+            --set 'controller.skypilot.credentials[0].secret=lambda-keys' --set 'controller.skypilot.credentials[0].path=.lambda_cloud' \
+            --set 'controller.skypilot.credentials[1].secret=aws-files' --set 'controller.skypilot.credentials[1].path=.aws' > rendered-sky.yaml
+          grep -q 'claimName: mo-meritorder-skypilot-home' rendered-sky.yaml && grep -q 'mountPath: /home/meritorder/.lambda_cloud' rendered-sky.yaml
+          grep -q 'kind: PersistentVolumeClaim' rendered-sky.yaml
+          ! helm template mo charts/meritorder --set controller.enabled=true --set controller.skypilot.enabled=false | grep -q skypilot-home
+      - name: Render with the compressor (model-based compression), on a claim and GPU nodes
+        run: |
+          helm template mo charts/meritorder --set compressor.enabled=true --set compressor.cache.existingClaim=hf \
+            --set-string compressor.nodeSelector.accelerator=nvidia --set secretEnv.HF_TOKEN=x > rendered-compressor.yaml
+          grep -q 'value: "http://mo-meritorder-compressor:8090"' rendered-compressor.yaml
+      - name: Render with NetworkPolicies (the gateway's port from the ingress controller's namespace)
+        run: |
+          helm template mo charts/meritorder --set networkPolicy.enabled=true \
+            --set 'networkPolicy.gatewayFrom[0].namespaceSelector.matchLabels.kubernetes\.io/metadata\.name=ingress-nginx' > rendered-netpol.yaml
+          test "$(grep -c 'kind: NetworkPolicy' rendered-netpol.yaml)" = 3
+          ! helm template mo charts/meritorder | grep -q 'kind: NetworkPolicy'  # off by default
+      - name: Validate rendered manifests (CRDs against the community schema catalog)
+        run: |
+          docker run --rm -v "$PWD:/w" ghcr.io/yannh/kubeconform:v0.6.7@sha256:0925177fb05b44ce18574076141b5c3d83235e1904d3f952182ac99ddc45762c -strict -ignore-missing-schemas -summary /w/rendered.yaml /w/rendered-gpu.yaml /w/rendered-sky.yaml /w/rendered-compressor.yaml /w/rendered-netpol.yaml
+          docker run --rm -v "$PWD:/w" ghcr.io/yannh/kubeconform:v0.6.7@sha256:0925177fb05b44ce18574076141b5c3d83235e1904d3f952182ac99ddc45762c -strict -summary -schema-location default \
+            -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
+            /w/rendered-eso.yaml
+
+  compose-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
+      - name: Start the stack
+        run: |
+          printf 'MERITORDER_DEV_KEY=mo-ci-key\n' > .env
+          docker compose up -d --build --wait gateway worker
+      - name: Smoke test
+        run: |
+          curl -fsS localhost:8080/readyz
+          curl -fsS localhost:8080/v1/chat/completions -H 'authorization: Bearer mo-ci-key' \
+            -H 'content-type: application/json' -d '{"model":"auto","messages":[{"role":"user","content":"hello"}]}'
+          curl -fsS localhost:8080/v1/reports/me -H 'authorization: Bearer mo-ci-key'
+          curl -fsS localhost:8080/ui/ | grep -q '<div id="root">'
+      - if: failure()
+        run: docker compose logs
+      - run: docker compose down -v

@@ -1,0 +1,646 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How Merit Order Works</title>
+<style>
+  :root {
+    --bg: #f7f6f2; --panel: #ffffff; --ink: #1d1f23; --muted: #5d6470; --line: #e2dfd7;
+    --accent: #c47a10; --accent-soft: #fbefdb; --good: #2f7d4f; --good-soft: #e3f1e8; --warn: #a3471b; --warn-soft: #f8e4da;
+    --blue: #2c5d9e; --blue-soft: #e2ebf7; --code: #f1efe9;
+    --bar1: #c47a10; --bar2: #2c5d9e; --shadow: 0 1px 2px rgba(0,0,0,.05), 0 4px 16px rgba(0,0,0,.04);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #111316; --panel: #191c20; --ink: #e8e6e1; --muted: #9aa1ab; --line: #2c3036;
+      --accent: #f0a63a; --accent-soft: #3a2a12; --good: #6cc495; --good-soft: #17301f; --warn: #f08a5d; --warn-soft: #3a1f14;
+      --blue: #7fa9e3; --blue-soft: #18263a; --code: #22262b; --bar1: #f0a63a; --bar2: #7fa9e3; --shadow: none;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #111316; --panel: #191c20; --ink: #e8e6e1; --muted: #9aa1ab; --line: #2c3036;
+    --accent: #f0a63a; --accent-soft: #3a2a12; --good: #6cc495; --good-soft: #17301f; --warn: #f08a5d; --warn-soft: #3a1f14;
+    --blue: #7fa9e3; --blue-soft: #18263a; --code: #22262b; --bar1: #f0a63a; --bar2: #7fa9e3; --shadow: none;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 16px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 32px; }
+  main { min-width: 0; }
+  @media (min-width: 1000px) { .wrap { grid-template-columns: 220px minmax(0, 1fr); } }
+  nav.toc { display: none; }
+  @media (min-width: 1000px) {
+    nav.toc { display: block; position: sticky; top: 24px; align-self: start; font-size: 14px; padding-top: 40px; }
+    nav.toc a { display: block; color: var(--muted); text-decoration: none; padding: 4px 0 4px 10px; border-left: 2px solid var(--line); }
+    nav.toc a:hover { color: var(--ink); border-left-color: var(--accent); }
+    nav.toc .home { margin-bottom: 12px; border-left-color: transparent; }
+  }
+  header.hero { padding: 40px 0 8px; }
+  .eyebrow { font: 600 12px/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .14em; color: var(--accent); text-transform: uppercase; }
+  .crumbs { font-size: 14px; margin-top: 10px; color: var(--muted); }
+  h1 { font-size: clamp(28px, 4vw, 40px); line-height: 1.15; margin: 10px 0 12px; letter-spacing: -.01em; }
+  h2 { font-size: 24px; margin: 48px 0 8px; letter-spacing: -.005em; scroll-margin-top: 16px; }
+  h2 .num { color: var(--accent); font-variant-numeric: tabular-nums; margin-right: 8px; }
+  h3 { font-size: 17px; margin: 24px 0 6px; }
+  p { margin: 8px 0 12px; }
+  ul { padding-left: 1.3em; }
+  li { margin: 4px 0; }
+  .lede { font-size: 18px; color: var(--muted); max-width: 720px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px; box-shadow: var(--shadow); margin: 16px 0; }
+  .card > h3:first-child { margin-top: 0; }
+  .callout { border-left: 4px solid var(--accent); background: var(--accent-soft); border-radius: 8px; padding: 12px 16px; margin: 16px 0; }
+  .callout.warn { border-color: var(--warn); background: var(--warn-soft); }
+  .callout.good { border-color: var(--good); background: var(--good-soft); }
+  .callout.blue { border-color: var(--blue); background: var(--blue-soft); }
+  .callout strong:first-child { display: block; margin-bottom: 2px; }
+  code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13.5px; }
+  code { background: var(--code); padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere; }
+  pre { background: var(--code); padding: 14px 16px; border-radius: 10px; overflow-x: auto; line-height: 1.5; }
+  pre code { background: none; padding: 0; overflow-wrap: normal; }
+  .tablewrap { overflow-x: auto; margin: 12px 0; }
+  table { border-collapse: collapse; width: 100%; font-size: 14.5px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: 12.5px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); background: var(--bg); font-weight: 600; }
+  tr:last-child td { border-bottom: none; }
+  td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  tr.win td { background: var(--good-soft); font-weight: 600; }
+  .grid2 { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  .grid2 > * { min-width: 0; }
+  @media (min-width: 760px) { .grid2 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  svg { max-width: 100%; height: auto; display: block; }
+  svg text { fill: var(--ink); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif; }
+  svg .muted { fill: var(--muted); }
+  svg .box { fill: var(--panel); stroke: var(--line); stroke-width: 1.5; }
+  svg .box-accent { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1.5; }
+  svg .box-good { fill: var(--good-soft); stroke: var(--good); stroke-width: 1.5; }
+  svg .box-blue { fill: var(--blue-soft); stroke: var(--blue); stroke-width: 1.5; }
+  svg .box-warn { fill: var(--warn-soft); stroke: var(--warn); stroke-width: 1.5; }
+  svg .arrow { stroke: var(--muted); stroke-width: 1.6; fill: none; }
+  svg .bar1 { fill: var(--bar1); } svg .bar2 { fill: var(--bar2); }
+  svg .grid { stroke: var(--line); stroke-width: 1; }
+  .scrollx { overflow-x: auto; }
+  .scrollx svg.minw { min-width: 600px; }
+  .legend { display: flex; gap: 16px; font-size: 13px; color: var(--muted); margin: 4px 0 0; flex-wrap: wrap; }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+  footer { color: var(--muted); font-size: 13px; padding: 40px 0 60px; border-top: 1px solid var(--line); margin-top: 48px; }
+  .pill { display: inline-block; font-size: 12px; padding: 1px 8px; border-radius: 999px; background: var(--blue-soft); color: var(--blue); font-weight: 600; }
+  .steps { display: grid; grid-template-columns: 1fr; gap: 10px; padding: 0; list-style: none; }
+  @media (min-width: 760px) { .steps { grid-template-columns: repeat(3, 1fr); } }
+  @media (min-width: 1100px) { .steps { grid-template-columns: repeat(6, 1fr); } }
+  .steps li { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; font-size: 14px; margin: 0; }
+  .steps li b { display: block; font-size: 13px; color: var(--accent); margin-bottom: 4px; }
+  a { color: var(--blue); }
+  .theme { position: absolute; top: 12px; right: 12px; background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; font-size: 13px; cursor: pointer; }
+  .small { font-size: 13.5px; color: var(--muted); }
+</style>
+</head>
+<body>
+<button class="theme" type="button" onclick="(function(){var r=document.documentElement;var dark=r.dataset.theme?r.dataset.theme==='dark':matchMedia('(prefers-color-scheme: dark)').matches;r.dataset.theme=dark?'light':'dark';})()" aria-label="Switch light or dark">◐</button>
+<div class="wrap">
+<nav class="toc" aria-label="Contents">
+  <a class="home" href="overview.html">← All docs</a>
+  <a href="#overview">Overview</a>
+  <a href="#1-your-tools-connect-as-they-are">1. Your tools</a>
+  <a href="#2-every-request-gets-a-level">2. Levels</a>
+  <a href="#3-every-model-gets-a-score-for-each-kind-of-work">3. Scores</a>
+  <a href="#4-which-models-qualify">4. Who qualifies</a>
+  <a href="#5-the-cheapest-qualifying-route-wins">5. Cheapest wins</a>
+  <a href="#6-then-effort-and-output-length">6. Effort &amp; length</a>
+  <a href="#7-context-windows-long-conversations">7. Context windows</a>
+  <a href="#8-when-something-fails">8. Failures</a>
+  <a href="#9-your-own-gpus-when-they-start-and-stop">9. Your GPUs</a>
+  <a href="#10-requests-that-name-a-model">10. Named models</a>
+  <a href="#11-setting-up-claude-code-and-pi">11. Claude Code &amp; pi</a>
+  <a href="#12-where-everything-is-set">12. Where it's set</a>
+  <a href="#13-what-auto-does-today">13. Today</a>
+  <a href="#14-known-gaps">14. Known gaps</a>
+</nav>
+<main>
+<header class="hero" id="overview">
+  <div class="eyebrow">Merit Order · how it works</div>
+  <div class="crumbs"><a href="overview.html">Docs</a> · <a href="index.html">All docs on one page</a></div>
+  <h1>Every request goes to the cheapest model that's good enough for it</h1>
+  <p class="lede">Your tools keep speaking the API they already speak; Merit Order translates when the chosen model speaks another. For every request sent with the model name <code>auto</code>, it asks two questions: how hard is this, and what's the cheapest model that's good enough? By default a dearer model wins only where its better chance saves more than it costs in what a failure would put at stake: on easy work (levels 1 and 2, questions, short chats) that's almost nothing, so the cheapest qualifying model goes; on hard work a person's time counts (section 5). Everything below explains how it answers them. The numbers come from the shipped configuration and its price list (<code>config/prices.json</code>) on 11 and 12 November 2026. Prices and scores refresh on their own, so yours will drift.</p>
+</header>
+
+<ol class="steps" aria-label="The steps">
+  <li><b>1 · Connect</b>Your tool, in its own API format. Merit Order translates if the model speaks another.</li>
+  <li><b>2 · Level</b>How hard is the request? Coding or general, 1–5, from what it asks for, never from how long it is.</li>
+  <li><b>3 · Scores</b>How good is each model at that kind of work? 1–5, from published benchmarks.</li>
+  <li><b>4 · Qualify</b>Models scoring at least the level, with room for the conversation, that the team may use.</li>
+  <li><b>5 · Cheapest</b>The qualifying route that costs least for the rest of the session, not just this request, counting what a failure would put at stake.</li>
+  <li><b>6 · Send</b>With effort and output limit for that level, translated if needed. On failure, the next cheapest (section 8).</li>
+</ol>
+
+<div class="callout"><strong>Named models skip the choice.</strong>A request that names a model (<code>claude-opus</code>, <code>gpt-sol</code>, …) always gets that model. Merit Order only picks where to run it (section 10). Claude Code sends Claude model names unless it's set to <code>auto</code>, which <code>meritorder setup claude-code</code> does (section 11).</div>
+
+<h2 id="1-your-tools-connect-as-they-are"><span class="num">1</span>Your tools connect as they are</h2>
+<p>Point a tool's base URL at Merit Order and give it a Merit Order key. Nothing else about the tool changes, because Merit Order speaks both common APIs, and each provider speaks one of them.</p>
+<div class="card">
+  <div class="scrollx"><svg class="minw" viewBox="0 0 720 290" role="img" aria-label="Tools in their own format, Merit Order translating when needed, providers in theirs">
+    <defs><marker id="ah1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="currentColor" style="color:var(--muted)"/></marker></defs>
+    <text x="100" y="18" text-anchor="middle" font-size="12" class="muted">YOUR TOOLS</text>
+    <rect class="box" x="10" y="30" width="180" height="62" rx="10"/><text x="100" y="56" text-anchor="middle" font-weight="700">Claude Code</text><text x="100" y="76" text-anchor="middle" font-size="12" class="muted">Anthropic Messages</text>
+    <rect class="box" x="10" y="112" width="180" height="62" rx="10"/><text x="100" y="138" text-anchor="middle" font-weight="700">pi, Cursor, SDKs</text><text x="100" y="158" text-anchor="middle" font-size="12" class="muted">OpenAI Chat Completions</text>
+    <rect class="box" x="10" y="194" width="180" height="62" rx="10"/><text x="100" y="220" text-anchor="middle" font-weight="700">Codex CLI</text><text x="100" y="240" text-anchor="middle" font-size="12" class="muted">OpenAI Responses (WebSocket)</text>
+    <rect class="box-accent" x="255" y="30" width="210" height="226" rx="12"/>
+    <text x="360" y="66" text-anchor="middle" font-weight="700" font-size="17">Merit Order</text>
+    <text x="360" y="100" text-anchor="middle" font-size="13">picks the model (auto)</text>
+    <text x="360" y="138" text-anchor="middle" font-size="13">same format:</text><text x="360" y="156" text-anchor="middle" font-size="13" class="muted">passes through untouched</text>
+    <text x="360" y="194" text-anchor="middle" font-size="13">different format:</text><text x="360" y="212" text-anchor="middle" font-size="13" class="muted">translated both ways,</text><text x="360" y="230" text-anchor="middle" font-size="13" class="muted">streams included</text>
+    <text x="620" y="18" text-anchor="middle" font-size="12" class="muted">PROVIDERS</text>
+    <rect class="box-blue" x="530" y="46" width="180" height="78" rx="10"/><text x="620" y="72" text-anchor="middle" font-weight="700">Anthropic format</text><text x="620" y="92" text-anchor="middle" font-size="12" class="muted">Claude on Anthropic,</text><text x="620" y="108" text-anchor="middle" font-size="12" class="muted">Bedrock, Vertex, Foundry</text>
+    <rect class="box-good" x="530" y="152" width="180" height="88" rx="10"/><text x="620" y="178" text-anchor="middle" font-weight="700">OpenAI format</text><text x="620" y="198" text-anchor="middle" font-size="12" class="muted">OpenAI, Azure, OpenRouter,</text><text x="620" y="214" text-anchor="middle" font-size="12" class="muted">Gemini on Vertex, vendors,</text><text x="620" y="230" text-anchor="middle" font-size="12" class="muted">your GPUs (vLLM)</text>
+    <path class="arrow" d="M190,61 L253,90" marker-end="url(#ah1)"/>
+    <path class="arrow" d="M190,143 L253,143" marker-end="url(#ah1)"/>
+    <path class="arrow" d="M190,225 L253,196" marker-end="url(#ah1)"/>
+    <path class="arrow" d="M465,110 L528,88" marker-end="url(#ah1)"/>
+    <path class="arrow" d="M465,176 L528,196" marker-end="url(#ah1)"/>
+  </svg></div>
+</div>
+<div class="tablewrap"><table>
+  <thead><tr><th>Your tool speaks</th><th>For example</th><th>Endpoint</th></tr></thead>
+  <tbody>
+    <tr><td>Anthropic Messages</td><td>Claude Code, Anthropic SDKs</td><td><code>/v1/messages</code> (and <code>/v1/messages/count_tokens</code>)</td></tr>
+    <tr><td>OpenAI Chat Completions</td><td>pi, Cursor, OpenAI SDKs, most other tools</td><td><code>/v1/chat/completions</code></td></tr>
+    <tr><td>OpenAI Responses</td><td>Codex CLI (over WebSocket, chaining on its connection); with a team's stored mode, clients that chain turns (Microsoft Agent Framework, the Agents SDK's <code>previous_response_id</code>)</td><td><code>/v1/responses</code> (HTTP and WebSocket), <code>/v1/responses/compact</code>, <code>/v1/responses/input_tokens</code>, and <code>/v1/conversations</code> in stored mode</td></tr>
+    <tr><td>Embeddings</td><td>RAG pipelines</td><td><code>/v1/embeddings</code></td></tr>
+    <tr><td>Batches: work that can wait a day, about half price (near free on GPUs that are running with room)</td><td>OpenAI and Anthropic SDKs, <code>meritorder batch</code></td><td><code>/v1/files</code> + <code>/v1/batches</code>, <code>/v1/messages/batches</code></td></tr>
+  </tbody>
+</table></div>
+<div class="grid2">
+  <div class="card"><h3>What crosses, what doesn't</h3><p>The model's own format is Merit Order's problem, not the tool's. When the tool and the chosen provider speak the same format, the request passes through untouched, so provider features such as Claude's cache markers and thinking signatures survive. When they differ, Merit Order converts the request, the reply and the stream both ways: messages, tool calls, images, streaming, usage and stop reasons.</p><p>Two things don't cross: a model's reasoning from earlier turns (each turn still works; the model just thinks again), and <code>temperature</code>/<code>top_p</code>, which current Claude models reject.</p><p class="small">The Responses API is converted to Chat Completions inside the gateway. GPT models that need the Responses API for tools with reasoning are converted on the way out, and so are Gemini backends that use Gemini's native API (<code>api: gemini</code>, for thought summaries, cached-token counts and why a reply was blocked).</p></div>
+  <div class="card"><h3>The model name says what you want</h3><ul>
+    <li><code>auto</code>: Merit Order chooses (the rest of this page). A one-line question goes to the cheapest model that meets level 1, and "write unit tests" from an agent to the cheapest at coding level 2 (section 13).</li>
+    <li>A model's name or one of its aliases: that model. Aliases cover the names tools already send, so <code>claude-sonnet-5-5</code>, <code>anthropic/claude-sonnet-5.5</code> and <code>sonnet</code> all mean Claude Sonnet.</li>
+    <li>Anything else: an error saying the model isn't configured.</li>
+  </ul><p><code>GET /v1/models</code> lists <code>auto</code> and every model your team may use, with each one's context window.</p></div>
+</div>
+<div class="card"><h3>The gateway doesn't keep conversations, with one opt-in exception</h3><p>Tools send the whole conversation every turn, and Merit Order keeps only routing metadata. A team can turn on stored mode for the Responses API (Config → Teams, with a retention it must choose). Then clients may send only their new input with <code>previous_response_id</code> or a conversation, and the gateway holds the conversation, sealed, and rebuilds the whole of it every turn, so <code>auto</code> still picks the cheapest model for each turn (<a href="caching-and-sessions.html#stateful-apis">Caching and sessions: stateful APIs</a>).</p></div>
+<div class="callout blue"><strong>Every reply says what happened</strong>Headers name the model that answered (<code>X-MeritOrder-Model</code>), the provider (<code>X-MeritOrder-Backend</code>), the session and request (<code>X-MeritOrder-Session</code>, <code>X-MeritOrder-Request-Id</code>), the level for <code>auto</code> (<code>X-MeritOrder-Floor</code>), and the output allowance and its source (<code>X-MeritOrder-Max-Tokens</code>, <code>X-MeritOrder-Max-Tokens-Source</code>). <code>X-MeritOrder-Failed-Over</code> appears when a provider failed first, <code>X-MeritOrder-Refused-By</code> when a model refused first, <code>X-MeritOrder-Substituted-For</code> when a named model was replaced, and <code>X-MeritOrder-Queued</code> when it waited for a full GPU. Replies that aren't streamed also carry <code>X-MeritOrder-Cost-Usd</code>, <code>X-MeritOrder-Baseline-Usd</code> and <code>X-MeritOrder-Savings-Usd</code>. The console's Reports → Requests tab shows the model, provider, level and cost of every request, and why it got that level and model. Setting up Claude Code and pi is in section 11.</div>
+
+<h2 id="2-every-request-gets-a-level"><span class="num">2</span>Every request gets a level</h2>
+<p>The level is how demanding the work is. It's worked out from the request itself, with simple rules and no model call, so it's instant and free:</p>
+<div class="tablewrap"><table>
+  <thead><tr><th>The request</th><th>Level</th></tr></thead>
+  <tbody>
+    <tr><td>Plain text</td><td>general 2</td></tr>
+    <tr><td>Plain text, and the whole request is under ~400 tokens: a question on its own</td><td>general 1</td></tr>
+    <tr><td>Plain text with words like analyze, compare, plan, strategy, trade-offs, evaluate or reason</td><td>general 3</td></tr>
+    <tr><td>Any tools, or text that looks like code (code fences, <code>def</code>, <code>import</code>, stack traces, file names, "refactor", "bug", SQL, …)</td><td>coding 3</td></tr>
+    <tr><td>Coding with simple wording and nothing harder (write tests, rename, typo, lint, docstring, explain, bump a version, …; not "quick fix")</td><td>coding 2</td></tr>
+    <tr><td>Coding with "hard" wording (race condition, security, performance, migration, concurrency, multi-file, "under load", flaky, …)</td><td>one level higher for each sign, two at most; at most 5</td></tr>
+    <tr><td>Coding with the hardest wording (architecture, "design a…", system design, prove, codebase-wide refactor, …)</td><td>coding 5</td></tr>
+    <tr><td>A new prompt that says the last answer was wrong ("that's wrong", "still not working", "revert", …)</td><td>one level higher, at most 5</td></tr>
+  </tbody>
+</table></div>
+<p class="small">Tools say the work is coding; the task's wording says how hard. A coding agent such as Claude Code or Codex sends dozens of tools with every request, whether it was asked to fix a typo or to redesign a service, so the number of tools doesn't set the level (it did until decision 61, which made every agent task level 4 or 5; <code>agent_by_tools: true</code> brings that back). Words are looked for in the text of the last two messages a person wrote (anything pasted into them included), not in tool results, and not in what the harness adds to them (Claude Code's system reminders with your CLAUDE.md, Codex's AGENTS.md): a user message made only of tool results or of that text is passed over. Where the lists overlap, the hardest wins.</p>
+<div class="grid2">
+  <div class="card"><h3>The order the rules run in</h3><ol>
+    <li>An <code>X-Route-Floor</code> header sets the level exactly, and nothing caps it.</li>
+    <li>Otherwise, any tools or code-like text make it coding 3. The task's wording then sets it: the hardest wording makes it 5, hard wording adds one for each sign (two at most, at most 5), and simple wording with nothing harder makes it 2. A new prompt saying the last answer was wrong adds one, at most 5.</li>
+    <li>No tools and no code: analysis wording gives general 3. Without it, a whole request under 400 tokens gives general 1, and anything else general 2.</li>
+    <li>Then <code>X-Route-Hint</code> moves it (<code>cheap</code> one down, <code>smart</code> one up), and Claude Code's caps apply (below).</li>
+  </ol></div>
+  <div class="card"><h3>Length never raises the level</h3><p>A long conversation isn't harder work; it needs a model with room for it. So its length only rules out the models whose context window can't hold it plus the reply (section 7), and the cheapest of the rest wins. The one place length counts is the short question, and there it can only lower a level.</p>
+    <p><b>Clients can take over:</b> <code>X-Route-Floor: coding:4</code> sets the level exactly, and <code>X-Route-Hint: cheap</code> or <code>smart</code> moves it one level down or up. Every <code>auto</code> response says what it got (<code>X-MeritOrder-Floor</code>).</p></div>
+</div>
+<h3>What that means in practice</h3>
+<div class="tablewrap"><table>
+  <thead><tr><th>Request</th><th>Level</th></tr></thead>
+  <tbody>
+    <tr><td>"What's the capital of Portugal?"</td><td>general 1</td></tr>
+    <tr><td>"Draft a reply to this customer email" (pasted)</td><td>general 2</td></tr>
+    <tr><td>"Compare these three vendor proposals"</td><td>general 3</td></tr>
+    <tr><td>"Why does this function return None?" with a code block</td><td>coding 3</td></tr>
+    <tr><td>A coding agent (40 tools) asked to "write unit tests for the date parser"</td><td>coding 2</td></tr>
+    <tr><td>The same agent asked to "add a --dry-run flag to the deploy command"</td><td>coding 3</td></tr>
+    <tr><td>The same agent, 300,000 tokens into that task</td><td>coding 3, on a model whose window holds 300,000 tokens</td></tr>
+    <tr><td>The same agent asked to "fix the race condition in the scheduler"</td><td>coding 4</td></tr>
+    <tr><td>The same agent asked to "design a plugin system for the importers"</td><td>coding 5</td></tr>
+  </tbody>
+</table></div>
+<div class="callout"><strong>A task keeps its level</strong>The level is set when a task starts (a new session, or a new prompt from the person) and holds for every request of the task, so the model and its cache stay put while the agent works. A task that proves harder than its wording goes up at the next prompt, never mid-task: a prompt that says the answer was wrong is one level up, and the learned router and the outcome report (opt-in) learn from fix loops and failing tests which work needs more.</div>
+<div class="card"><h3>Claude Code's side jobs get lower levels</h3>
+  <p>Claude Code labels each request (when its hint headers are on, section 11): a turn of the conversation, a subagent's turn, the summary it writes when it compacts a long conversation, or a side request such as a session title or summary. Those last two don't need the level of the work itself, so <code>auto</code> caps them:</p>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Claude Code request</th><th>Highest level</th></tr></thead>
+    <tbody>
+      <tr><td>Side request (titles, summaries)</td><td>1</td></tr>
+      <tr><td>Compaction summary</td><td>3</td></tr>
+      <tr><td>Conversation or subagent turn</td><td>not capped</td></tr>
+    </tbody>
+  </table></div>
+  <p class="small">An explicit <code>X-Route-Floor</code> is never capped. Auto mode's permission checks name Claude Sonnet, so they never go through <code>auto</code> at all. The caps are under Config → Routing → Claude Code request types.</p>
+</div>
+<div class="grid2">
+  <div class="card"><h3>A learned router can correct the rules</h3><p><span class="pill">opt-in, off by default</span></p><p>It learns from your own traffic which requests are harder or easier than the rules say: each request's words (hashed, never stored as text) and facts such as its tool count, and what followed the answer: the same request sent again, a raised <code>X-Route-Floor</code>, a stopped answer.</p><ul>
+    <li><b>Shadow mode</b>: it only records what it would have chosen. Reports → Learned router shows where it disagrees with the rules, what that would cost, and the outcomes.</li>
+    <li><b>Route mode</b>: its level is used when it's sure (at least 80%, <code>routing.learned.min_confidence</code>). The rules decide whenever it isn't, has no model, or its model is stale (older than 30 days, <code>max_age_days</code>).</li>
+  </ul><p>It never second-guesses an <code>X-Route-Floor</code>. Train it with <code>meritorder router train</code>. Details: <a href="routing.html#the-learned-router">Routing: the learned router</a>.</p></div>
+  <div class="card"><h3>Judged labels</h3><p><span class="pill">off by default, per team</span></p><p>A team can also give the learned router judged labels, with a monthly cap that has no default. A small sample of its requests (1%, and only while the learned router is on) is replayed on a stronger model in the background, and a judge model from another family says whether the answer each one got was good enough.</p><p>That sends those prompts and answers to two more models. The console says so, and shows the expected monthly cost, before it can be turned on. Only the verdict is kept. Details: <a href="routing.html#judged-labels">Routing: judged labels</a>.</p></div>
+</div>
+<div class="card"><h3>The rules are settings, and everyone can see them</h3>
+  <p>Reports → Levels shows each rule, its word lists, and the models good enough for each level that your team may use. Reports → Requests shows why each request got its level: the rule, and which listed word it found (never the text around it), for example:</p>
+  <pre><code>classified coding:4 (coding: 40 tools; hard wording (race condition): +1)</code></pre>
+  <p>Admins change the levels, the short-question size, the word lists, and whether a tool count makes an agent (Python regular expressions, matched ignoring case) under Config → Routing → How requests get a level (<code>routing.levels</code>). A rule that can't work is refused when the configuration is saved: a level outside 1–5, a pattern that isn't a valid regular expression, one that matches empty text and so every request, or patterns that don't combine into one (inline flags such as <code>(?i)</code>; case is already ignored).</p>
+</div>
+
+<h2 id="3-every-model-gets-a-score-for-each-kind-of-work"><span class="num">3</span>Every model gets a score for each kind of work</h2>
+<p>A score says how good a model is at a kind of work, <em>against a fixed bar</em>. It isn't typed in: the worker works it out once a day from published benchmarks.</p>
+<div class="callout good"><strong>What a score means</strong>By default (source <code>epoch</code>), each model's score is based on its chance of solving a task as hard as <b>FrontierSWE</b>, a set of real, hard software-engineering tasks. A 5 is a fixed chance, the <b>anchor</b>: what the best model, Claude Fable 5.2, solved when the scale was fixed (69.9% for coding and 76.9% for general work, on 12 November 2026). Every model scores in proportion to it: 5 × its chance ÷ the anchor, at most 5, at least 1. One that solves 60% as many such tasks scores 3.</div>
+<div class="callout warn"><strong>Why a fixed bar</strong>Until 15 November 2026 the best model you had was the 5 (<code>scale: best</code>). So a new, stronger model lowered every other model's score though none of them got worse, and the same work moved to dearer models with each release. A new model with a 95% chance would have taken GPT-6.1 Terra from 4.2 to 3.1 and Claude Fable from 5.0 to 3.7, leaving only itself at level 4: every agent turn would have gone to it. With the fixed bar, a new model scores 5 if it beats the anchor, and nobody else's score moves (decision 58).</div>
+
+<div class="card">
+  <div class="scrollx"><svg class="minw" viewBox="0 0 720 470" role="img" aria-label="Coding and general quality scores per model">
+    <g transform="translate(170,20)">
+      <g class="muted" font-size="11">
+        <text x="0" y="440">0</text><text x="98" y="440">1</text><text x="198" y="440">2</text><text x="298" y="440">3</text><text x="398" y="440">4</text><text x="496" y="440">5</text>
+      </g>
+      <line class="grid" x1="100" y1="0" x2="100" y2="425"/><line class="grid" x1="200" y1="0" x2="200" y2="425"/><line class="grid" x1="300" y1="0" x2="300" y2="425"/><line class="grid" x1="400" y1="0" x2="400" y2="425"/><line class="grid" x1="500" y1="0" x2="500" y2="425"/>
+      <g font-size="13">
+        <text x="-10" y="16" text-anchor="end">Claude Fable 5.2</text><rect class="bar1" x="0" y="4" width="500" height="11" rx="2"/><rect class="bar2" x="0" y="17" width="500" height="11" rx="2"/><text x="506" y="24" font-size="11" class="muted">5.0 · 5.0</text>
+        <text x="-10" y="51" text-anchor="end">Gemini 4 Carbon</text><rect class="bar1" x="0" y="39" width="440" height="11" rx="2"/><rect class="bar2" x="0" y="52" width="430" height="11" rx="2"/><text x="446" y="59" font-size="11" class="muted">4.4 · 4.3</text>
+        <text x="-10" y="86" text-anchor="end">GPT-6.1 Terra</text><rect class="bar1" x="0" y="74" width="420" height="11" rx="2"/><rect class="bar2" x="0" y="87" width="380" height="11" rx="2"/><text x="426" y="94" font-size="11" class="muted">4.2* · 3.8</text>
+        <text x="-10" y="121" text-anchor="end">GPT-6 Astra</text><rect class="bar1" x="0" y="109" width="410" height="11" rx="2"/><rect class="bar2" x="0" y="122" width="410" height="11" rx="2"/><text x="416" y="129" font-size="11" class="muted">4.1 · 4.1</text>
+        <text x="-10" y="156" text-anchor="end">Claude Opus 5.5</text><rect class="bar1" x="0" y="144" width="410" height="11" rx="2"/><rect class="bar2" x="0" y="157" width="400" height="11" rx="2"/><text x="416" y="164" font-size="11" class="muted">4.1 · 4.0</text>
+        <text x="-10" y="191" text-anchor="end">Claude Sonnet 5.5</text><rect class="bar1" x="0" y="179" width="390" height="11" rx="2"/><rect class="bar2" x="0" y="192" width="350" height="11" rx="2"/><text x="396" y="199" font-size="11" class="muted">3.9 · 3.5</text>
+        <text x="-10" y="226" text-anchor="end">Gemini 4 Argon</text><rect class="bar1" x="0" y="214" width="340" height="11" rx="2"/><rect class="bar2" x="0" y="227" width="350" height="11" rx="2"/><text x="356" y="234" font-size="11" class="muted">3.4 · 3.5</text>
+        <text x="-10" y="261" text-anchor="end">GPT-6.1 Sol</text><rect class="bar1" x="0" y="249" width="320" height="11" rx="2"/><rect class="bar2" x="0" y="262" width="400" height="11" rx="2"/><text x="406" y="269" font-size="11" class="muted">3.2 · 4.0</text>
+        <text x="-10" y="296" text-anchor="end">Claude Haiku 5.5</text><rect class="bar1" x="0" y="284" width="300" height="11" rx="2"/><rect class="bar2" x="0" y="297" width="210" height="11" rx="2"/><text x="306" y="304" font-size="11" class="muted">3.0† · 2.1</text>
+        <text x="-10" y="331" text-anchor="end">GPT-6 Luna</text><rect class="bar1" x="0" y="319" width="230" height="11" rx="2"/><rect class="bar2" x="0" y="332" width="130" height="11" rx="2"/><text x="236" y="339" font-size="11" class="muted">2.3 · 1.3</text>
+        <text x="-10" y="366" text-anchor="end">Gemini 3.8 Flash</text><rect class="bar1" x="0" y="354" width="170" height="11" rx="2"/><rect class="bar2" x="0" y="367" width="170" height="11" rx="2"/><text x="176" y="374" font-size="11" class="muted">1.7 · 1.7</text>
+        <text x="-10" y="401" text-anchor="end">Gemini 3.5 Flash-Lite</text><rect class="bar1" x="0" y="389" width="100" height="11" rx="2"/><rect class="bar2" x="0" y="402" width="100" height="11" rx="2"/><text x="106" y="409" font-size="11" class="muted">1.0* · 1.0</text>
+      </g>
+    </g>
+  </svg></div>
+  <div class="legend"><span><i style="background:var(--bar1)"></i>Coding</span><span><i style="background:var(--bar2)"></i>General</span><span>* and †: see the notes under the table below</span></div>
+</div>
+<div class="tablewrap"><table>
+  <thead><tr><th>Model</th><th class="n">Chance on a FrontierSWE-hard task (coding)</th><th class="n">Coding score</th><th class="n">General score</th></tr></thead>
+  <tbody>
+    <tr><td>Claude Fable 5.2</td><td class="n">69.9%</td><td class="n">5.0</td><td class="n">5.0</td></tr>
+    <tr><td>Gemini 4 Carbon</td><td class="n">61.2%</td><td class="n">4.4</td><td class="n">4.3</td></tr>
+    <tr><td>GPT-6.1 Terra</td><td class="n">58.2%</td><td class="n">4.2 *</td><td class="n">3.8</td></tr>
+    <tr><td>GPT-6 Astra</td><td class="n">57.7%</td><td class="n">4.1</td><td class="n">4.1</td></tr>
+    <tr><td>Claude Opus 5.5</td><td class="n">57.2%</td><td class="n">4.1</td><td class="n">4.0</td></tr>
+    <tr><td>Claude Sonnet 5.5</td><td class="n">54.8%</td><td class="n">3.9</td><td class="n">3.5</td></tr>
+    <tr><td>Gemini 4 Argon</td><td class="n">47.3%</td><td class="n">3.4</td><td class="n">3.5</td></tr>
+    <tr><td>GPT-6.1 Sol</td><td class="n">44.3%</td><td class="n">3.2</td><td class="n">4.0</td></tr>
+    <tr><td>Claude Haiku 5.5</td><td class="n">40.7%</td><td class="n">3.0 †</td><td class="n">2.1</td></tr>
+    <tr><td>GPT-6 Luna</td><td class="n">31.5%</td><td class="n">2.3</td><td class="n">1.3</td></tr>
+    <tr><td>Gemini 3.8 Flash</td><td class="n">24.3%</td><td class="n">1.7</td><td class="n">1.7</td></tr>
+    <tr><td>Gemini 3.5 Flash-Lite</td><td class="n">4.8%</td><td class="n">1.0 *</td><td class="n">1.0</td></tr>
+  </tbody>
+</table></div>
+<p class="small">* Estimated from the model's general ability: no coding results published yet.<br>† Set by hand (<code>quality_override</code>). Epoch's refit of 12 November 2026 put it at 2.9, just under level 3, which would send ordinary coding to GPT-6.1 Terra at about ten times the price; our own coding evals had it pass 14 of 15 hard tasks.</p>
+
+<h3>Where the numbers come from</h3>
+<p><a href="https://epoch.ai/benchmarks">Epoch AI</a> (CC BY 4.0) places every model on one ability scale, fitted across about 40 benchmarks, and every benchmark on the same scale by difficulty. That's what makes models comparable even when they were tested on different benchmarks, and lets a model's ability be turned into a chance of solving tasks of a given difficulty. For coding, a model's own results on FrontierSWE and FrontierCode refine its general ability, so coding strength counts; results at the effort <code>auto</code> uses for hard work are preferred where published. A model with neither those results nor a place on the scale (some open models) gets its coding score from older coding benchmarks (Terminal Bench, GSO, MirrorCode); they come last because they predict FrontierSWE results less well than the scale does.</p>
+<p>The alternative source is the <a href="https://artificialanalysis.ai">Artificial Analysis</a> Intelligence Index (needs <code>ARTIFICIAL_ANALYSIS_API_KEY</code>). It's a single number per model, so coding and general get the same score. The third option is scores written on each model by hand (<code>config</code>), for example from your own eval runs (<a href="evals.html">Evals</a>).</p>
+<p><b>Two choices shape the scores</b> (Config → Routing → Quality scores):</p>
+<div class="grid2">
+  <div class="card"><h3>Scale</h3><p><b><code>absolute</code></b> (default): a 5 is the anchor (<code>quality.anchor</code>, 0.6994 for coding and 0.7685 for general work), and the rest in proportion. A new model, weak or strong, changes nobody else's score.</p><p><b><code>best</code></b>: the best model is 5 and the rest in proportion, so each stronger release lowers everyone else.</p><p><b><code>range</code></b>: the weakest model with data is 1 and the best 5, which depends on which weak models you happen to have configured.</p><p>A change of scale or anchor takes effect at once: the scores are worked out again from the stored chances.</p></div>
+  <div class="card"><h3>Reference task</h3><p>A harder reference spreads models further apart and sends more work up the ladder. Against Remote Labor Index (real paid remote work, which Fable solves 37% of the time), Opus would score 2.8 for general work, and ordinary level-3 work would go only to Fable. FrontierSWE keeps level 3 within reach of models like Sonnet.</p></div>
+</div>
+<div class="callout warn"><strong>Models the source doesn't cover aren't picked by <code>auto</code></strong>A score nobody measured would compete with measured ones, and because the cheapest qualifying model wins, an optimistic guess would win. They still answer requests that name them. To put one back, give it a <code>quality_override</code> (Config → Models), which always wins over the source; that's also how to record that your own evals disagree with the benchmarks (Models → Evals → <em>Apply scores…</em> → <em>Write as override</em>). Measured scores use the same 1–5 scale, so the Evals page shows them beside the ones in use. On 12 November 2026, 10 open models weren't covered, among them Qwen3 Coder Next, Devstral 2 and both MiMo models (Qwen3 Coder has a 1.0 for coding, from older coding benchmarks). The Models page lists them.</div>
+<p class="small">Hover a score on the Models page to see how it was worked out, and the model's chance of solving work at each level (used when routing by cost per success, section 5).</p>
+
+<h2 id="4-which-models-qualify"><span class="num">4</span>Which models qualify</h2>
+<p>A model qualifies for a request when:</p>
+<ul>
+  <li>its score for that kind of work is <b>at least the request's level</b>. A level-3 coding request can go to any model with a coding score of 3.0 or more; level 5 means FrontierSWE-hard work, which today only Fable meets;</li>
+  <li>the conversation, plus room for the reply, <b>fits in its context window</b> (section 7). This is what a long conversation changes: it narrows the models, never raises the level; and</li>
+  <li>the team is allowed to use it (Config → Teams → allowed models and backends).</li>
+</ul>
+<p class="small">With expected total cost (the default) or cost per success (opt-in), both at the end of section 5, a model below the level can qualify too, when its chance of solving work at that level is at least 60%.</p>
+
+<h2 id="5-the-cheapest-qualifying-route-wins"><span class="num">5</span>The cheapest qualifying route wins</h2>
+<p>Each qualifying model has one or more <b>routes</b>: the providers that serve it (Anthropic, Bedrock, Vertex, OpenRouter, your own GPUs, …). Merit Order prices every route and picks the cheapest.</p>
+<div class="callout"><strong>Prices are live</strong>The worker refreshes them every 15 minutes: OpenRouter routes from OpenRouter's catalog, direct provider APIs from the price list LiteLLM maintains, cross-checked against each other. Long-prompt prices apply (Claude Haiku 5.5 costs five times as much above 100,000 prompt tokens), and a price change, a list that can't be fetched, or two lists that disagree raises an alert.</div>
+<p><b>"Cheapest" means the rest of the session</b>, because in a conversation each turn resends everything before it, and providers charge far less for the part they still have cached.</p>
+<div class="card">
+  <svg viewBox="0 0 720 150" role="img" aria-label="Cost of a route: rebuild plus expected turns times cost per turn">
+    <rect class="box-accent" x="10" y="40" width="170" height="70" rx="10"/><text x="95" y="70" text-anchor="middle" font-weight="700">Cost of a route</text><text x="95" y="92" text-anchor="middle" font-size="12" class="muted">rest of the session</text>
+    <text x="198" y="81" font-size="22" class="muted">=</text>
+    <rect class="box" x="225" y="40" width="190" height="70" rx="10"/><text x="320" y="68" text-anchor="middle" font-weight="700">Rebuild</text><text x="320" y="89" text-anchor="middle" font-size="12" class="muted">0 if it holds the cache, else</text><text x="320" y="103" text-anchor="middle" font-size="12" class="muted">the context at the write price</text>
+    <text x="430" y="81" font-size="22" class="muted">+</text>
+    <rect class="box" x="455" y="40" width="255" height="70" rx="10"/><text x="582" y="64" text-anchor="middle" font-weight="700">Turns × cost per turn</text><text x="582" y="84" text-anchor="middle" font-size="12" class="muted">cached part at the read price + new tokens</text><text x="582" y="98" text-anchor="middle" font-size="12" class="muted">at the write price + ~600 out (turns: 3–30)</text>
+  </svg>
+  <ul class="small" style="margin:6px 0 0">
+    <li><b>Rebuild</b>: what it costs to get this conversation into the provider's cache. Zero if this provider already holds it, else the context at the write price, less the cache-read price the first turn already counts.</li>
+    <li><b>Cost per turn</b>: the cached part at the cache-read price, plus the new tokens at the write price (what the conversation grew by since its last turn, or about 2,000 for a new session), plus about 600 output tokens at the output price.</li>
+    <li><b>Write price</b>: the input price, where the provider caches on its own (OpenAI, Gemini, most others). For Claude, where caching is explicit, the cache-write price; on a backend set to keep its cache an hour (<code>cache_ttl_seconds: 3600</code>), the 1-hour write price from a session's second turn (its first turn, rebuild included, is written for 5 minutes).</li>
+    <li><b>Expected turns</b>: the turns so far, kept between 3 and 30 (a long session will probably keep going).</li>
+  </ul>
+</div>
+<div class="callout blue"><strong>Claude's 1-hour cache</strong>The four Claude backends in the shipped config (Anthropic, Bedrock, Vertex AI, Foundry) are set to an hour. A session's first turn there is written for 5 minutes, as the gateway sends it, so the rebuild and the first turn cost the same as on Claude through OpenRouter, which keeps the 5-minute default. From the second turn the router prices their writes at Claude's 1-hour write price (twice the input price, against 1.25 times for 5 minutes). What the hour buys is counted too: a later turn that comes after a pause of 5 to 60 minutes finds a 5-minute cache gone and writes the conversation again, and an hour's still there. The router expects such a pause on the share of later turns your sessions have shown (by team, leaning on the organization's share and, with little data, on one turn in ten), and adds that share of a rebuild to each later turn on routes whose cache lasts under an hour (decision 60). At one turn in ten, a new Claude Haiku session is cheaper on the direct backends than on OpenRouter, so it goes there at the default <code>cost</code> priority. Where sessions rarely pause, the hour's premium wins again and OpenRouter is the cheaper start.</div>
+<h3>Coding, level 3 · a new session, 30,000 tokens in</h3>
+<div class="tablewrap"><table>
+  <thead><tr><th>Model (route)</th><th class="n">Score</th><th class="n">Rebuild</th><th class="n">Per turn</th><th class="n">3 turns</th></tr></thead>
+  <tbody>
+    <tr class="win"><td>Claude Haiku 5.5 (Anthropic, Bedrock, Vertex, Foundry)</td><td class="n">3.0</td><td class="n">$0.0032</td><td class="n">$0.0008, then $0.0010</td><td class="n">$0.0060</td></tr>
+    <tr><td>Claude Haiku 5.5 (OpenRouter)</td><td class="n">3.0</td><td class="n">$0.0032</td><td class="n">$0.0008, then $0.0011</td><td class="n">$0.0064</td></tr>
+    <tr><td>GPT-6.1 Terra (Azure, OpenAI)</td><td class="n">4.2</td><td class="n">$0.027</td><td class="n">$0.006, then $0.009</td><td class="n">$0.051</td></tr>
+    <tr><td>Gemini 4 Argon (Vertex, OpenRouter)</td><td class="n">3.4</td><td class="n">$0.053</td><td class="n">$0.013, then $0.018</td><td class="n">$0.102</td></tr>
+  </tbody>
+</table></div>
+<h3>Coding, level 4 · an agent task with hard wording ("fix the race condition"), 80,000 tokens in</h3>
+<div class="tablewrap"><table>
+  <thead><tr><th>Model (route)</th><th class="n">Score</th><th class="n">Rebuild</th><th class="n">Per turn</th><th class="n">3 turns</th></tr></thead>
+  <tbody>
+    <tr class="win"><td>GPT-6.1 Terra (Azure, OpenAI)</td><td class="n">4.2</td><td class="n">$0.074</td><td class="n">$0.009, then $0.016</td><td class="n">$0.116</td></tr>
+    <tr><td>Gemini 4 Carbon (Vertex, OpenRouter)</td><td class="n">4.4</td><td class="n">$0.148</td><td class="n">$0.018, then $0.033</td><td class="n">$0.231</td></tr>
+    <tr><td>Claude Opus 5.5 (Anthropic, Bedrock, Vertex, Foundry)</td><td class="n">4.1</td><td class="n">$0.374</td><td class="n">$0.038, then $0.044</td><td class="n">$0.499</td></tr>
+    <tr><td>Claude Opus 5.5 (OpenRouter)</td><td class="n">4.1</td><td class="n">$0.374</td><td class="n">$0.038, then $0.075</td><td class="n">$0.562</td></tr>
+  </tbody>
+</table></div>
+<p>The "then" values are the later turns: on the direct Claude backends at the 1-hour write price; elsewhere with a tenth of a rebuild for the pauses.</p>
+<div class="grid2">
+  <div class="card"><h3>Sessions stay put</h3><p>Once a session is on a route, the rebuild is already paid there, so moving it must save at least 10% plus $0.01 over the rest of the session. Within a task (while the tool is sending tool results back, before the next prompt from a person) the session keeps its model outright.</p><p>In practice a session moves only when a new task starts and something is clearly cheaper, its cache has expired, the conversation was compacted, it no longer fits (section 7), or its model is busy or down on every route (section 8). That's what keeps a session from bouncing between Bedrock and Anthropic and paying to rebuild each time.</p></div>
+  <div class="card"><h3>Each next turn of a session</h3><ul>
+    <li><b>Same task</b> (tool results, no new prompt): keep the model and pick among its routes. If the conversation no longer fits that model, it moves to a model with room at the same level and pays one rebuild.</li>
+    <li><b>A new task</b>: give it a level (section 2), price every qualifying route for the rest of the session, and move only if the cheapest beats the session's route by 10% plus $0.01. Otherwise it stays where the cache is.</li>
+  </ul></div>
+  <div class="card"><h3>How long a cache lasts</h3><p>It depends on the route. On Claude it's as long as the request's last cache marker asked: when the gateway adds the markers (the client set none), 5 minutes after a session's first turn and an hour from its second on a backend set to an hour. A client's own markers keep their own lifetime. Other backends use their <code>cache_ttl_seconds</code> (5 minutes by default, 10 for the shipped GPU deployments).</p></div>
+  <div class="card"><h3>One session, several conversations</h3><p>Claude Code sends its subagents' turns and its side requests under the main session's id. Each keeps its own routing state (model, level, cache), so a subagent never resets the main conversation's. Budgets, the per-session spend limit and reports still count the session as one.</p></div>
+</div>
+<div class="card"><h3>Near-ties go to speed</h3><p>The same model often costs the same everywhere (Claude on Anthropic, Bedrock and Vertex), so price alone can't choose. Routes within a small margin of the cheapest compete on measured speed: 2% under the default <code>cost</code> priority (where a better model among them goes first), 20% under <code>balanced</code>, 100% under <code>speed</code>. A team or a single request (<code>X-MeritOrder-Priority</code>) can choose differently. Every 10th new session may try a route within that margin whose speed is unknown or out of date, so speeds stay known.</p><p><b>Unpriced routes are never used</b>: an unknown price must never look free. <code>auto</code> passes them by, and a request that names a model with only unpriced routes gets a 503 saying so (GPU routes excepted: they're charged by GPU time).</p></div>
+<div class="card"><h3>Or: the cheapest per solved task</h3>
+  <p><span class="pill">opt-in, off by default</span></p>
+  <p>The threshold treats a model just below the level as useless, though it solves nearly as much. With <code>model_choice: cost_per_success</code> (Config → Routing, or per team), <code>auto</code> picks on expected cost per solved task instead:</p>
+  <ul>
+    <li>Each model gets a chance of solving work at the level from its score. One exactly at the level solves it as often as a 5 solves FrontierSWE-hard tasks (the anchor: 69.9% for coding); better models more, weaker ones less.</li>
+    <li>A failed try is still paid for, and the work is then redone on the model the threshold would pick: expected = cost + (1 − chance) × (that model's cost ÷ its chance).</li>
+    <li>In the first example above, DeepSeek V4.1 Flash (coding 2.4: a 62% chance at level 3) costs $0.0018 a try and $0.0018 + 38% × $0.0086 = $0.0051 per success, against Claude Haiku's $0.0060 a try (on the direct backends) and $0.0060 ÷ 70% = $0.0086 per success. It wins.</li>
+    <li>A model whose chance at the level is under 60% is never picked (<code>min_success_chance</code>), so a nearly free model that usually fails can't win. A client's <code>X-Route-Floor</code> keeps the threshold, and so does a model without a chance estimate.</li>
+    <li>Warm caches, stickiness and the speed tie-breaks work as above, on the expected cost per success.</li>
+  </ul>
+  <p class="small">Every rule: <a href="how-it-decides.html#threshold-or-cost-per-success">How it decides: threshold or cost per success</a>.</p>
+</div>
+<div class="card"><h3>The default: the lowest expected total cost to finish the task</h3>
+  <p><span class="pill">default since decision 62; stakes since decision 67</span></p>
+  <p>A redo costs more than tokens: someone notices the answer was wrong, says so and waits. With <code>model_choice: expected_cost</code> (the default; per team too), <code>auto</code> counts that:</p>
+  <ul>
+    <li>Each model's expected cost is its try, plus its chance of failing times the person's cost a failure puts at stake, and with the cascade on, the next attempt: the same model again or a stronger one from a cold cache, whose chance is lower after a failure.</li>
+    <li>The person's cost (<code>human_cost_usd</code>, $1 by default: a minute at $60 an hour, set per team on Controls) is for a failed level-5 agent task. Each level below 5 puts a third as much at stake (level 3: a ninth, level 1: 1/81), and a request under 8,000 tokens proportionally less, because a re-asked question costs seconds and a failed agent task minutes. After a correction ("that's wrong") the request counts as level 5. So level 1 and 2 work, questions and short chats go to the cheapest model that meets the level, as with the threshold.</li>
+    <li>The chance comes from the benchmark at the task's difficulty and, once it has learned from your outcomes and beaten the benchmark on tasks it wasn't trained on, from a fitted layer: calibrated to what your traffic counts as success, with each model's own record, and offsets for your team, repository and project.</li>
+    <li>In the first example, a 30,000-token coding:3 task at a $1 person's cost puts $0.11 at stake: Claude Haiku tries for $0.0060 with a 70% chance (~$0.055 expected with a redo); GPT-6.1 Terra for $0.051 with 82% (~$0.07). Haiku goes first. A level-5 task at 90,000 tokens puts the whole dollar at stake, and goes to Gemini 4 Carbon ($0.26 a try, 62%) rather than Claude Fable ($1.07, 70%).</li>
+    <li>With the cascade on (<code>routing.cascade.max_escalations: 1</code>; off by default), inside the task, if tests keep failing after edits (three failed runs in a row), or the person says "that's wrong", the task's model's chance drops, and the task moves to a stronger model when continuing would cost more: on Haiku, a failing run and "that's wrong" take it from 70% to 24%, and continuing (~$1.00, the request now counted at level 5) loses to escalating to Terra (~$0.28, its cache rebuilt there); three failed runs alone (41%) aren't enough at level 3. A new prompt that's harder than the task is a new task at its own level. At most once or twice per task, never down inside a task, never past the team's models or a budget that's 90% spent. The failed attempt's cost is charged against routing savings, once.</li>
+  </ul>
+  <p>On the routing simulator it spends 60% less per finished task than the threshold, no more than the threshold on any kind of work, and finishes 0.2 points more (<a href="routing.html#is-it-the-right-default">Routing: is it the right default?</a>).</p>
+  <p class="small">Every rule: <a href="how-it-decides.html#expected-total-cost">How it decides: expected total cost</a>; why: decisions 62 and 67 (<a href="decisions.html">Decisions</a>).</p>
+</div>
+
+<h2 id="6-then-effort-and-output-length"><span class="num">6</span>Then: effort and output length</h2>
+<div class="grid2">
+  <div class="card"><h3>Reasoning effort follows the level</h3><p>Low for levels 1–2, medium for 3, high for 4–5, so every model works the same way for the same work (their own defaults differ). A model that doesn't take that effort keeps its default. The effort is set once per session on a model, because changing it would invalidate the prompt cache. A client's own effort setting always wins; one sent in Anthropic's format (Claude Code sends one) to a GPT or other OpenAI-format model goes over at the nearest level that model takes.</p></div>
+  <div class="card"><h3>Output isn't capped by a guess</h3><p>A request without <code>max_tokens</code> may write as much as the model can (128,000 tokens for current Claude and GPT models), less what wouldn't fit in the context window, under the per-request cost limit (Controls), or within what a provider's prepaid balance covers. Only when the model's maximum isn't known does it get <code>default_max_tokens</code> (16,000). A client's own <code>max_tokens</code> is kept (lowered only to the model's maximum). The response says how much it got and why (<code>X-MeritOrder-Max-Tokens</code>, <code>X-MeritOrder-Max-Tokens-Source</code>).</p></div>
+</div>
+
+<h2 id="7-context-windows-long-conversations"><span class="num">7</span>Context windows: long conversations</h2>
+<p>Every model has a <b>context window</b>: the most a conversation plus its reply can hold. The windows come from the live price data, refreshed with the prices.</p>
+<div class="card">
+  <div class="scrollx"><svg class="minw" viewBox="0 0 720 250" role="img" aria-label="Context windows by model group, in tokens">
+    <g transform="translate(240,16)">
+      <line class="grid" x1="0" y1="0" x2="0" y2="200"/><line class="grid" x1="105" y1="0" x2="105" y2="200"/><line class="grid" x1="210" y1="0" x2="210" y2="200"/><line class="grid" x1="315" y1="0" x2="315" y2="200"/><line class="grid" x1="420" y1="0" x2="420" y2="200"/>
+      <g class="muted" font-size="11"><text x="0" y="218" text-anchor="middle">0</text><text x="105" y="218" text-anchor="middle">250K</text><text x="210" y="218" text-anchor="middle">500K</text><text x="315" y="218" text-anchor="middle">750K</text><text x="420" y="218" text-anchor="middle">1M</text></g>
+      <g font-size="13">
+        <text x="-12" y="19" text-anchor="end">Claude, Gemini, DeepSeek,</text><text x="-12" y="34" text-anchor="end" class="muted" font-size="12">GLM, Kimi, MiniMax, MiMo…</text>
+        <rect class="bar1" x="0" y="12" width="425" height="18" rx="3"/><text x="431" y="26" font-size="12" class="muted">~1M</text>
+        <text x="-12" y="65" text-anchor="end">GPT-6 and GPT-6.1</text>
+        <rect class="bar1" x="0" y="52" width="387" height="18" rx="3"/><text x="393" y="66" font-size="12" class="muted">922K</text>
+        <text x="-12" y="105" text-anchor="end">Llama 4 Maverick, Grok 4.7</text>
+        <rect class="bar1" x="0" y="92" width="220" height="18" rx="3"/><text x="226" y="106" font-size="12" class="muted">500–524K</text>
+        <text x="-12" y="139" text-anchor="end">Qwen3 Coder, Devstral 2,</text><text x="-12" y="154" text-anchor="end" class="muted" font-size="12">Gemma 4, Nemotron 3 Ultra…</text>
+        <rect class="bar2" x="0" y="132" width="110" height="18" rx="3"/><text x="116" y="146" font-size="12" class="muted">262K</text>
+        <text x="-12" y="185" text-anchor="end">gpt-oss-120b and -20b</text>
+        <rect class="bar2" x="0" y="172" width="55" height="18" rx="3"/><text x="61" y="186" font-size="12" class="muted">131K</text>
+      </g>
+    </g>
+  </svg></div>
+</div>
+<div class="tablewrap"><table>
+  <thead><tr><th class="n">Window</th><th>Models</th></tr></thead>
+  <tbody>
+    <tr><td class="n">about 1 million tokens</td><td>Claude (all), Gemini, DeepSeek, GLM, Kimi, MiniMax, MiMo, Muse Spark, Mistral Large 4, Qwen3.8 Flash, Nemotron 3.5 Super</td></tr>
+    <tr><td class="n">922,000</td><td>GPT-6 and GPT-6.1 (Astra, Sol, Terra, Luna)</td></tr>
+    <tr><td class="n">524,288</td><td>Llama 4 Maverick</td></tr>
+    <tr><td class="n">500,000</td><td>Grok 4.7</td></tr>
+    <tr><td class="n">262,144</td><td>Qwen3 Coder (all three), Devstral 2, Mistral Small 4, Ministral 14B, Gemma 4 31B, Nemotron 3 Ultra</td></tr>
+    <tr><td class="n">131,072</td><td>gpt-oss-120b, gpt-oss-20b</td></tr>
+  </tbody>
+</table></div>
+<p>Two parties decide what happens as a conversation grows: <b>the tool</b>, which decides when to compact (summarize the history and start over from the summary), and <b>Merit Order</b>, which decides where the conversation can still go.</p>
+<div class="card"><h3>Models without room drop out, and that's all length does</h3><p>For <code>auto</code>, a model isn't a candidate when the conversation plus the reply the client asked for (its <code>max_tokens</code>; Claude Code asks for 32,000) fills its window past 95%. The conversation is counted in that model's tokens (below), and the 5% is a margin for what the count still gets wrong and for the reply when the client leaves its length to the gateway. The level stays what the work gives it (section 2), and the cheapest model at that level with room wins.</p><p>A 300,000-token conversation never goes to gpt-oss or Qwen3 Coder; most qualifying models have about a million tokens, so something nearly always fits. The routing reason names the models ruled out, their windows and how the count was made (Reports → Requests), for example:</p><pre><code>ruled out gpt-oss-120b (131,072): window too small for about 300,000 tokens plus a 32,000-token reply (estimate ×1.08, calibrated from 210 replies)</code></pre><p>Over 85% of a window that still fits, it says "context window check close" with the same detail.</p></div>
+<div class="grid2">
+  <div class="card"><h3>Too long for every model at its level</h3><p>It goes to the model with the largest window anyway (the count is an estimate), and the provider decides. A higher level wouldn't help: its models are a subset. If the provider refuses, the client gets "prompt is too long", which makes Claude Code compact.</p></div>
+  <div class="card"><h3>Outgrowing a model moves the session</h3><p>Even mid-task: the next turn goes to a model with room at the same level, paying once to rebuild the cache there.</p></div>
+  <div class="card"><h3>"Too long" from a provider isn't the end</h3><p>If a provider refuses a prompt as too long anyway (the estimate can be off), an <code>auto</code> request goes to a qualifying model with a bigger window. A request that names a model can't move; its error is worded the way Anthropic's API words it ("prompt is too long: …"), whichever provider refused, because that's what makes Claude Code compact.</p></div>
+  <div class="card"><h3>The reply shrinks to fit</h3><p>When a request doesn't set <code>max_tokens</code>, the reply may use what's left of the window and no more, so the provider doesn't refuse prompt plus reply (section 6).</p></div>
+</div>
+<h3>How a conversation is measured</h3>
+<p>Merit Order can't run every provider's tokenizer, and the same text comes to different token counts on Claude, GPT and Gemini. So it estimates once, from what the text is made of:</p>
+<div class="tablewrap"><table>
+  <thead><tr><th>Content</th><th>About</th></tr></thead>
+  <tbody>
+    <tr><td>Prose</td><td>4 characters a token</td></tr>
+    <tr><td>Code and JSON</td><td>3 characters a token</td></tr>
+    <tr><td>Hashes and base64</td><td>2 characters a token</td></tr>
+    <tr><td>Chinese, Japanese or Korean</td><td>1 character a token</td></tr>
+    <tr><td>Images</td><td>counted the way the model's provider counts them, from the image's size, not as the text of their bytes: a 1000 × 1000 screenshot is about 1,330 tokens on Claude and 765 on GPT</td></tr>
+    <tr><td>PDFs</td><td>by their pages</td></tr>
+  </tbody>
+</table></div>
+<p>Then the replies correct it. Each reply reports the real prompt size, and Merit Order keeps a running ratio for each model, so after a few long prompts its counts for that model follow that model's tokenizer. A model that hasn't answered yet starts from the ratio of its family (other Claude models, other GPT models). The window check, the cost estimates and the reply's allowance all use the model's corrected count, and the Models page shows each model's ratio under its context window. Details: <a href="routing.html#counting-tokens">Routing: counting tokens</a>.</p>
+<h3>What the tool does</h3>
+<p>A tool compacts when the conversation nears the window it believes it has. <code>/v1/models</code> reports each model's window, and for <code>auto</code> the largest window among the models <code>auto</code> can pick for your team (1,048,576 tokens today). That's safe because models without room drop out: a long conversation narrows the choice to the million-token models instead of failing.</p>
+<ul>
+  <li><b>pi</b>: <code>meritorder setup pi</code> writes each model's window into pi's model list.</li>
+  <li><b>Claude Code</b>: it knows the windows of Claude models by name. For a name it doesn't know, such as <code>auto</code>, it assumes 200,000 tokens unless told otherwise; <code>meritorder setup claude-code</code> tells it the gateway's window (section 11).</li>
+  <li><b>Other tools</b>: give them the window from <code>/v1/models</code>, or leave their default; a smaller window than the real one only means compacting earlier.</li>
+</ul>
+
+<h2 id="8-when-something-fails"><span class="num">8</span>When something fails</h2>
+<p>Nothing reaches the client until the chosen route has started answering, so a failure moves the request on:</p>
+<div class="tablewrap"><table><tbody>
+  <tr><td><b>Over capacity, rate-limited, missing, or down</b></td><td>The next route in the cost ranking. For a named model, or a session in the middle of a task, that's another provider for the same model; for a new <code>auto</code> task, it's the next cheapest qualifying route, whatever its model. A request gets 3 tries at most (<code>routing.max_attempts</code>). An <code>auto</code> session whose model is busy or down on every route moves to another qualifying model at its next turn, even mid-task. The failing route is skipped for a while (the provider's <code>Retry-After</code>, or a growing back-off) and an alert says where its traffic went.</td></tr>
+  <tr><td><b>Too long for the model</b></td><td>For <code>auto</code>, a qualifying model with a bigger window (section 7). For a named model, "prompt is too long", so the tool compacts.</td></tr>
+  <tr><td><b>The model refuses</b></td><td>For <code>auto</code>, the next qualifying model (the refusal is billed and logged; a team can turn this off with <code>refusal_fallback: false</code>). A named model's refusal is returned as it is.</td></tr>
+  <tr><td><b>A provider can't cover the whole reply on its prepaid balance</b></td><td>The same route again, asking for what it says it can pay for.</td></tr>
+  <tr><td><b>Budgets and limits</b></td><td>Organization, team, person and session budgets, rate limits, and the per-request cost limit stop requests before they're sent, with a message saying which.</td></tr>
+</tbody></table></div>
+<p class="small">When the 3 tries are used up, the client gets the last route's error (and its <code>Retry-After</code>). Every rule and timing: <a href="how-it-decides.html">How it decides</a>.</p>
+<div class="card"><h3>Work that can wait</h3><p>It can go through the providers' batch APIs at about half price, or run on your own GPUs for almost nothing while they're running with room. Each request of a batch is routed as above, among the routes whose provider has a batch API (at batch prices) and running GPU deployments (at their shadow price). The gateway splits the batch across providers and GPUs, reserves its estimated cost against budgets, and joins the results back. GPU work runs at low priority in the headroom only, and goes to a provider's batch API if it hasn't run in 12 hours; it never starts a GPU (<a href="request-flow.html#batches-work-that-can-wait">Request flow: batches</a>).</p></div>
+
+<h2 id="9-your-own-gpus-when-they-start-and-stop"><span class="num">9</span>Your own GPUs: when they start and stop</h2>
+<p>Power grids run the cheapest generators all the time (baseload) and switch on expensive ones (peakers) only for peaks. Merit Order does the same: your own GPUs, running an open model, are the baseload when there's enough steady work to keep them busy, and the APIs are the peakers that are always there.</p>
+<div class="card">
+  <div class="scrollx"><svg class="minw" viewBox="0 0 720 345" role="img" aria-label="GPU deployment lifecycle: API only, Starting GPUs, Serving on GPUs, Draining">
+    <defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="currentColor" style="color:var(--muted)"/></marker></defs>
+    <rect class="box" x="10" y="86" width="140" height="76" rx="10"/><text x="80" y="112" text-anchor="middle" font-weight="700">API only</text><text x="80" y="132" text-anchor="middle" font-size="12" class="muted">no GPUs, no cost</text>
+    <rect class="box-blue" x="200" y="86" width="150" height="76" rx="10"/><text x="275" y="112" text-anchor="middle" font-weight="700">Starting GPUs</text><text x="275" y="132" text-anchor="middle" font-size="12" class="muted">takes 10–20 min;</text><text x="275" y="148" text-anchor="middle" font-size="12" class="muted">the APIs serve</text>
+    <rect class="box-good" x="400" y="86" width="140" height="76" rx="10"/><text x="470" y="112" text-anchor="middle" font-weight="700">Serving on GPUs</text><text x="470" y="132" text-anchor="middle" font-size="12" class="muted">first choice;</text><text x="470" y="148" text-anchor="middle" font-size="12" class="muted">scales its replicas</text>
+    <rect class="box-warn" x="580" y="86" width="130" height="76" rx="10"/><text x="645" y="112" text-anchor="middle" font-weight="700">Draining</text><text x="645" y="132" text-anchor="middle" font-size="12" class="muted">no new sessions;</text><text x="645" y="148" text-anchor="middle" font-size="12" class="muted">existing ones finish</text>
+    <path class="arrow" d="M150,110 L198,110" marker-end="url(#ah)"/>
+    <path class="arrow" d="M350,110 L398,110" marker-end="url(#ah)"/>
+    <path class="arrow" d="M540,124 L578,124" marker-end="url(#ah)"/>
+    <path class="arrow" d="M590,86 C575,46 505,46 490,84" marker-end="url(#ah)"/>
+    <path class="arrow" d="M245,162 C245,205 115,205 115,164" marker-end="url(#ah)"/>
+    <path class="arrow" d="M430,162 C430,200 330,200 330,164" marker-end="url(#ah)"/>
+    <path class="arrow" d="M690,162 C690,360 80,360 80,164" marker-end="url(#ah)"/>
+    <text x="174" y="62" text-anchor="middle" font-size="12">demand pays for a replica</text><text x="174" y="77" text-anchor="middle" font-size="12">for 10 min straight</text>
+    <text x="374" y="102" text-anchor="middle" font-size="12" class="muted">ready</text>
+    <text x="540" y="40" text-anchor="middle" font-size="12">demand comes back</text>
+    <text x="190" y="212" text-anchor="middle" font-size="12">failed, or not ready in 45 min</text><text x="190" y="226" text-anchor="middle" font-size="12" class="muted">(waits 30 min to retry)</text>
+    <text x="380" y="212" text-anchor="middle" font-size="12">lost readiness</text><text x="380" y="226" text-anchor="middle" font-size="12" class="muted">(spot preemption)</text>
+    <text x="578" y="182" text-anchor="middle" font-size="12">below break-even for 10 min</text><text x="578" y="197" text-anchor="middle" font-size="12" class="muted">(after at least 30 min running)</text>
+    <text x="385" y="336" text-anchor="middle" font-size="12">after 15 min: GPUs released</text>
+  </svg></div>
+  <p class="small" style="margin:6px 0 0">The GPUs page shows these states by these names (in the API and logs: <code>api_only</code>, <code>provisioning</code>, <code>warm</code>, <code>draining</code>). An admin's pin starts a deployment at once, and a stop either drains it or stops it at once.</p>
+</div>
+<h3>Starting: only when sustained demand pays for it</h3>
+<p>Every minute the controller asks: <b>what does the traffic this model could serve cost me at API prices?</b></p>
+<ul>
+  <li><b>Traffic it could serve</b> means requests whose level its score covers. A model with a coding score of 3.0 counts every coding request at levels 1–3, wherever it was actually sent.</li>
+  <li><b>At API prices</b> means what you're paying for that traffic today.</li>
+  <li>One replica is worth starting when that spend, per hour, exceeds the replica's hourly price plus a 20% margin, <b>continuously for 10 minutes</b>. The number of replicas follows the throughput (enough to run at 70% load), as long as each one pays for itself by the same rule.</li>
+</ul>
+<p>A replica's hourly price is SkyPilot's cheapest offer in the allowed clouds, or on your own Kubernetes cluster the price you set for its node type (<code>kubernetes.node_types</code>), or else the deployment's <code>gpu_cost_per_hour</code>. The controller starts GPUs through SkyPilot on cloud GPUs, or through KServe or llm-d on your cluster.</p>
+<div class="callout"><strong>Example</strong>The shipped <code>gpu-qwen-coder</code> deployment runs Qwen3 Coder Next on four H100s with a fallback price of $16 an hour. It starts once the work it could do would cost you more than <b>$19.20 an hour</b> at API prices, for 10 minutes straight.</div>
+<h3>Running: the first choice while it has room</h3>
+<p>A GPU you're already paying for costs almost nothing per token while it has room, so the router prices it at 2% of the API price up to 60% load (<code>routing.shadow_floor</code>, <code>routing.shadow_knee</code>), rising with the square of the load to the full API price at 100%.</p>
+<div class="card">
+  <svg viewBox="0 0 720 210" role="img" aria-label="GPU shadow price by load: 2% of the API price up to 60% load, then rising with the square of the load to the full API price at 100%">
+    <g transform="translate(60,20)">
+      <line class="grid" x1="0" y1="150" x2="620" y2="150"/><line class="grid" x1="0" y1="0" x2="0" y2="150"/>
+      <path d="M0,147 L372,147 Q496,147 620,0" stroke="var(--accent)" stroke-width="3" fill="none"/>
+      <line class="grid" x1="372" y1="0" x2="372" y2="150" stroke-dasharray="4 4"/>
+      <text x="0" y="172" font-size="12" class="muted">0% load</text><text x="372" y="172" font-size="12" text-anchor="middle" class="muted">60% (knee)</text><text x="620" y="172" font-size="12" text-anchor="end" class="muted">100%</text>
+      <text x="-8" y="152" font-size="12" text-anchor="end" class="muted">2%</text><text x="-8" y="8" font-size="12" text-anchor="end" class="muted">100%</text>
+      <text x="186" y="135" font-size="13" text-anchor="middle">nearly free: it's already paid for</text>
+      <text x="520" y="50" font-size="13" text-anchor="end">rises with the square of the load</text>
+      <text x="310" y="188" font-size="12" text-anchor="middle" class="muted">price the router uses for the GPU, as a share of the same model's API price</text>
+    </g>
+  </svg>
+</div>
+<p>Up to the knee it wins every request it qualifies for; past it, the APIs win more and more of the work, and at 100% new work spills to them. Requests that only went to the GPU because it had room (a better model than the level needed) don't count as demand, so idle capacity can't keep itself alive.</p>
+<div class="card"><h3>A session goes back to the replica that holds its cache</h3><p>Each GPU replica has its own prompt cache, so a conversation's next turn goes to the replica that served its last one, unless that replica is full, gone, or busy enough that rebuilding the cache on an idle one costs less. Whether the cache is still there comes from vLLM's cache events where they're turned on, otherwise from an estimate of how much the replica has written into its cache since.</p></div>
+<h3>Stopping: when demand no longer pays for it</h3>
+<p>When the work it could do drops below break-even for 10 minutes, and it has been serving at least 30 minutes (<code>hold_minutes</code>), it <b>drains</b>: no new sessions, existing ones finish, and after 15 minutes (<code>drain_minutes</code>) the GPUs are released. If demand comes back while draining, it simply stays. Starting takes 10–20 minutes for a big model, and traffic stays on the APIs meanwhile, so the delays and margins are there to avoid paying for start-ups that don't last. A start that fails, or isn't ready within 45 minutes, is shut down and waits 30 minutes before the next try.</p>
+<div class="callout warn"><strong>A self-hosted model needs a score</strong>Demand is counted by level, so a model the quality source doesn't cover has none, and its GPUs never start for <code>auto</code> traffic. On 11 November 2026 that's the case for Qwen3 Coder Next: give it a <code>quality_override</code> (Config → Models) to have the controller consider it. Its window (262,144 tokens) also means a conversation goes to the APIs once it and the reply the client asks for are over 95% of it, about 249,000 tokens: with Claude Code's 32,000-token replies, conversations over about 217,000.</div>
+<h3>Whether a GPU can ever pay</h3>
+<p>It shows on Models → <b>GPU break-even</b>. Each open-weight model gets a machine whose GPUs hold its weights (sizes from Hugging Face), priced from SkyPilot's catalog, spot or on-demand, across the clouds SkyPilot covers: of those, the one that pays from the least traffic. The weights can be served as published, in FP8, or in 4 bits; quantizing changes what fits, not the quality scores, so measure a quantized model with an eval before trusting its level. For each quality level and each model it shows the traffic one replica needs (tokens per minute and about how many requests an hour), your busiest hour of that traffic, and what the replica can serve. The price a GPU has to beat at a level is the cheapest API model good enough for it, because that's where <code>auto</code> would send the work otherwise.</p>
+<p>On 11 November 2026, with spot prices, only level-1 work could pay: gpt-oss-20b on one L4 ($0.12 an hour) from about 72,000 tokens a minute. The best level an open model could host was 2: Kimi K3.1 (coding 2.7), published in 4 bits, fits on eight B300s. Level 3 starts at Claude Haiku's 3.0, and quantizing doesn't change that, because the strongest open models already ship in 4 bits. <em>Get latest prices</em> has SkyPilot download its catalogs again.</p>
+<div class="callout warn"><strong>A running GPU is spend whether it's busy or not</strong>The 2% shadow price is for choosing where a request goes; it isn't what the GPU costs. Reports count the GPU at its hourly price for every hour it runs, starting and idle included, and the self-hosting savings are the API cost the GPU's requests avoided less that. A GPU up all day for a handful of requests shows as a loss: $1.62 of GPU time against $0.002 of API calls is "saved −$1.62", not "−95%". Teams are charged their requests' shares of the GPU; the rest is the organization's, shown as "GPU idle, unallocated" (<a href="reporting.html#gpu-time-in-spend">Reporting: GPU time in spend</a>).</div>
+<p>Admins can also stop a deployment (draining first or at once), pin a number of replicas, stop all GPUs, or cap GPU spend per month, per hour, or in replicas (GPUs page and Controls). Details: <a href="gpu-autoscaling.html">GPU autoscaling</a>.</p>
+
+<h2 id="10-requests-that-name-a-model"><span class="num">10</span>Requests that name a model</h2>
+<p>A request for <code>claude-opus</code> gets Claude Opus, never another model. Merit Order still picks the route: the cheapest of Anthropic, Bedrock, Vertex, Foundry and OpenRouter for the rest of the session, with the same stickiness, speed tie-breaks and failover between them. If none of its routes can run, the request fails with the reason for each, unless the team allows substituting a model at least as good. A named model is never skipped for its window: a conversation it can't hold gets the provider's error, worded so Claude Code compacts.</p>
+<p>Claude Code sends Claude model names unless it's set to <code>auto</code>, so by default it gets exactly what it asks for; <code>meritorder setup claude-code</code> sets it to <code>auto</code> (section 11).</p>
+
+<h2 id="11-setting-up-claude-code-and-pi"><span class="num">11</span>Setting up Claude Code and pi</h2>
+<p>Log in once (<code>meritorder login</code>, or <code>meritorder use-key</code> with a key from an admin), then:</p>
+<pre><code>meritorder setup claude-code     # Claude Code
+meritorder setup pi              # pi</code></pre>
+<p><b>Claude Code</b> isn't tied to Anthropic or Foundry: any gateway that speaks Anthropic's API can stand in via <code>ANTHROPIC_BASE_URL</code>, and Merit Order does. The setup command writes these into Claude Code's settings file (<code>$CLAUDE_CONFIG_DIR/settings.json</code>, or <code>~/.claude/settings.json</code>):</p>
+<div class="tablewrap"><table>
+  <thead><tr><th>Setting</th><th>Value</th><th>Why</th></tr></thead>
+  <tbody>
+    <tr><td><code>ANTHROPIC_BASE_URL</code></td><td>the gateway</td><td>Send every request to Merit Order</td></tr>
+    <tr><td><code>apiKeyHelper</code></td><td>reads <code>~/.config/meritorder/api_key</code></td><td>Your Merit Order key; logging in again rotates it</td></tr>
+    <tr><td><code>model</code></td><td><code>auto</code></td><td>New sessions let Merit Order choose (<code>--model claude-sonnet-5-5</code> picks one; <code>--model none</code> leaves Claude Code's choice)</td></tr>
+    <tr><td><code>CLAUDE_CODE_MAX_CONTEXT_TOKENS</code></td><td>the gateway's window for that model</td><td>Claude Code would otherwise assume 200,000 tokens for <code>auto</code> and compact early</td></tr>
+    <tr><td><code>ANTHROPIC_CUSTOM_MODEL_OPTION</code>, <code>ANTHROPIC_CUSTOM_MODEL_OPTION_NAME</code></td><td><code>auto</code>, <code>auto (Merit Order)</code></td><td>Adds "auto (Merit Order)" to the <code>/model</code> picker</td></tr>
+    <tr><td><code>CLAUDE_CODE_GATEWAY_HINT_HEADERS</code></td><td><code>1</code></td><td>Claude Code labels side requests and compaction only when asked (section 2)</td></tr>
+  </tbody>
+</table></div>
+<p class="small">With <code>--model</code> set to a Claude model name, it leaves out the window and <code>/model</code> settings (and removes earlier ones): Claude Code already knows those names.</p>
+<div class="callout blue"><strong>Keep it in a separate profile</strong>Setup changes every Claude Code session that uses that settings folder. To keep Merit Order apart (for example, from work that uses another account):<pre><code>meritorder setup claude-code --config-dir ~/.claude-meritorder
+CLAUDE_CONFIG_DIR=~/.claude-meritorder claude</code></pre></div>
+<h3>What to expect</h3>
+<ul>
+  <li><b>Billing.</b> With the Merit Order key, Claude Code doesn't use your claude.ai login for these requests: subscription limits don't apply, and the cost is per token on the providers' accounts behind the gateway.</li>
+  <li><b>Non-Claude models.</b> <code>auto</code> can send Claude Code's turns to GPT, Gemini or open models, translated. It works, but Anthropic doesn't support running Claude Code on non-Claude models, so expect rough edges.</li>
+  <li><b>Cost display.</b> Claude Code's own cost figure guesses prices for a name it doesn't know (a test request it showed as $0.038 cost $0.0096). The gateway's numbers (My usage page, <code>meritorder usage</code>) are the real ones.</li>
+  <li><b>Reply length.</b> For a model name it doesn't know, Claude Code asks for up to 32,000 output tokens per reply. <code>CLAUDE_CODE_MAX_OUTPUT_TOKENS</code> raises it (to 128,000 at most); Merit Order lowers a request to the chosen model's own maximum when that's smaller.</li>
+  <li><b>Effort.</b> Claude Code sends its own reasoning effort (its <code>/effort</code> setting), and a client's setting always wins, so the per-level effort (section 6) doesn't apply to its turns.</li>
+  <li><b>A startup line</b> <code>[claude-code:unrecognized_model] {"model":"auto"}</code> is informational.</li>
+  <li><b>Subagents</b> each get their own routing thread within the session (section 5), and their own level.</li>
+</ul>
+<div class="grid2">
+  <div class="card"><h3>pi</h3><p>It gets a "Merit Order" provider listing <code>auto</code> and every model with its context window, sends its session id so sessions stay on the backend that holds their cache, and adds cache markers that survive translation.</p></div>
+  <div class="card"><h3>Codex CLI</h3><p><code>meritorder setup codex</code> adds a <code>meritorder</code> provider to <code>~/.codex/config.toml</code> (or <code>$CODEX_HOME</code>, or <code>--config-dir</code>) on the Responses API over WebSocket, starting on <code>auto</code> with its context window, the key read from the key file. Codex then sends each turn's new items only, and the gateway rebuilds the rest from the connection (<a href="caching-and-sessions.html#the-websocket-transport">Caching and sessions: the WebSocket transport</a>).</p></div>
+</div>
+<p>Other OpenAI-compatible tools need only the base URL (<code>&lt;gateway&gt;/v1</code>) and the key.</p>
+
+<h2 id="12-where-everything-is-set"><span class="num">12</span>Where everything is set</h2>
+<div class="tablewrap"><table>
+  <thead><tr><th>What</th><th>Console</th><th>Config file</th></tr></thead>
+  <tbody>
+    <tr><td>Quality source, scale, reference, refresh</td><td>Config → Routing → Quality scores</td><td><code>quality:</code></td></tr>
+    <tr><td>A model's score override, its name in benchmark data</td><td>Config → Models</td><td><code>quality_override</code>, <code>benchmark_name</code></td></tr>
+    <tr><td>The name that means "choose for me"</td><td>Config → Routing → Automatic routing</td><td><code>routing.auto_model</code></td></tr>
+    <tr><td>How much cheaper a move must be</td><td>Config → Routing → Automatic routing</td><td><code>routing.switch_margin_pct</code>, <code>switch_margin_usd</code></td></tr>
+    <tr><td>Expected turns and tokens per turn</td><td>Config → Routing → Automatic routing</td><td><code>routing.min_expected_turns</code>, <code>max_expected_turns</code>, <code>est_new_tokens_per_turn</code>, <code>est_output_tokens</code></td></tr>
+    <tr><td>How long a backend's prompt cache counts as warm</td><td>Config → Backends</td><td><code>backends.*.cache_ttl_seconds</code></td></tr>
+    <tr><td>Cost or speed, and how often a new session checks another route's speed</td><td>Config → Routing → Cost or speed; Config → Teams</td><td><code>routing.priority</code>, <code>priority_premium_pct</code>, <code>speed_check_every</code>; team <code>priority</code></td></tr>
+    <tr><td>Retrying a refusal on another model; substituting a named model that can't run</td><td>Config → Teams</td><td>team <code>refusal_fallback</code>, <code>substitute_unavailable</code></td></tr>
+    <tr><td>Threshold, cost per success or expected total cost, and the lowest chance they accept</td><td>Config → Routing → Threshold or cost per success; Config → Teams</td><td><code>routing.model_choice</code>, <code>min_success_chance</code>; team <code>model_choice</code>, <code>min_success_chance</code></td></tr>
+    <tr><td>What a failed attempt costs a person; the success predictor's fitted layer; escalations per task</td><td>Config → Routing → Expected total cost; Controls (each team's cost)</td><td><code>routing.human_cost_usd</code>, <code>success.mode</code>, <code>cascade</code>; team <code>human_cost_usd</code></td></tr>
+    <tr><td>Effort by level</td><td>Config → Routing → Reasoning effort by task difficulty</td><td><code>routing.effort_by_floor</code></td></tr>
+    <tr><td>Levels for Claude Code's side and compaction requests</td><td>Config → Routing → Claude Code request types</td><td><code>routing.request_class_levels</code></td></tr>
+    <tr><td>GPU price curve</td><td>Config → Routing → Self-hosted pricing curve</td><td><code>routing.shadow_knee</code>, <code>shadow_floor</code></td></tr>
+    <tr><td>Which models and providers a team may use</td><td>Config → Teams</td><td><code>allowed_models</code>, <code>allowed_backends</code></td></tr>
+    <tr><td>Budgets, per-request cost limit</td><td>Controls; Config → Teams</td><td><code>safeguards</code>, team budgets</td></tr>
+    <tr><td>Stored responses (Responses API): on, how long they're kept, who else may read them</td><td>Config → Teams</td><td>team <code>stored_responses</code>; <code>response_store</code> (its key)</td></tr>
+    <tr><td>Routes, prices you've negotiated</td><td>Config → Models</td><td><code>routes[].price</code> (an override)</td></tr>
+    <tr><td>Context windows, output limits</td><td>live price data (Models page)</td><td><code>context_window</code>, <code>max_output_tokens</code> (overrides)</td></tr>
+    <tr><td>The savings baseline; the output limit for a model whose own isn't known</td><td>Config → Routing → Savings baseline</td><td><code>baseline_model</code>, <code>default_max_tokens</code></td></tr>
+    <tr><td>GPU deployments</td><td>Config → Backends; GPUs page</td><td><code>backends.*.serve</code></td></tr>
+    <tr><td>How requests get a level</td><td>Config → Routing → How requests get a level (everyone sees them under Reports → Levels)</td><td><code>routing.levels</code></td></tr>
+    <tr><td>The learned router: off, shadow or route; how sure it must be; when its model is stale; retraining</td><td>Config → Routing → Learned router (its report: Reports → Learned router)</td><td><code>routing.learned</code></td></tr>
+    <tr><td>Judged labels for the learned router: per team, sample rate, stronger model, judges, monthly cap</td><td>Config → Routing → Judged labels</td><td>team <code>judged_labels</code></td></tr>
+    <tr><td>Pointing Claude Code, Codex CLI or pi at the gateway</td><td>not in the console: a CLI command</td><td><code>meritorder setup claude-code</code> / <code>setup codex</code> / <code>setup pi</code></td></tr>
+  </tbody>
+</table></div>
+<p class="small">The Models page shows every model's live scores, prices and windows, with where each came from, and how its prompt tokens compare with the gateway's estimate; Backends shows each route's measured speed and anything being skipped.</p>
+
+<h2 id="13-what-auto-does-today"><span class="num">13</span>What <code>auto</code> does today</h2>
+<p><code>auto</code> routes by expected total cost (section 5, the default since decision 62, with what a failure puts at stake since decision 67). For a new session on the price list of 12 November 2026, with nothing learned from your outcomes yet and the default $1 person's cost: level 1 goes to GLM-5.3 Flash (or DeepSeek V4.1 Flash on a long prompt), coding level 2 ("write tests", "fix the typo") to DeepSeek V4.1 Flash, general level 2 to Claude Haiku 5.5 (DeepSeek V4.1 Flash for a short one, cheaper than the threshold's pick and just below the level). Ordinary coding (level 3) goes to Claude Haiku 5.5 (DeepSeek V4.1 Flash past about 80,000 tokens), general level 3 to Claude Haiku 5.5 rather than GPT-6.1 Terra, agent work (level 4) to GPT-6.1 Terra, and the hardest coding (level 5) to Gemini 4 Carbon rather than Claude Fable.</p>
+<p class="small">Below a level, a model goes only where its chance there is at least 60% (<a href="how-it-decides.html#expected-total-cost">How it decides: expected total cost</a>).</p>
+<p>With the threshold (<code>model_choice: threshold</code>), the cheapest qualifying model for a typical request at each level, on 11 November 2026:</p>
+<div class="tablewrap"><table>
+  <thead><tr><th>Level</th><th>Coding</th><th>General</th></tr></thead>
+  <tbody>
+    <tr><td>1</td><td>GLM-5.3 Flash, gpt-oss-20b</td><td>GLM-5.3 Flash, gpt-oss-20b</td></tr>
+    <tr><td>2</td><td>DeepSeek V4.1 Flash, GPT-6 Luna, Claude Haiku 5.5</td><td>Claude Haiku 5.5</td></tr>
+    <tr><td>3</td><td>Claude Haiku 5.5</td><td>GPT-6.1 Terra</td></tr>
+    <tr><td>4</td><td>GPT-6.1 Terra</td><td>Gemini 4 Carbon or GPT-6.1 Sol (the same price; Carbon scores higher, so it goes first)</td></tr>
+    <tr><td>5</td><td>Claude Fable 5.2 only</td><td>Claude Fable 5.2 only</td></tr>
+  </tbody>
+</table></div>
+<p class="small">Level 1 also goes to free models (Gemma 4 31B, Nemotron 3 Ultra) when the opt-in OpenRouter free tier is on (<code>MERITORDER_ALLOW_FREE_MODELS=true</code>).</p>
+<div class="callout"><strong>Claude Code and Codex on <code>auto</code></strong>A task gets the level of its wording: "write tests" or "fix the typo" is coding 2 (DeepSeek V4.1 Flash, GPT-6 Luna or Claude Haiku 5.5 with the threshold), ordinary feature work and bug fixes coding 3 (Claude Haiku 5.5), hard wording ("fix the race condition", "optimize this query") coding 4 (GPT-6.1 Terra), and the hardest ("design a plugin system") coding 5 (Fable with the threshold), however long the conversation grows. Past about 840,000 tokens a level-4 task moves from Terra (a 922,000-token window, less the margin and Claude Code's 32,000-token replies) to the cheapest level-4 model with a million-token window. Its titles and summaries go to level-1 models, and compaction summaries to level-3 models at most.</div>
+<div class="callout good"><strong>With cost per success</strong>With cost per success (section 5), on the price list of 12 November 2026, ordinary coding (level 3) goes to DeepSeek V4.1 Flash, and level-5 coding to Gemini 4 Carbon: $0.85 per success against Fable's $1.53 for a 90,000-token agent turn with hard wording. General level 2 goes to DeepSeek V4.1 Flash and general level 3 to Claude Haiku 5.5. Level-4 coding stays on GPT-6.1 Terra.</div>
+
+<h2 id="14-known-gaps"><span class="num">14</span>Known gaps</h2>
+<div class="card">
+  <p><span class="pill">Levels</span> The level rules are word lists. They're visible (Reports → Levels) and adjustable (Config → Routing), but a listed word sets a coding task's level whatever it's about ("security" in "update the security page's footer" makes it level 4; "rename" in "rename the service across the codebase" would be level 2 but for "across the codebase"), and a task described in other words gets the ordinary level 3. A client that knows better can send <code>X-Route-Floor</code> or <code>X-Route-Hint</code>.</p>
+  <p><span class="pill">Compaction</span> A compacted conversation is levelled again from the summary. Claude Code puts its summary of the conversation in a user message, so the summary's words can set the next task's level, often higher than the task had.</p>
+  <p><span class="pill">Learned router</span> It learns from weak signals. It's off by default, and in shadow mode changes nothing. Most answers get no signal at all (nobody resends a fine answer, but nobody marks a bad one either), the signals it has are partly about clients rather than the work, and it assumes the rules are right on average, so it can move requests between levels but can't tell that every level is too low (exploration can: below). Coding agents add stronger signals from what the gateway already sees: tests failing after the last edit, a broken build, fix loops, and a "that's wrong" or "revert" in the next prompt. A model is used only if it beats the rules on requests it wasn't trained on, and how well it does on real traffic is what the shadow report is for. Judged labels (opt-in per team) add a label that says "good enough" or not, at a price and by sending sampled prompts to two more models; how well a judge's verdicts match what people do is measured, not assumed, and they've only been tested against mocks.</p>
+  <p><span class="pill">Exploration</span> Whether a level is too high or too low is measured only where you explore. Exploration (opt-in per team, off by default) sends about 4% of a team's task starts one level down or up at random, never mid-task, never for a named model or a client's floor, never past the team's models or a nearly spent budget. Reports → Levels compares how often each succeeds, weighted by each arm's chance, and recommends a change once each side has 200 task starts; an admin applies it, or the worker does when the learned router agrees. A model that becomes the cheapest at a level is tried first on a share of the level's work (a canary), and an alert says so. Until a team explores, the report shows the served level only. Tested against mocks.</p>
+  <p><span class="pill">Estimates</span> Some scores are estimates. A model without published coding results gets a coding score from its general ability (marked * on the Models page), and published results come from runs at different efforts.</p>
+  <p><span class="pill">Expected total cost</span> It rests on assumptions. It's the default; the threshold (the cheapest model at or above the level) is simpler to predict. Its chances at each level are read from the quality scores, not measured level by level, until the fitted layer has learned from your outcomes; failures are taken as independent, though a task one model fails is likely harder for the next; and what a failure puts at stake (a third as much for each level below 5, less under 8,000 tokens) was tuned on the routing simulator, not measured on real failures. The minimum chance (60%) stands in for some of that. Cost per success (opt-in) shares these assumptions and doesn't price a person's time. GPU demand is still counted by the threshold: work a self-hosted model could take below its level doesn't count towards starting its GPUs.</p>
+  <p><span class="pill">Token counts</span> Token counts for routing are estimates, corrected per model by its replies (section 7). A model that hasn't answered any long prompts yet, or a conversation unlike its usual ones (a long Korean document in a session of code), can still be off near the limit, and an image given by URL is counted at the largest size. A provider's "too long" is the backstop, and when it says the prompt's real size, that corrects the model's ratio too.</p>
+</div>
+
+<footer>
+  Merit Order · <a href="https://github.com/Merit-Order/meritorder/blob/main/docs/00-how-it-all-works.md">docs/00-how-it-all-works.md</a>, as a page. Every rule and timing in full: <a href="how-it-decides.html">How it decides</a>. All docs: <a href="overview.html">one page each</a> or <a href="index.html">all on one page</a>. Quality data: Epoch AI, Capabilities &amp; benchmarking (epoch.ai/benchmarks), CC BY 4.0. Numbers as of 11 and 12 November 2026.
+</footer>
+</main>
+</div>
+</body>
+</html>

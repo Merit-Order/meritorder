@@ -1,0 +1,56 @@
+id: secrets-from-cloud
+task: coding
+level: 4
+kind: agent
+commit: 24bb1c0
+summary: "Provider keys from a mounted secret file, re-read the moment the file changes (including Kubernetes' symlink swap) without reading it on every request, falling back to the environment"
+env: meritorder.evals.envs.codebase:CodebaseEnv
+env_args: {task: secrets-from-cloud}
+max_turns: 80
+est_turns: 30
+est_tool_tokens: 5000    # new tokens per turn (tool results and the reply), from runs of this suite
+est_output_tokens: 1200
+preamble_file: ../PREAMBLE.md
+prompt: |
+  ## Issue: a rotated provider key needs a restart
+
+  A backend's API key reaches the gateway through an environment variable (`auth: {type: api_key, value_env:
+  OPENROUTER_API_KEY}`). In Kubernetes the variable comes from a Secret, and a process only sees the value it
+  started with: rotating the key means restarting every pod. Kubernetes can also mount a Secret as files, and
+  it updates those in place. Let a backend read its key from such a file, and pick up a new key as soon as the
+  file changes.
+
+  **Wanted**
+
+  - `BackendAuth` (`meritorder.config`) gets `value_file: str | None = None`, the path of a file holding the key.
+    `BackendAuth.key()` returns the file's contents with surrounding whitespace removed. When the file is
+    missing, unreadable, or empty (whitespace only), the key comes from `value_env` as it does now, and from
+    neither means `None`. A literal `value` still wins over both.
+  - A backend with `type: api_key` uses whatever `key()` returns at the time of each request: after the file is
+    rewritten with a new key, the next request's `authorization` header carries the new key (`Bearer sk-new`),
+    with no restart. `ApiKeyAuth` in `meritorder.backends.auth` must keep working for a spec that has only
+    `value_file`: `available()` is true when the file holds a key.
+  - A gateway makes many requests a second, so don't read the file on every one. Add
+    `read_secret_file(path) -> str | None` to `meritorder.config`: the file's stripped contents (`None` for a
+    missing, unreadable or empty file), remembered until the file changes. A change must be seen by the very
+    next call, with no time-based delay. Two kinds of change happen in practice: the file is rewritten in place
+    (its contents may be the same length, `first` to `second`), and Kubernetes' atomic swap, where the mounted
+    path is a symlink to `..data/<name>` and `..data` is a symlink that gets replaced to point at a new directory.
+    So decide whether the file changed by what the path resolves to, not by the symlink itself.
+  - `BackendAuth.describe() -> str` says where the key is expected, for "not set" messages: the file path and the
+    variable name, whichever are set, in that order, joined with `" or "` (for example
+    `/run/secrets/meritorder/K or OPENROUTER_API_KEY`); `api key` when neither is set. A backend that is disabled
+    at config load because it has no key now gets `disabled_reason` `<describe()> is not set`, for example
+    `/run/secrets/meritorder/K or OPENROUTER_API_KEY is not set` (today it's `OPENROUTER_API_KEY is not set` or
+    `api key is not set`).
+  - A stored config (the console's config versions, checked by `secret_problems` in `meritorder.configstore`)
+    may name a `value_file`: it's a reference to a secret, not a secret, so it must not be flagged the way a
+    literal `value` is.
+
+  **Interface**
+
+  - `BackendAuth.value_file: str | None = None`.
+  - `BackendAuth.key()`: `value`, else the file's stripped contents, else the variable, else `None`.
+  - `BackendAuth.describe() -> str`: as above.
+  - `meritorder.config.read_secret_file(path: str) -> str | None`.
+  - `BackendConfig.disabled_reason` for a missing key: `<describe()> is not set`.

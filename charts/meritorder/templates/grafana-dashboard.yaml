@@ -1,0 +1,15 @@
+{{- if .Values.metrics.grafanaDashboard.enabled }}
+# Picked up by Grafana's dashboard sidecar (kube-prometheus-stack watches for this label by default).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "meritorder.fullname" . }}-dashboard
+  labels: {{- include "meritorder.labels" . | nindent 4 }}
+    {{- toYaml .Values.metrics.grafanaDashboard.labels | nindent 4 }}
+  {{- with .Values.metrics.grafanaDashboard.annotations }}
+  annotations: {{- toYaml . | nindent 4 }}
+  {{- end }}
+data:
+  meritorder.json: |-
+    {{- .Files.Get "dashboards/meritorder.json" | nindent 4 }}
+{{- end }}

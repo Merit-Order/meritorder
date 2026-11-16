@@ -1,0 +1,1675 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GPU autoscaling · Merit Order docs</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Source+Sans+3:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a design-notes reader. Sticky chapter rail on the left, one long readable column on the right; rail folds into a scrolling chip row on phones. */
+:root {
+  --bg: #f4f7f6;
+  --surface: #ffffff;
+  --fg: #142120;
+  --muted: #566866;
+  --line: #d6e0de;
+  --accent: #0b7566;
+  --accent-soft: #e0f0ec;
+  --code-bg: #ecf2f1;
+  --z1: #e3f3ea; --i1: #1d6a3a;
+  --z2: #fcf1d8; --i2: #865600;
+  --z3: #fbe4e3; --i3: #9a1f1c;
+  --curve: #2556c4; --over: #c0392b;
+  --font-display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Source Sans 3", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d1413; --surface: #141d1c; --fg: #e2ebe9; --muted: #92a6a2; --line: #253331;
+    --accent: #4fcab4; --accent-soft: #15302b; --code-bg: #17221f;
+    --z1: #132c1d; --i1: #82d6a0; --z2: #2f260e; --i2: #f0c566; --z3: #351817; --i3: #f39b95;
+    --curve: #7da4ff; --over: #ff7d6e;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0d1413; --surface: #141d1c; --fg: #e2ebe9; --muted: #92a6a2; --line: #253331;
+  --accent: #4fcab4; --accent-soft: #15302b; --code-bg: #17221f;
+  --z1: #132c1d; --i1: #82d6a0; --z2: #2f260e; --i2: #f0c566; --z3: #351817; --i3: #f39b95;
+  --curve: #7da4ff; --over: #ff7d6e;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 24px; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body {
+  background: var(--bg); color: var(--fg);
+  font-family: var(--font-body); font-size: 17px; line-height: 1.6;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+
+.hero { max-width: 1180px; margin: 0 auto; padding-block: 56px 36px; display: grid; gap: 14px; border-bottom: 1px solid var(--line); }
+.eyebrow { font-family: var(--font-mono); font-size: 12.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+.hero h1 { font-family: var(--font-display); font-weight: 700; font-size: clamp(2.1rem, 5vw, 3.4rem); line-height: 1.05; letter-spacing: -.02em; margin: 0; text-wrap: balance; }
+.hero .lede { max-width: 68ch; color: var(--fg); }
+.hero .lede p { margin: 0 0 .7em; }
+.hero .lede ol { margin: 0 0 .7em; padding-left: 1.3em; display: grid; gap: 4px; }
+.hero .lede strong { color: var(--accent); }
+.also { color: var(--muted); font-size: 15.5px; }
+.contents { margin-top: 6px; max-width: 68ch; }
+.contents summary { cursor: pointer; font-family: var(--font-mono); font-size: 12.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+.contents ol { margin: 10px 0 0; padding-left: 1.3em; columns: 2 260px; column-gap: 32px; }
+.contents li { break-inside: avoid; margin: 0 0 4px; }
+h2[id], h3[id], h4[id] { scroll-margin-top: 72px; }
+
+.layout { max-width: 1180px; margin: 0 auto; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 56px; padding-block: 36px 96px; }
+.rail { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 24px); align-self: start; }
+.rail p { font-family: var(--font-mono); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0 0 10px; }
+.rail ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.rail a { display: flex; gap: 10px; align-items: baseline; padding: 6px 10px; border-radius: 6px; color: var(--fg); text-decoration: none; font-size: 15.5px; line-height: 1.3; }
+.rail a:hover { background: var(--accent-soft); }
+.rail a.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.rail a:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.n { font-family: var(--font-mono); font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.rail a.active .n { color: var(--accent); }
+
+main { min-width: 0; max-width: 860px; }
+section { padding-bottom: 56px; margin-bottom: 56px; border-bottom: 1px solid var(--line); }
+section:last-child { border-bottom: 0; }
+.sec-head { display: flex; align-items: baseline; gap: 14px; margin-bottom: 18px; }
+.sec-head .n { font-size: 14px; color: var(--accent); }
+h2 { font-family: var(--font-display); font-weight: 700; font-size: clamp(1.7rem, 3.4vw, 2.3rem); letter-spacing: -.015em; line-height: 1.1; margin: 0; text-wrap: balance; }
+h3 { font-family: var(--font-display); font-weight: 600; font-size: 1.3rem; letter-spacing: -.01em; margin: 2.2em 0 .5em; text-wrap: balance; }
+h4 { font-family: var(--font-body); font-weight: 600; font-size: 1.05rem; margin: 1.6em 0 .4em; }
+p, ul, ol { max-width: 68ch; }
+ul, ol { padding-left: 1.3em; }
+li { margin: .25em 0; }
+a { color: var(--accent); text-underline-offset: 3px; }
+strong { font-weight: 600; }
+
+code { font-family: var(--font-mono); font-size: .84em; background: var(--code-bg); padding: .1em .35em; border-radius: 4px; }
+pre:not(.mermaid) { background: var(--code-bg); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; overflow-x: auto; font-size: 14px; line-height: 1.5; }
+pre:not(.mermaid) code { background: none; padding: 0; font-size: inherit; }
+
+.table-wrap { overflow-x: auto; margin: 1em 0 1.4em; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 15.5px; }
+th, td { text-align: left; vertical-align: top; padding: 9px 14px; border-bottom: 1px solid var(--line); }
+tr:last-child td { border-bottom: 0; }
+th { font-family: var(--font-mono); font-size: 12px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); background: var(--code-bg); }
+td { font-variant-numeric: tabular-nums; }
+
+figure { margin: 1.4em 0 1.8em; }
+.diagram { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px; overflow-x: auto; }
+.diagram pre.mermaid { margin: 0; display: flex; justify-content: center; background: none; }
+
+.chart { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px; overflow-x: auto; }
+.chart svg { display: block; width: 100%; min-width: 520px; max-width: 720px; height: auto; margin: 0 auto; font-family: var(--font-body); }
+.chart figcaption { color: var(--muted); font-size: 15px; margin-top: 10px; max-width: 68ch; }
+.chart .z1 { fill: var(--z1); } .chart .z2 { fill: var(--z2); } .chart .z3 { fill: var(--z3); }
+.chart .t { font-size: 13px; font-weight: 600; }
+.chart .i1 { fill: var(--i1); } .chart .i2 { fill: var(--i2); } .chart .i3 { fill: var(--i3); }
+.chart .lbl { font-size: 13px; fill: var(--fg); }
+.chart .tick { font-size: 12px; fill: var(--muted); }
+.chart .tick.i3 { fill: var(--i3); }
+.chart .axis { stroke: var(--fg); stroke-width: 1.5; fill: none; }
+.chart .ref { stroke: var(--muted); stroke-width: 1.5; stroke-dasharray: 6 5; fill: none; }
+.chart .curve { stroke: var(--curve); stroke-width: 3.5; fill: none; }
+.chart .over { stroke: var(--over); stroke-width: 3.5; fill: none; }
+.chart .dot { fill: var(--over); }
+
+@media (max-width: 860px) {
+  .layout { grid-template-columns: minmax(0, 1fr); gap: 20px; padding-top: 20px; }
+  .rail { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); margin-inline: calc(-1 * max(16px, env(safe-area-inset-left, 0px))); padding: 10px max(16px, env(safe-area-inset-left, 0px)); border-bottom: 1px solid var(--line); }
+  .rail p { display: none; }
+  .rail ol { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; }
+  .rail a { white-space: nowrap; border: 1px solid var(--line); background: var(--surface); }
+  body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+  .hero { padding-block: 36px 24px; }
+  body { font-size: 16px; }
+}
+</style>
+</head>
+<body>
+
+
+<header class="hero">
+  <div class="eyebrow">Merit Order docs · 05</div>
+  <h1>GPU autoscaling</h1>
+  <div class="lede"><p class="also"><a href="index.html">All docs on one page</a> · <a href="how-it-all-works.html">How it all works</a></p><details class="contents"><summary>On this page</summary><ol><li><a href="#lifecycle-of-a-self-hosted-model">Lifecycle of a self-hosted model</a></li><li><a href="#controller-loop-every-60-s---interval">Controller loop (every 60 s, --interval)</a></li><li><a href="#the-break-even-test">The break-even test</a></li><li><a href="#will-a-gpu-ever-pay-models--gpu-break-even">Will a GPU ever pay? (Models → GPU break-even)</a></li><li><a href="#configuring-a-self-hosted-model">Configuring a self-hosted model</a></li><li><a href="#how-skypilot-runs-a-deployment">How SkyPilot runs a deployment</a></li><li><a href="#cold-starts">Cold starts</a></li><li><a href="#kubernetes">Kubernetes</a></li><li><a href="#controls-and-safeguards">Controls and safeguards</a></li><li><a href="#overflow">Overflow</a></li><li><a href="#inside-the-gpu-pool">Inside the GPU pool</a></li></ol></details></div>
+</header>
+
+<div class="layout">
+  <nav class="rail" aria-label="Chapters">
+    <p>Docs</p>
+    <ol><li><a href="overview.html"><span class="n">&nbsp;&nbsp;</span>Overview</a></li><li><a href="how-it-all-works.html"><span class="n">00</span>How it all works (start here)</a></li><li><a href="architecture.html"><span class="n">01</span>Architecture</a></li><li><a href="request-flow.html"><span class="n">02</span>Request flow</a></li><li><a href="routing.html"><span class="n">03</span>Routing</a></li><li><a href="caching-and-sessions.html"><span class="n">04</span>Caching &amp; sessions</a></li><li><a href="gpu-autoscaling.html" class="active" aria-current="page"><span class="n">05</span>GPU autoscaling</a></li><li><a href="auth-and-spend.html"><span class="n">06</span>Auth &amp; spend</a></li><li><a href="deployment.html"><span class="n">07</span>Deployment</a></li><li><a href="reporting.html"><span class="n">08</span>Reporting</a></li><li><a href="decisions.html"><span class="n">09</span>Decisions</a></li><li><a href="how-it-decides.html"><span class="n">10</span>How it decides</a></li><li><a href="evals.html"><span class="n">11</span>Evals: measuring model quality</a></li><li><a href="feature-sheet.html"><span class="n"></span>Merit Order feature sheet</a></li></ol>
+  </nav>
+  <main>
+    
+    <section id="doc"><p>Only open-weight models (Qwen, DeepSeek, Kimi, GLM, Llama, …) can be self-hosted. Every
+self-hostable model should also have <strong>at least one API route serving the same weights</strong>
+(OpenRouter, the vendor, Bedrock, …). APIs are the floor; GPUs are an optimization. The console
+warns about models without one before anyone stops their GPUs.</p>
+<p>Three provisioners run the GPUs: <strong>SkyPilot</strong> (one cloud VM per replica, each of which deletes itself if the
+controller stops renewing its lease), <strong>Kubernetes</strong> (KServe or llm-d on your cluster), and <strong>static</strong> (a vLLM server
+you already run, which Merit Order only routes to). The capacity controller (<code>meritorder controller</code>) decides when
+each deployment starts, scales and stops. The gateways only route to what it publishes.</p>
+<p><strong>What has been run for real.</strong> The decision logic, the state machine and every provisioner are tested in CI
+against stand-ins. The Kubernetes provisioner has also run on a local kind cluster with a stand-in vLLM
+(<a href="#checked-on-kind">Checked on kind</a>). The SkyPilot provisioner has started <strong>one replica on a real cloud</strong>: one A10
+on Lambda, serving gpt-oss-20b on real vLLM. That start found the driver and image problems below and gave the cold
+start its numbers (<a href="#cold-starts">Cold starts</a>). Nothing else has run on a real cloud yet: no cluster has been scaled,
+preempted or drained through Merit Order, no lease has run out on a real machine, and no GPU cost has been compared
+with a bill. The replica gate and its lease have also run on a laptop, against a stand-in vLLM
+(<code>tests/test_skypilot.py</code>). <code>scripts/skypilot_check.py</code> is the full check to run next
+(<a href="#checking-it-on-a-real-cloud">Checking it on a real cloud</a>).</p>
+<p>The full decision logic, with every rule and default, is in <a href="how-it-decides.html#when-gpus-start-scale-and-stop">10: How it decides</a>.</p>
+<h2 id="lifecycle-of-a-self-hosted-model">Lifecycle of a self-hosted model</h2>
+<figure class="diagram"><pre class="mermaid">stateDiagram-v2
+    [*] --&gt; APIOnly
+    APIOnly --&gt; Provisioning: demand pays for a replica for 10 min,&lt;br/&gt;or pinned by an admin
+    Provisioning --&gt; Warm: replicas answer /v1/models
+    Provisioning --&gt; APIOnly: failed / timed out (30 min cooldown),&lt;br/&gt;or stopped
+    Warm --&gt; Warm: add or remove replicas
+    Warm --&gt; Draining: below break-even 10 min (and warm 30 min),&lt;br/&gt;or stopped with drain
+    Warm --&gt; APIOnly: stopped now
+    Warm --&gt; Provisioning: lost readiness (e.g. spot preemption)
+    Draining --&gt; Warm: demand returns, replicas ready&lt;br/&gt;(unless stopped)
+    Draining --&gt; APIOnly: after 15 min, GPUs released
+
+    note right of APIOnly
+        All traffic on API routes.
+        Controller watches demand.
+    end note
+    note right of Provisioning
+        10–20+ min for big MoE models.
+        Traffic stays on API meanwhile.
+    end note
+    note right of Draining
+        No new sessions.
+        Warm sessions finish there.
+    end note</pre></figure>
+<h2 id="controller-loop-every-60-s---interval">Controller loop (every 60 s, <code>--interval</code>)</h2>
+<figure class="diagram"><pre class="mermaid">flowchart TD
+    L[&quot;Read the ledger&lt;br/&gt;last 1 h and last 15 min&quot;] --&gt; A[&quot;&lt;b&gt;Addressable demand&lt;/b&gt; for this model:&lt;br/&gt;traffic whose quality floor it meets,&lt;br/&gt;valued at API prices, free upgrades excluded&quot;]
+    A --&gt; R[&quot;Desired replicas =&lt;br/&gt;enough for throughput,&lt;br/&gt;but each must pay for itself&quot;]
+    R --&gt; CT[&quot;Admin controls and safeguards&lt;br/&gt;stop all · stop · pin · GPU budget · fleet caps&quot;]
+    CT --&gt; SM{&quot;State machine&lt;br/&gt;api_only · provisioning · warm · draining&quot;}
+    SM -- &quot;up / scale / down&quot; --&gt; P[&quot;Provisioner&lt;br/&gt;SkyPilot (a cluster per replica), Kubernetes&lt;br/&gt;(KServe or llm-d), or static&quot;]
+    P -.-&gt; LEASE[&quot;SkyPilot: renew each replica&#x27;s lease,&lt;br/&gt;sweep clusters no deployment wants&quot;]
+    SM --&gt; PUB[&quot;Publish state, endpoint, each replica&#x27;s&lt;br/&gt;address, load and KV-cache figures → Redis&quot;]
+    PUB --&gt; GW[&quot;Gateways pick it up&lt;br/&gt;within 5 s&quot;]
+    SM -.-&gt; KV[&quot;Follow replicas&#x27; KV events&lt;br/&gt;(serve.kv_events) → notes per session&quot;]
+    KV -.-&gt; GW</pre></figure>
+<p>Only one controller acts at a time: each takes a Postgres advisory lock, and extra copies stand by. The active one
+checks every cycle that it still holds the lock (a dropped Postgres connection releases it, and a standby may then take
+it). When it can't confirm that, it stops acting until it holds the lock again. A Redis error while it waits for the
+next cycle or writes its heartbeat is logged; the controller goes on. It needs
+Postgres (<code>MERITORDER_DATABASE_URL</code>) and Redis, and picks up config versions saved from the console without a
+restart. An admin's GPU control wakes it at once instead of at the next cycle.</p>
+<p>Each cycle the controller reads every ready replica's <code>/metrics</code> directly (when their addresses are known)
+rather than the load balancer's, which would answer for one replica only: its load, and its KV cache's size,
+use and token counters, which gateways estimate warm caches from
+(<a href="caching-and-sessions.html#gpu-replicas-which-one-holds-the-cache">04</a>). The deployment's utilization is
+the replicas' average.</p>
+<p>A self-hosted model therefore needs a quality score: one the live quality source doesn't cover counts
+no <code>auto</code> demand (only requests that name it) until it gets a <code>quality_override</code>.</p>
+<p>Why <em>addressable</em> demand: if the controller only counted traffic already sent to a model, a model
+that isn't running would never look worth starting, because <code>auto</code> routes its traffic elsewhere.
+So it counts what you currently pay for all traffic this model <em>could</em> serve (its quality meets the
+request's floor), at API-equivalent prices. That value doesn't drop when the GPUs start serving,
+so the controller doesn't flap.</p>
+<h2 id="the-break-even-test">The break-even test</h2>
+<pre><code>demand_per_hour   = addressable API-equivalent spend per hour (max of the 1 h and 4 × 15 min windows)
+throughput        = addressable tokens per second (same windows)
+
+by_load           = ceil(throughput / (capacity_tokens_per_second × target_utilization))
+keep              = replica_price × (1 + margin)                    what a running replica must cover
+start             = keep × (cold_start + hold_minutes) / hold_minutes   what one more replica must cover
+kept              = min(running, floor(demand_per_hour / keep))
+affordable        = kept + floor((demand_per_hour − kept × keep) / start)   (just kept, if kept &lt; running)
+replica_price     = cheapest SkyPilot catalog offer in the allowed clouds/regions,
+                    or on Kubernetes the node type's configured price, else gpu_cost_per_hour
+desired_replicas  = clamp(min(by_load ≥ 1, affordable), min_replicas, max_replicas)
+                    (min_replicas alone when there's no demand at all, whatever the price)
+</code></pre>
+<p><strong>A GPU with no price never starts.</strong> On SkyPilot and Kubernetes, a replica whose price is 0 or unknown (SkyPilot's
+catalog gave none and <code>gpu_cost_per_hour</code> is 0) isn't started, pinned or not: no GPU budget or fleet cap could hold it,
+and nothing it cost would be counted. The deployment's note says so. A Kubernetes deployment with neither a priced node
+type nor <code>gpu_cost_per_hour</code> is refused when the configuration is loaded. A <code>static</code> server (your own hardware) may
+have no price: it has no cloud bill, and it runs while there is demand for it (or <code>min_replicas</code>).</p>
+<p><code>running</code> is the replicas the deployment has now (starting, warm or draining). <code>cold_start</code> is the expected time
+from the launch request to a ready replica: the average of the deployment's last 10 starts, or
+<code>serve.cold_start_minutes</code> (12) until one has been measured; 0 for a server you run yourself (<code>static</code>).</p>
+<p><strong>Why the cold start counts.</strong> A replica bills from its launch, and during the cold start it serves nothing. Once warm,
+the controller keeps it at least <code>hold_minutes</code>. So a start is worth it only if the demand pays for the cold start as
+well, over that hold. With the defaults (a 12 minute cold start, a 30 minute hold, a 20% margin), a replica that isn't
+running needs demand of 1.2 × 42/30 = 1.68 × its price per hour to start, and a running one needs 1.2 × to stay. A burst
+that would pay for a GPU once it's warm, but not for 12 paid idle minutes on top, leaves its traffic on the APIs. The
+gap between the two thresholds is also hysteresis: a replica that just started isn't stopped by the same small dip that
+would have kept it from starting. Each deployment's record shows what a start needs now (<code>start_needs</code>: the dollars an
+hour, the cold start used and whether it was measured), and the GPUs page shows it under "A start needs".</p>
+<p>Defaults, per deployment under <code>serve:</code>: <code>margin</code> 0.2 (demand must pay 1.2 × the replica price),
+<code>target_utilization</code> 0.7, <code>scale_up_after_minutes</code> 10, <code>hold_minutes</code> 30, <code>drain_minutes</code> 15,
+<code>provision_timeout_minutes</code> 45, <code>cold_start_minutes</code> 12.</p>
+<p>State machine (<code>src/meritorder/gpu.py</code>, pure and unit-tested):</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>From</th>
+<th>To</th>
+<th>When</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>api_only</td>
+<td>provisioning</td>
+<td><code>desired ≥ 1</code> continuously for <code>scale_up_after_minutes</code> (or <code>min_replicas &gt; 0</code>)</td>
+</tr>
+<tr>
+<td>provisioning</td>
+<td>warm</td>
+<td>replicas answer <code>/v1/models</code></td>
+</tr>
+<tr>
+<td>provisioning</td>
+<td>api_only</td>
+<td>failed or <code>provision_timeout_minutes</code> passed; 30-minute cooldown</td>
+</tr>
+<tr>
+<td>warm</td>
+<td>warm</td>
+<td>replica count follows <code>desired</code></td>
+</tr>
+<tr>
+<td>warm</td>
+<td>draining</td>
+<td><code>desired = 0</code> for <code>scale_up_after_minutes</code>, and warm for at least <code>hold_minutes</code></td>
+</tr>
+<tr>
+<td>warm</td>
+<td>provisioning</td>
+<td>replicas stop answering (e.g. spot preemption); traffic goes to APIs until they're back</td>
+</tr>
+<tr>
+<td>draining</td>
+<td>warm</td>
+<td>demand returns and the replicas are ready</td>
+</tr>
+<tr>
+<td>draining</td>
+<td>api_only</td>
+<td>after <code>drain_minutes</code>; GPUs released</td>
+</tr>
+<tr>
+<td>provisioning</td>
+<td>api_only</td>
+<td>the start call fails (SkyPilot can't be run, a region it can't place, the Kubernetes API refuses): whatever it made is torn down first; 30-minute cooldown</td>
+</tr>
+<tr>
+<td>provisioning</td>
+<td>provisioning</td>
+<td>the start fails and so does the teardown: still tracked (and billed) as starting, and stopped every cycle until that works; then api_only with the cooldown</td>
+</tr>
+<tr>
+<td>warm</td>
+<td>warm</td>
+<td>a scale call fails: the replicas that ran stay (and are billed), and the scale is tried again next cycle</td>
+</tr>
+<tr>
+<td>any</td>
+<td>unchanged</td>
+<td>a stop fails: the deployment stays marked as running, and the stop is tried again every cycle</td>
+</tr>
+<tr>
+<td>any</td>
+<td>api_only / draining</td>
+<td>an admin stops it, Stop all GPUs, or the GPU budget runs out (see <a href="#controls-and-safeguards">Controls</a>)</td>
+</tr>
+<tr>
+<td>api_only</td>
+<td>provisioning</td>
+<td>an admin pins replicas: at once, skipping the wait and any cooldown (a start that fails while pinned ends the pin and cools down like any other; pinning it again retries at once)</td>
+</tr>
+</tbody>
+</table></div>
+<p>Key details:</p>
+<ul>
+<li><strong>Free upgrades don't count.</strong> Traffic running above its floor because a GPU had headroom is
+  excluded, so idle capacity can't keep itself alive by attracting traffic.</li>
+<li><strong>Batch work doesn't count either.</strong> Requests of a batch use a running deployment's headroom, at
+  low priority, up to the shadow price's knee (<a href="request-flow.html#batch-work-on-your-gpus">02</a>), but
+  they're never part of the demand GPUs are started or kept for: they come in bursts a provider's batch
+  API does at half price within hours, and the ledger sees them only once they're done. When live
+  demand stops paying for a deployment it drains as usual, and its waiting batch work goes to the
+  providers (decision 49).</li>
+<li><strong>Measured capacity, not benchmarks.</strong> <code>capacity_tokens_per_second</code> should be what one replica
+  sustains at your latency target on real agent traffic (prefill-heavy).</li>
+<li><strong>Hysteresis everywhere.</strong> Margins, minimum hold time, the scale-up delay and the cold start a new replica must pay
+  back stop flapping. A 20-minute cold start is expensive to waste.</li>
+<li><strong>Spot where it's safe.</strong> The controller launches a preempted SkyPilot replica again (on a spot node
+  pool, the Kubernetes Deployment replaces it); overflow to the API covers the gap.</li>
+</ul>
+<h2 id="will-a-gpu-ever-pay-models--gpu-break-even">Will a GPU ever pay? (Models → GPU break-even)</h2>
+<p>Before configuring a deployment, the console's <strong>GPU break-even</strong> tab (Models page; also
+<code>GET /v1/reports/gpu/breakeven</code>, team leads and up) shows how much traffic one replica needs to pay
+for itself by the rule above, next to your traffic. Every open-weight model gets a replica <strong>sized to
+it</strong> and <strong>priced from SkyPilot's catalog</strong>:</p>
+<ul>
+<li><strong>Size.</strong> The model's weights as published, from Hugging Face: the size of its safetensors files
+  (one copy, where a repository ships two formats, as Mistral's do), and from their metadata, how many
+  parameters are in 16 bits, 8 bits or packed 4 bits. gpt-oss and Kimi ship MXFP4 and DeepSeek's
+  experts are FP4, stored as bytes; the files' size tells them apart from real 8-bit weights. Kimi K3.1
+  is 1.56 TB, not the 2.8 TB its parameter count at a byte each would suggest. For a mixture-of-experts
+  model, the parameters each token uses come from its name ("A3B") or are worked out from its config's
+  layer sizes (gpt-oss-120b: 5.1B; Qwen3 Coder Next: 2.9B). A model with files but no metadata is
+  sized from its files and the parameter count in its name; a gated one from its name at 16 bits, or
+  not at all.</li>
+<li><strong>Weights:</strong> <em>As published</em>, <em>FP8</em> or <em>4-bit</em>. FP8 serves a 16-bit checkpoint in FP8, as vLLM's
+  <code>--quantization fp8</code> does (a checkpoint published already quantized is served as published). 4-bit
+  serves every weight above 4 bits in 4, as a 4-bit checkpoint made from the published one would
+  (AWQ, GPTQ, NVFP4): about 4.25 bits a weight with its scales. Quantizing changes what fits and how
+  fast the GPUs compute; it doesn't change the quality scores, which are for the weights as published.
+  The tab warns that a quantized model may score lower (coding usually suffers first), so measure it
+  with an <a href="evals.html">eval</a> before routing on it.</li>
+<li><strong>Machine.</strong> Every machine whose GPUs hold the weights in 70% of their memory (the rest is the KV
+  cache), on 1, 2, 4 or 8 GPUs (how vLLM splits a model), among the data-center GPUs the sizing knows:
+  A10, A10G, L4, L40S, A100 (40 and 80 GB), H100 (and H100 NVL), GH200, H200, B200, B300 and MI300X. Of those, the one that <strong>pays from the least traffic</strong>: the cheapest per hour whose
+  replica, when full, costs less per token than the API work it takes (plus the margin). The cheapest
+  machine isn't always it: four-bit weights fit on old A100s that can't serve enough to pay, where a
+  Blackwell machine can. When none can pay, the cheapest per token shows (or a cheaper machine within
+  10% of it), so <em>never</em> means never on any machine on offer. A model that needs more than one machine
+  says so.</li>
+<li><strong>Price.</strong> SkyPilot's catalog, through SkyPilot itself: on-demand or <strong>spot</strong> prices (a switch on the
+  tab) for every cloud it covers (AWS, GCP, Azure, Lambda, RunPod and Nebius by default, plus your
+  deployments' clouds; the tab can narrow them), with the region and instance. These are prices only:
+  launching on a cloud needs SkyPilot's support for it where the controller runs (<a href="#which-clouds">Which clouds</a>). When a report finds the
+  prices over 6 hours old (or the model sizes over a week old), it shows the stored ones at once and fetches
+  new ones in the background; the tab says so and updates when they're in (a lookup takes about a minute,
+  two with downloads). <strong>Get latest prices</strong> has SkyPilot download its catalogs again now. A gateway runs
+  one refresh at a time: a report or button press while one runs waits for it rather than starting
+  another, since lookups at once slow each other down and starve the gateway. A lookup that fails says
+  why (SkyPilot's last error line, or that it ran past 10 minutes), the tab shows that with the age of
+  the prices it still uses, and reports try again after 5 minutes. Lookups never use cloud credentials:
+  prices don't need them.</li>
+<li><strong>Throughput</strong> is an estimate: a share of the GPUs' peak dense compute (10% by default, adjustable)
+  at two operations per active parameter per token, with input read from the prompt cache not
+  computed again. The peak is at the precision the GPUs compute the weights in: FP8 weights at the
+  FP8 rate on GPUs that have it (L4, L40S, H100 and later, MI300X); 4-bit weights at the FP8 rate on
+  Blackwell (B200, B300), whose 4-bit kernels take 8-bit activations, and at 16 bits elsewhere
+  (Hopper's 4-bit kernels dequantize the weights); everything else at 16 bits. A deployment's
+  <code>capacity_tokens_per_second</code> (measure it) replaces the estimate, and its own GPUs, clouds and spot
+  setting replace the sizing (a Kubernetes deployment uses its node type's price, a server you run its
+  configured price).</li>
+</ul>
+<p>What the tab shows:</p>
+<ul>
+<li><strong>Best level you can host</strong>, per task type: the open model with the highest score that fits on a
+  machine on offer, its machine and price, and any better one that doesn't fit.</li>
+<li><strong>By quality level.</strong> A replica takes traffic that <code>auto</code> would otherwise send to the cheapest API
+  model good enough for its level, so that model's price is the one to beat. For each level: that
+  model and its price; the open model that qualifies and pays from the least traffic (or, if none
+  can, comes closest), on its machine; the tokens per minute (and about how many requests an hour)
+  that replica needs; and your average and busiest hour at that level. A level where no open model
+  qualifies, or none fits on one machine, says so.</li>
+<li><strong>By open-weight model.</strong> Its size and replica, what the traffic it could serve actually cost per
+  million tokens over the window (the controller's own measure), its own API price, what it needs, and
+  a verdict: pays now, pays from a given traffic, or never.</li>
+<li><strong>Never</strong> means one replica can't get there at any traffic, on any machine on offer: at full load
+  (its target utilization) the GPU costs more per token than the API, plus the margin, so more
+  replicas wouldn't help either.</li>
+</ul>
+<p>On 11 November 2026, with spot prices:</p>
+<ul>
+<li>Level 1 paid with gpt-oss-20b on one L4 ($0.12 an hour on AWS), from about 72,000 tokens a minute.</li>
+<li>At level 2, the closest was DeepSeek V4.1 Flash on eight B200s ($13.92 an hour on GCP) at $0.054 per
+  million tokens against $0.065 on APIs. That's cheaper, but not by the 20% margin, so it never pays.</li>
+<li>The best open coder was Kimi K3.1 (coding 2.7). It's published in 4 bits (1.56 TB) and fits on
+  eight B300s ($20.08 an hour on AWS). Level 3 starts at Claude Haiku's 3.0, and no open model reached
+  it, as published or quantized: the strongest open models already ship in 4 bits, so quantizing
+  doesn't let a better one fit.</li>
+<li>Qwen3 Coder, Qwen3 Coder Next, Devstral 2 and Qwen3 Coder 30B had no published score, so they
+  don't count until they're measured.</li>
+</ul>
+<p>Prices are blended for the traffic's mix of input, cached input, cache writes and output (a level or
+model with at least 20 requests uses its own, otherwise everyone's; with no traffic, an assumed
+agent-like mix). Free tiers don't count as the price to beat: they're rate-limited and can't take
+sustained traffic.</p>
+<p><strong>Where SkyPilot runs for prices.</strong> The gateway asks SkyPilot directly when it has it. The compose stack
+builds the gateway, worker and migrate images with SkyPilot in its own environment (<code>SKYPILOT_VERSION</code>, 0.14.2
+by default; empty leaves it out), and the controller's image always has it. For <code>meritorder</code> run on a laptop,
+<code>uv tool install "skypilot[aws,gcp,kubernetes,lambda]==0.14.2"</code> puts it on the path. Without it (the Helm chart's
+gateways run the plain image; only the controller runs the <code>-gpu</code> one), the GPU controller publishes the prices
+every 6 hours and when someone asks for the latest, and the tab says if no controller is running.</p>
+<h2 id="configuring-a-self-hosted-model">Configuring a self-hosted model</h2>
+<pre><code class="language-yaml">backends:
+  gpu-qwen-coder:
+    kind: self_hosted
+    format: openai
+    gpu_cost_per_hour: 16.0          # one replica (here 4× H100)
+    capacity_tokens_per_second: 4000
+    serve:
+      provisioner: skypilot          # or `kubernetes` (your cluster, below), or `static` for a server you already run
+      model: qwen3-coder-next        # its hf_id is what vLLM serves
+      accelerators: &quot;H100:4&quot;
+      use_spot: true
+      clouds: [aws, gcp, lambda]
+      image: vllm/vllm-openai:v0.32.0-cu129
+      vllm_args: &quot;--max-model-len 262144&quot;
+      max_replicas: 4
+</code></pre>
+<p>The model also needs a route to the deployment with a <code>price:</code> at the API-equivalent rate: <code>auto</code>
+skips unpriced routes, and the router scales that price down while the GPUs have room
+(<a href="#overflow">Overflow</a>). Keep the API route for the same weights next to it:</p>
+<pre><code class="language-yaml">models:
+  qwen3-coder-next:
+    hf_id: Qwen/Qwen3-Coder-Next
+    routes:
+      - {backend: gpu-qwen-coder, model: Qwen/Qwen3-Coder-Next, price: {input: 0.12, output: 0.80, cache_read: 0.07}}
+      - {backend: openrouter, model: qwen/qwen3-coder-next}
+</code></pre>
+<p>The SkyPilot provisioner turns this into one SkyPilot cluster per replica (<a href="#how-skypilot-runs-a-deployment">below</a>).
+It needs SkyPilot and cloud credentials where the controller runs (<code>sky check</code>). Set <code>HF_TOKEN</code> there for gated
+models: it goes to the machines as a SkyPilot secret. Under <code>serve:</code>, <code>lease_minutes</code> (15) and <code>autostop_minutes</code> (5)
+bound how long a replica outlives its controller (<a href="#the-lease">The lease</a>), <code>port</code> (8000) is the one port each replica
+opens, and <code>ssh_tunnel</code> (<code>auto</code>) says when to reach it through the controller instead. <code>vllm_args</code> is a list of
+arguments, read the way a shell splits words (<code>shlex.split</code>: quote a value with spaces), never a shell fragment: each
+token reaches vLLM as written, quoted in SkyPilot's run script and passed as a list on Kubernetes, so <code>;</code> or <code>$(...)</code> is
+text, not a command. It can't turn on vLLM's request logging (<code>--enable-log-requests</code>, <code>--enable-log-outputs</code>, also
+spelled with underscores or shortened as vLLM's parser allows): it would write prompts to the replica's log. The
+check runs on the tokens, so quoting can't hide the flag.
+<code>cold_start_minutes</code>, <code>load_format</code> and <code>weights_cache</code> are about starts: <a href="#cold-starts">Cold starts</a>.</p>
+<p><strong>The image and the NVIDIA driver.</strong> The default image is <code>vllm/vllm-openai:v0.32.0-cu129</code>, vLLM 0.32.0 built for
+CUDA 12.9.1. vLLM's plain tags (<code>v0.32.0</code>, <code>v0.33.0</code>) are CUDA 13.0.2 builds, and v0.33.0 has no CUDA 12.9 build
+(Docker Hub, November 2026). <strong>CUDA 13 images need NVIDIA driver 580 or newer</strong> (580.65.06). An older driver runs the
+CUDA 12 runtime through minor version compatibility, but not everything built against a newer 12.x toolkit: on
+Lambda's A10, driver 570.148.08 (CUDA 12.8 at most), the CUDA 12.9.1 image failed at startup to load torchcodec's
+library (checked live, 15 November 2026). So when <code>nvidia-smi</code> reports an older CUDA than the image's, minor versions
+included, the replica's gate starts vLLM with <strong>NVIDIA's forward-compatibility libraries</strong>: the image's
+<code>/usr/local/cuda/compat</code> (vLLM's images install <code>cuda-compat</code>) first on <code>LD_LIBRARY_PATH</code>, and
+<code>VLLM_ENABLE_CUDA_COMPATIBILITY=1</code>. Forward compatibility works on data-center GPUs (A10, A100, H100, L4 and the like),
+not GeForce cards. Cloud GPU images often ship a 535, 550 or 570 driver. The gate logs the driver, the image's CUDA and
+whether it used the compat libraries; when the driver is too old even so, it says so plainly in the replica's failure
+reason (<a href="#when-a-replica-fails">When a replica fails</a>).</p>
+<p><strong>A broken optional package in the image.</strong> vLLM v0.32.0-cu129 (torch 2.13.0+cu129) bundles torchcodec 0.17.0
+built for CUDA 13: it links <code>libcudart.so.13</code>, which the image doesn't have, so importing it raises an <code>OSError</code>.
+vLLM's guarded import catches <code>ImportError</code> and <code>RuntimeError</code> only, so vLLM died at startup on every machine (found
+on Lambda and reproduced in the image on a laptop, 15 November 2026). Before it starts vLLM, the gate imports each
+optional package vLLM can do without (<code>OPTIONAL_PACKAGES</code> in <code>replica_gate.py</code>: torchcodec, for audio input) and
+uninstalls one that fails with an <code>OSError</code>, and says so in the replica's log. vLLM then runs without audio input.</p>
+<p><strong>Keeping sessions on their replica.</strong> Each replica has its own KV cache, so gateways send a session's turns
+to the replica that served its last one, while it's ready, has room, and isn't so busy that rebuilding the
+cache on an idle replica costs less (<a href="routing.html#which-replica-of-a-gpu-deployment">03</a>). SkyPilot replicas have
+no load balancer in front, so the gateway picks one for every request (the cheapest by the same formula: the least
+loaded, or the one holding the session's cache), and <code>replica_affinity</code> can't be turned off there. Their addresses come
+from SkyPilot (each cluster's head IP and <code>port</code>); the gateways must be able to reach them, or go through the
+controller's SSH tunnel (<a href="#reaching-the-replicas">Reaching the replicas</a>). For a server you run, list each replica:</p>
+<pre><code class="language-yaml">    serve:
+      provisioner: static
+      model: qwen3-coder-next
+      static_url: http://vllm-lb.internal:8000/v1           # optional: used when no replica answers directly
+      static_urls: [http://gpu-a.internal:8000/v1, http://gpu-b.internal:8000/v1]
+      replica_affinity: true                                 # default; false lets the load balancer pick
+      kv_events: true                                        # follow vLLM's KV events (default false)
+      kv_events_port: 5557
+</code></pre>
+<p>With <code>kv_events: true</code> the controller follows each replica's KV-cache events and knows when a session's
+cached blocks are evicted; SkyPilot and Kubernetes deployments get vLLM's <code>--kv-events-config</code>, and SkyPilot opens
+the port. Set it only where that port is on a private network: the events carry token ids, the gate doesn't cover them,
+and SkyPilot opens a port to anyone who can reach the VM (on Lambda, to the whole account). For a static server, start vLLM
+with <code>--kv-events-config '{"enable_kv_cache_events":true,"publisher":"zmq","endpoint":"tcp://*:5557"}'</code>
+(vLLM 0.30 or later tags events with the session) and <code>--enable-prompt-tokens-details</code>. Without events, eviction
+is estimated from each replica's metrics. Details: <a href="caching-and-sessions.html#gpu-replicas-which-one-holds-the-cache">04</a>.</p>
+<h2 id="how-skypilot-runs-a-deployment">How SkyPilot runs a deployment</h2>
+<p><strong>Not run on a real cloud yet.</strong> Everything in this section is what the code does, checked in CI against a stand-in
+SkyPilot package and a stand-in vLLM (<code>tests/test_skypilot.py</code>). What SkyPilot itself does is from its source and docs,
+version 0.14.2, read in November 2026. <code>scripts/skypilot_check.py</code> runs the whole cycle on a real cloud
+(<a href="#checking-it-on-a-real-cloud">below</a>); until someone has run it, treat this as unverified.</p>
+<p>Merit Order runs <strong>one plain SkyPilot cluster per replica</strong> and does the rest itself (decision 56): the controller
+decides how many replicas run, the gateways send each request to a replica directly, and the controller probes them.
+SkyPilot does what it's good at: finding capacity across the allowed clouds and regions (and failing over between
+them), setting the machine up (the vLLM image, the port, the disk, the labels), its price catalog, autostop and
+teardown. There's no SkyServe controller VM: nothing runs that isn't a replica, so nothing runs that isn't priced.</p>
+<figure class="diagram"><pre class="mermaid">flowchart LR
+    subgraph YOU[&quot;Where Merit Order runs&quot;]
+        CTRL[&quot;meritorder controller&lt;br/&gt;(-gpu image: SkyPilot 0.14.2&lt;br/&gt;in /opt/skypilot)&quot;]
+        API[&quot;SkyPilot API server&lt;br/&gt;(started in the same container,&lt;br/&gt;or SKYPILOT_API_SERVER_ENDPOINT)&quot;]
+        GW[&quot;Gateways&quot;]
+    end
+    subgraph CLOUD[&quot;Your cloud account&quot;]
+        subgraph C1[&quot;cluster mo-ab12cd34-gpu-qwen-1&quot;]
+            G1[&quot;gate :8000&lt;br/&gt;key check + lease&quot;] --&gt; V1[&quot;vLLM on 127.0.0.1:8001&quot;]
+        end
+        subgraph C2[&quot;cluster mo-ab12cd34-gpu-qwen-2&quot;]
+            G2[&quot;gate :8000&quot;] --&gt; V2[&quot;vLLM&quot;]
+        end
+    end
+    CTRL -- &quot;launch / down / status&quot; --&gt; API
+    API -- &quot;launches, sets up,&lt;br/&gt;tears down&quot; --&gt; C1
+    API --&gt; C2
+    CTRL -- &quot;every cycle: renew the lease,&lt;br/&gt;probe /v1/models, read /metrics&lt;br/&gt;(with the deployment&#x27;s key)&quot; --&gt; G1
+    CTRL --&gt; G2
+    GW -- &quot;each request: the replica the router picks&lt;br/&gt;(with the deployment&#x27;s key)&quot; --&gt; G1
+    GW --&gt; G2</pre></figure>
+<p><strong>Names.</strong> Replica <em>n</em> of deployment <code>&lt;backend&gt;</code> is the cluster <code>mo-&lt;install id&gt;-&lt;backend&gt;-&lt;n&gt;</code> (the backend name
+lowercased, other characters turned into <code>-</code>, at most 24, with 4 characters of its hash when that changed it). The
+install id is 8 random characters made once and kept in Postgres (<code>gpu_install_id</code>; <code>MERITORDER_INSTALL_ID</code> sets it),
+so two Merit Order installs on one cloud account never see, let alone tear down, each other's clusters. Every instance
+also carries the labels <code>meritorder-deployment: &lt;backend&gt;</code> (for matching bills, <a href="#what-gpus-cost">What GPUs cost</a>) and
+<code>meritorder-install: &lt;install id&gt;</code>, on the clouds that take labels (AWS tags, GCP labels; not Lambda).</p>
+<p><strong>Calls.</strong> SkyPilot runs in its own Python, so the controller runs a small script there (or in-process when SkyPilot
+is importable where the controller runs) that calls the SDK's <code>sky.launch</code>, <code>sky.down</code> and <code>sky.status</code> and answers in
+JSON. Launches run in the background, so a cycle never waits for one.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>When</th>
+<th>What the controller does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Start, or more replicas</td>
+<td><code>sky.launch</code> for each missing cluster, with <code>idle_minutes_to_autostop=autostop_minutes</code>, <code>down=True</code>, <code>wait_for=jobs</code> (and the same in the task's <code>resources.autostop</code>)</td>
+</tr>
+<tr>
+<td>Fewer replicas</td>
+<td><code>sky.down</code> of the highest-numbered clusters</td>
+</tr>
+<tr>
+<td>Stop</td>
+<td><code>sky.down</code> of every cluster of the deployment, waited for; a cluster that's already gone counts as stopped</td>
+</tr>
+<tr>
+<td>Every cycle</td>
+<td><code>sky.status</code> (refreshed from the clouds) of this install's clusters, once for all deployments; then for each wanted cluster that's <code>UP</code>: renew its lease, probe <code>/v1/models</code>, read <code>/metrics</code></td>
+</tr>
+<tr>
+<td>A cluster is on Kubernetes or RunPod</td>
+<td><code>sky.endpoints</code> once, for the address its port is mapped to (<a href="#reaching-the-replicas">Reaching the replicas</a>)</td>
+</tr>
+<tr>
+<td>A wanted cluster is <code>UP</code> without autodown (a launch cut short before SkyPilot set it, someone's <code>sky autostop</code>)</td>
+<td><code>sky.autostop</code> with <code>down=True</code>, <code>wait_for=jobs</code> again, at most every 10 minutes</td>
+</tr>
+<tr>
+<td>A cluster is <code>STOPPED</code> (a spot machine preempted on Azure or Nebius, someone's <code>sky stop</code>)</td>
+<td><code>sky.down</code>: a stopped machine bills for its disk and can't delete itself</td>
+</tr>
+<tr>
+<td>A wanted cluster is missing or stuck in <code>INIT</code> with no launch under way (the controller restarted mid-launch, a spot preemption)</td>
+<td>Launch it again</td>
+</tr>
+<tr>
+<td>A launch fails (no capacity in any allowed place)</td>
+<td>Read <code>sky logs --tail</code> for why, tear down whatever it made, show why, try that replica again after 10 minutes. If every wanted replica failed, the start has failed: 30-minute cooldown</td>
+</tr>
+<tr>
+<td>vLLM exits before it was ever ready (it crashed, the driver is too old for the image)</td>
+<td>Read why from the gate, tear the cluster down at once, and wait as after a failed launch before launching it again, so a crash loop doesn't keep paying for machines</td>
+</tr>
+<tr>
+<td>vLLM exits after it was ready (out of memory under load, a GPU fault)</td>
+<td>Read why from the gate (its last 40 lines go to the log), tear the cluster down at once rather than leave it idle until autostop, and launch it again. A second such crash within an hour waits 10 minutes, as after a failed launch</td>
+</tr>
+<tr>
+<td>A wanted cluster goes away while the deployment drains</td>
+<td>Not launched again: the deployment is on its way down</td>
+</tr>
+<tr>
+<td>A cluster goes away before vLLM was ever ready (the image wouldn't start, the gate exited unseen)</td>
+<td>The same wait before launching it again</td>
+</tr>
+</tbody>
+</table></div>
+<p>A replica is <code>PROVISIONING</code> while SkyPilot launches it, <code>STARTING</code> until its gate answers and vLLM answers
+<code>/v1/models</code>, then <code>READY</code>. Its address is <code>http://&lt;head IP&gt;:&lt;port&gt;/v1</code>. When the controller restarts, it takes the
+replica count from the deployment's last published record, so it wants the same clusters it wanted before; after a
+config change, each deployment's new provisioner takes over its old one's launches and waits.</p>
+<p><strong>The task.</strong> What each field comes from:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>resources.accelerators</code></td>
+<td><code>serve.accelerators</code> (default <code>H100:8</code>)</td>
+</tr>
+<tr>
+<td><code>resources.use_spot</code></td>
+<td><code>serve.use_spot</code> (default false)</td>
+</tr>
+<tr>
+<td><code>resources.any_of</code></td>
+<td>With <code>serve.regions</code>: one <code>infra: &lt;cloud&gt;/&lt;region&gt;</code> for each pair SkyPilot's catalog has these GPUs in (at the spot or on-demand price, per <code>use_spot</code>), among <code>serve.clouds</code> if set. So a region goes only with its own cloud, and the launch goes exactly where the expected price came from. Without regions: one <code>infra: &lt;cloud&gt;</code> per cloud in <code>serve.clouds</code>. With neither: left out, and SkyPilot picks the cheapest offer among the clouds <code>sky check</code> enables that can run it (Docker images, autodown and ports: it skips the others)</td>
+</tr>
+<tr>
+<td><code>resources.image_id</code></td>
+<td><code>docker:&lt;serve.image&gt;</code> (default <code>vllm/vllm-openai:v0.32.0-cu129</code>; pin one you have tested)</td>
+</tr>
+<tr>
+<td><code>resources.disk_size</code></td>
+<td><code>serve.disk_size_gb</code> (default 1000; Lambda's disks are fixed by instance type)</td>
+</tr>
+<tr>
+<td><code>resources.ports</code></td>
+<td><code>serve.port</code> (8000), the gate; plus <code>kv_events_port</code> when <code>kv_events</code> is on. Nothing else. Given with each <code>any_of</code> entry, and left out for clouds where SkyPilot can't open ports (Vast, Mithril, Slurm): asking for them there would rule the cloud out, and those replicas are reached over SSH</td>
+</tr>
+<tr>
+<td><code>resources.labels</code></td>
+<td><code>meritorder-deployment: &lt;backend&gt;</code>, <code>meritorder-install: &lt;install id&gt;</code></td>
+</tr>
+<tr>
+<td><code>resources.autostop</code></td>
+<td><code>{idle_minutes: autostop_minutes, down: true, wait_for: jobs}</code>, always</td>
+</tr>
+<tr>
+<td><code>envs</code></td>
+<td><code>MERITORDER_KEY_SHA256</code> (the key's hash, not the key), <code>MERITORDER_LEASE_SECONDS</code>, <code>MERITORDER_PORT</code>, <code>MERITORDER_UPSTREAM_PORT</code></td>
+</tr>
+<tr>
+<td>secrets</td>
+<td><code>HF_TOKEN</code>, from the controller's environment when it's set (a SkyPilot secret: not in the task file)</td>
+</tr>
+<tr>
+<td><code>run</code></td>
+<td>Writes the gate (<code>replica_gate.py</code>) to <code>/tmp</code> and runs <code>python3 /tmp/meritorder_gate.py -- vllm serve &lt;hf_id&gt; --host 127.0.0.1 --port 8001</code> with the flags in <a href="#inside-the-gpu-pool">Inside the GPU pool</a>, then <code>vllm_args</code>, each token shell-quoted</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="the-key">The key</h3>
+<p>Every replica lets in only callers with its deployment's key. The key is an HMAC of this install's secret and the
+deployment's name, which the controller and every gateway work out for themselves; the secret is made once and kept in
+Postgres (<code>gpu_replica_secret</code>; <code>MERITORDER_GPU_KEY</code> sets it, the same on every process), like the learned router's
+hashing key. Gateways send it as <code>Authorization: Bearer</code> to the replicas of every SkyPilot deployment (a backend's own
+<code>auth</code> doesn't apply there).</p>
+<p>The machine never gets the key itself, only its SHA-256. The reason is SkyPilot's API server: it keeps every launch
+request, the task's environment and secrets included, in its database (<code>~/.sky/api_server/requests.db</code> in 0.14.2). So
+vLLM doesn't get <code>--api-key</code> either: it listens on the loopback address only, behind the <strong>gate</strong>, a small
+standard-library Python program that is the only thing on the open port. The gate checks the key on each connection's
+first request, on every path (vLLM's own <code>--api-key</code> covers only paths under <code>/v1</code>, leaving <code>/metrics</code>, <code>/tokenize</code>
+and <code>/invocations</code> open), answers 401 without it, and then passes the connection to vLLM byte for byte. A connection
+has 5 seconds to send that first request, and at most 256 may be waiting to show the key at once (<code>MAX_UNVERIFIED</code>);
+past that a new connection is closed straight away, so a scan or a flood of idle connections can't use up the replica's
+sockets. Connections that showed the key aren't counted. Rotating the secret changes every key; replicas started before then refuse the new one, so stop them first.</p>
+<p>Traffic to the replicas is plain HTTP, as before: the key and the prompts cross the network unencrypted. Keep the
+gateways and the GPUs on a network you trust, or reach them through the SSH tunnel below.</p>
+<h3 id="the-lease">The lease</h3>
+<p>The gate also holds a <strong>lease</strong>. The controller renews it every cycle (<code>POST /meritorder/lease</code> with the key) for each
+cluster it wants. When it isn't renewed for <code>lease_minutes</code> (15 by default; at least 3), the gate stops vLLM (SIGTERM,
+then SIGKILL after 30 s) and exits. That ends the task, the cluster has nothing running, and SkyPilot's autostop, set
+with <code>down: true</code> at launch, deletes it <code>autostop_minutes</code> (5) later. The lease starts when the gate does, so a replica
+whose controller never comes back stops too.</p>
+<figure class="diagram"><pre class="mermaid">sequenceDiagram
+    participant C as Controller
+    participant G as Gate (on the replica)
+    participant V as vLLM
+    participant S as SkyPilot&#x27;s skylet (on the replica)
+    C-&gt;&gt;G: POST /meritorder/lease (key), every cycle
+    G--&gt;&gt;C: expires_in: 900
+    Note over C: dies, sleeps, loses the network or ~/.sky
+    Note over G: 15 min without a renewal
+    G-&gt;&gt;V: SIGTERM (SIGKILL after 30 s)
+    G--&gt;&gt;S: the task ends
+    Note over S: no job running: idle
+    S-&gt;&gt;S: 5 min idle: autostop with down
+    Note over S: the cluster is deleted</pre></figure>
+<p>How SkyPilot 0.14.2 decides a cluster is idle (<code>sky/skylet/events.py</code>, <code>StopEvent</code>): every 60 seconds the skylet
+on the head node counts the cluster's jobs that aren't finished (<code>job_lib.is_cluster_idle</code>) and, with the default
+<code>wait_for: jobs_and_ssh</code>, open SSH sessions. Merit Order sets <code>wait_for: jobs</code>, so an SSH session (the tunnel below, or
+someone logged in) doesn't keep a machine alive. When nothing has run for <code>idle_minutes</code>, it tears the cluster down
+from the machine itself, with the cloud credentials SkyPilot put there at launch. The chain is lease runs out → the
+gate exits → the job ends → idle → down: all of it on the machine, so it holds when the controller is dead, its
+laptop sleeps, the network drops, or <code>~/.sky</code> is lost. A replica therefore costs at most about <code>lease_minutes +
+autostop_minutes + 2</code> minutes after the controller last renewed it (22 by default). The same holds when vLLM exits by
+itself: the gate exits with it, after the controller has read why or 2 minutes have passed
+(<a href="#when-a-replica-fails">When a replica fails</a>).</p>
+<p>The controller warns at startup when its cycle (<code>--interval</code>, 60 s) is so long that three missed cycles outlast the
+shortest lease.</p>
+<p><strong>Leases while things fail.</strong> The leases are renewed first thing in each cycle, before the controller reads the ledger,
+the controls or its own settings, each deployment on its own: a Postgres outage, or one deployment's error, doesn't cut
+them. When Redis can't say what runs either, the replicas this process already asked for are renewed. Listing the
+clusters (<code>sky.status</code>) and asking for a replica's address give up after 60 s (<code>STATUS_TIMEOUT</code>); launches and
+teardowns keep their longer timeouts. When SkyPilot can't be asked (its API server hung or down), the last list it gave
+stands in for up to an hour (<code>STALE_SECONDS</code>, counted to when the failed call was made), so leases are still renewed
+meanwhile; after that, each replica stops when its lease runs out.</p>
+<p><strong>What the lease doesn't cover.</strong> SkyPilot sets autostop after the machine is up and set up (<code>execution.py</code>, the
+<code>PRE_EXEC</code> stage, after provisioning and the image pull), the same way on every cloud. A launch interrupted before then
+(the controller's container killed mid-launch, with its local API server) can leave a machine without autostop or a
+gate. When the controller comes back with its <code>~/.sky</code>, it launches a wanted one again (which sets autostop), sets
+autodown again on an <code>UP</code> one that shows none, and the sweep tears down the rest; without <code>~/.sky</code> too, SkyPilot no
+longer knows the machine, and you'd find it by its name, <code>mo-&lt;install id&gt;-...</code>, in the cloud's console. Keep <code>~/.sky</code> on
+a volume. Two more gaps, per cloud (<a href="#which-clouds">Which clouds</a>): a spot machine preempted on Azure or Nebius is
+stopped rather than deleted, and a stopped machine runs no skylet, so only the controller deletes it; and on the clouds
+Merit Order refuses, there's no autodown at all.</p>
+<h3 id="when-a-replica-fails">When a replica fails</h3>
+<p>A failed replica's machine is deleted, and vLLM's output with it, so the controller reads why first.</p>
+<ul>
+<li><strong>The gate keeps vLLM's last output.</strong> vLLM's stdout and stderr go to the task's log as before (<code>sky logs</code>), and
+  the gate also keeps the last 200 lines in memory. It runs <code>nvidia-smi</code> once at start for the driver version, the
+  newest CUDA that driver runs and the GPUs, and reads the image's CUDA version (<code>CUDA_VERSION</code>, else
+  <code>/usr/local/cuda/version.json</code>). <code>GET /meritorder/status</code>, with the deployment's key like the lease, returns all of
+  it with vLLM's state, exit status and uptime. Anything in a line that looks like a key or token (a bearer token, a
+  value named like a key, token, secret or password, <code>hf_</code>/<code>sk-</code>/AWS key ids, a run of 32 or more letters and digits)
+  is replaced by <code>[redacted]</code>. A line from vLLM's request logger, which would hold a prompt, is left out (request
+  logging is off, and <code>vllm_args</code> can't turn it on).</li>
+<li><strong>The gate stays to say why.</strong> When vLLM exits by itself, the gate keeps answering until the controller has read
+  <code>/meritorder/status</code>, for at most 2 minutes (<code>MERITORDER_LINGER_SECONDS</code>) or until the lease runs out. Then it exits
+  as before. When the lease runs out or the gate is asked to stop, it exits at once.</li>
+<li><strong>The controller reads it.</strong> Each cycle the lease renewal says whether vLLM is still running. When it has exited,
+  the controller reads the gate's status once, and tears the replica down at once. A replica that was never ready
+  waits 10 minutes before it's launched again; one that was ready is launched again at once, unless it's the second
+  crash within an hour, which waits the same 10 minutes. Before a failed launch is torn down, and before the controller stops a
+  deployment with failed replicas, it reads the same, or <code>sky logs --tail 40</code> (<code>sky.tail_logs</code>) when the gate doesn't
+  answer. Reading never holds a teardown up by more than 25 seconds.</li>
+<li><strong>Where it shows.</strong> The failure reason (for example "vLLM exited with status 1 before it was ready: the NVIDIA driver
+  535.129.03 (CUDA 12.2 at most) is too old for this image's CUDA 13.0.2: CUDA 13 images need driver 580.65.06 or
+  newer") is on the replica and the deployment. The controller's log has it with the driver and CUDA versions and the
+  last 40 lines. The GPU activity log has a <code>replica_failed</code> entry with the same: the console shows the reason and
+  versions, and the lines under <em>Last 40 lines of output</em>. <code>scripts/skypilot_check.py</code> prints them when a start fails.</li>
+</ul>
+<h3 id="the-sweep">The sweep</h3>
+<p>Every controller cycle, and on the first one after it starts, the controller lists every SkyPilot cluster whose name
+starts with this install's prefix (<code>mo-&lt;install id&gt;-</code>) and tears down each one no deployment wants now: one of a backend
+that was renamed, removed or switched off, a teardown that failed, a launch that finished after its deployment was
+stopped, or a scale cut short by a crash. Each is logged, and recorded in the GPU activity log (<code>sweep</code>, with the
+cluster, its status and where it ran; a teardown that fails is an <code>error</code>, tried again next cycle). Clusters of other
+installs and anything else on the account are never touched. It runs while a SkyPilot deployment is configured or the
+last sweep found leftovers, and once at startup either way.</p>
+<figure class="diagram"><pre class="mermaid">flowchart LR
+    L[&quot;sky.status: clusters named&lt;br/&gt;mo-(install id)-*&quot;] --&gt; W{&quot;Wanted by a deployment?&lt;br/&gt;replica 1..N it asked for&quot;}
+    W -- &quot;yes&quot; --&gt; K[&quot;Keep: renew its lease&quot;]
+    W -- &quot;no&quot; --&gt; D[&quot;sky.down, log it,&lt;br/&gt;GPU activity log: sweep&quot;]</pre></figure>
+<p>Kubernetes has a sweep of its own (<a href="#kubernetes">Kubernetes</a>).</p>
+<h3 id="reaching-the-replicas">Reaching the replicas</h3>
+<p>Gateways and the controller reach each replica's gate on its open port. Where that isn't possible, the controller
+opens an <strong>SSH tunnel</strong> to the gate, <code>ssh -N -L</code> with the SSH config SkyPilot writes for each cluster
+(<code>~/.sky/generated/ssh/&lt;cluster&gt;</code>), and publishes the tunnel's address as the replica's: <code>MERITORDER_TUNNEL_HOST</code>
+(default <code>127.0.0.1</code>; in Compose, <code>controller</code>) on a port of its own. <code>serve.ssh_tunnel</code> decides:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th><code>ssh_tunnel</code></th>
+<th>When a replica goes through a tunnel</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>auto</code> (default)</td>
+<td>Where SkyPilot can't open the port (Vast, Mithril and Slurm, always; Lambda's <code>us-south-1</code>, which has no firewall rules), and when connections to the port time out from the controller for 3 cycles in a row (a firewall that drops them)</td>
+</tr>
+<tr>
+<td><code>always</code></td>
+<td>Every replica</td>
+</tr>
+<tr>
+<td><code>never</code></td>
+<td>None. A deployment that may launch on Vast, Mithril or Slurm is refused with <code>never</code></td>
+</tr>
+</tbody>
+</table></div>
+<p>Where the address comes from, without a tunnel: the cluster's head IP and <code>port</code> on most clouds. On Kubernetes (a
+LoadBalancer service by default, or an ingress) and RunPod (a public port mapped at launch), the port is published
+somewhere else, so the controller asks SkyPilot (<code>sky.endpoints</code>) once per cluster.</p>
+<p>KV events aren't tunneled: follow them only on a private network. A tunnel carries all of the replica's traffic
+through the controller's host, so it's a fallback, not the way to run a busy fleet.</p>
+<h3 id="which-clouds">Which clouds</h3>
+<ul>
+<li><strong><code>serve.clouds</code></strong> limits where a deployment may launch, and <strong><code>serve.regions</code></strong> where in them. Each region is paired
+  only with the clouds that have these GPUs in it, from SkyPilot's catalog, and the expected price is looked up in exactly
+  those places, so the launch and the price agree. <code>regions</code> without <code>clouds</code> pairs each region with every cloud that has
+  it. A region SkyPilot's catalog can't place (or no catalog at all) fails the start with that reason. Empty <code>clouds</code>:
+  any cloud SkyPilot has credentials for (<code>sky check</code>) and can run a replica on.</li>
+<li><strong>What the images support.</strong> The <code>-gpu</code> image installs SkyPilot 0.14.2 with the extra of every cloud a replica can
+  run on (the <code>SKYPILOT_EXTRAS</code> build argument, below), plus the ssh and rsync clients SkyPilot sets machines up with.
+  Credentials for each: <a href="deployment.html#skypilot-gpus">07</a>.</li>
+<li><strong>Prices cover more clouds than launches.</strong> Catalog prices need no credentials, so the break-even tab can show a
+  cloud you can't launch on yet.</li>
+<li>The shipped config's <code>gpu-qwen-coder</code> example uses <code>clouds: [aws, gcp, lambda]</code> with spot H100s (so AWS and GCP only:
+  Lambda has no spot), and is off until <code>MERITORDER_SKYPILOT=true</code>. <code>gpu-small</code> (gpt-oss-20b on one A10 on Lambda) is
+  off until <code>MERITORDER_SKYPILOT_SMALL=true</code>.</li>
+</ul>
+<p>A replica works the same on every cloud only if three things hold there: SkyPilot runs the vLLM image (<code>image_id:
+docker:</code>), the machine deletes itself when its task ends (autostop with <code>down</code>, "autodown"), and the controller can reach
+the gate. The table is what SkyPilot 0.14.2 does on each cloud it supports, read from its source in November 2026
+(paths are under <code>sky/</code> in the installed package; the numbers point to the sources below the table). Nothing here has
+been run on a real cloud yet.</p>
+<p><strong>Where a replica can run.</strong> On AWS, GCP, Azure, Lambda, RunPod, Nebius, Kubernetes (CoreWeave included), Vast,
+Fluidstack, Paperspace, DigitalOcean, Mithril, Seeweb, and Slurm with Pyxis. SkyPilot can't run a Docker image on OCI,
+Cudo, Shadeform, SCP, vSphere or IBM, and can't make a machine delete itself on Hyperbolic, PrimeIntellect, Verda or
+Yotta: a deployment that names one of these in <code>serve.clouds</code> is refused when the config loads, with the reason. With
+<code>clouds</code> empty, SkyPilot skips them by itself, because the launch asks for Docker and autodown and it fails over past
+clouds that lack a feature it asks for [31].</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Cloud (pip extra)</th>
+<th>How the machine deletes itself, and what credential it holds</th>
+<th>Ports</th>
+<th>Stop, and what bills after one</th>
+<th>Docker image</th>
+<th>Spot</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>AWS (<code>aws</code>)</td>
+<td>The skylet terminates it with the <code>skypilot-v1</code> IAM instance role SkyPilot attaches: AmazonEC2FullAccess and AmazonS3FullAccess on the account [1]. It drops any AWS keys from its own environment first, so the role is what it uses [2]. With static keys in the controller's <code>~/.aws/credentials</code>, SkyPilot still copies that file to the machine [3]</td>
+<td>A security group per cluster, the port open to 0.0.0.0/0; deleted at teardown, or after autodown at the controller's next status refresh [4]</td>
+<td>Supported for on-demand; EBS volumes bill while stopped</td>
+<td>Yes</td>
+<td>Yes. Terminated when interrupted</td>
+</tr>
+<tr>
+<td>GCP (<code>gcp</code>)</td>
+<td>The skylet deletes it with Google's default credentials, which are your copied gcloud files (<code>~/.config/gcloud</code>, with <code>application_default_credentials.json</code>) when there are any [5]. The machine also has the <code>skypilot-v1</code> service account (compute.admin, storage.admin, iam.serviceAccountUser on the project) [6], used when nothing is copied</td>
+<td>A firewall rule per cluster, by network tag; deleted at teardown [7]</td>
+<td>Supported; the persistent disk bills while stopped</td>
+<td>Yes</td>
+<td>Yes. <code>instanceTerminationAction: DELETE</code>: a preempted machine is deleted [8]</td>
+</tr>
+<tr>
+<td>Azure (<code>azure</code>)</td>
+<td>The skylet deletes the cluster's resource group with the Azure CLI credential, the only one SkyPilot's Azure client uses [9]: your copied <code>~/.azure</code>, the <code>az login</code> token cache, good for every tenant and subscription that login reaches. The machine also gets a managed identity, Contributor on its own resource group [10], which 0.14.2 never uses, so keeping the CLI cache off the machine (<code>remote_identity: SERVICE_ACCOUNT</code> or <code>NO_UPLOAD</code>) would leave it unable to delete itself</td>
+<td>A rule in the cluster's own network security group, deleted with its resource group</td>
+<td>Supported (deallocate); managed disks bill while deallocated</td>
+<td>Yes</td>
+<td>Yes, but the eviction policy is Azure's default, Deallocate: a preempted machine is stopped, its disk billing, until the controller tears it down [11]</td>
+</tr>
+<tr>
+<td>Lambda (<code>lambda</code>)</td>
+<td>The skylet terminates it with the copied <code>~/.lambda_cloud/lambda_keys</code>: an API key for the whole account [12]</td>
+<td>One firewall rule for the whole account, the port open to 0.0.0.0/0 for every instance, never removed (other clusters may use it). None in <code>us-south-1</code>, which has no firewall rules: tunneled [13]</td>
+<td>No stop</td>
+<td>Yes (Lambda has no custom machine images, but Docker images are a separate feature)</td>
+<td>No</td>
+</tr>
+<tr>
+<td>RunPod (<code>runpod</code>)</td>
+<td>The copied <code>~/.runpod/config.toml</code>, a RunPod API key</td>
+<td>Mapped at launch to a public port on another number; Merit Order asks SkyPilot for it [14]</td>
+<td>No stop</td>
+<td>Yes: the pod runs the image itself</td>
+<td>Yes (interruptible pods)</td>
+</tr>
+<tr>
+<td>Nebius (<code>nebius</code>)</td>
+<td>The copied <code>~/.nebius/credentials.json</code>, a service-account key (scope it with Nebius IAM), and the tenant id</td>
+<td>A security group per cluster. Autodown can't delete it (the machine is gone first): SkyPilot does at the controller's next status refresh [15]</td>
+<td>Supported; disks bill while stopped</td>
+<td>Yes</td>
+<td>Yes, with the preemption policy STOP: a preempted machine is stopped, its disk billing [16]</td>
+</tr>
+<tr>
+<td>Kubernetes (<code>kubernetes</code>); CoreWeave through it</td>
+<td>The pod deletes itself, and its services, with SkyPilot's service account, which may do anything in its namespace [17]. Your kubeconfig isn't copied: <code>remote_identity</code> defaults to <code>SERVICE_ACCOUNT</code> there [18]</td>
+<td>A LoadBalancer service by default (or an ingress, or the pod IP), deleted with the pod [19]; Merit Order asks SkyPilot for the address</td>
+<td>No stop</td>
+<td>Yes: the pod's image</td>
+<td>Only on clusters whose nodes carry a spot label</td>
+</tr>
+<tr>
+<td>Vast (<code>vast</code>)</td>
+<td>The copied <code>~/.config/vastai/vast_api_key</code></td>
+<td>None: 0.14.2 doesn't pass ports when it creates the instance, and forwards only 8080 through Vast's gateway [20]. SSH tunnel, always</td>
+<td>Supported; storage bills while stopped</td>
+<td>Yes</td>
+<td>Yes (interruptible)</td>
+</tr>
+<tr>
+<td>Fluidstack (<code>fluidstack</code>)</td>
+<td>The copied <code>~/.fluidstack/api_key</code></td>
+<td>Every port is open by default [21]</td>
+<td>No stop</td>
+<td>Yes</td>
+<td>No</td>
+</tr>
+<tr>
+<td>Paperspace (<code>paperspace</code>)</td>
+<td>The copied <code>~/.paperspace/config.json</code></td>
+<td>SkyPilot does nothing [22]: reachable if the machine's network allows; <code>ssh_tunnel: auto</code> tunnels after 3 timeouts</td>
+<td>Supported; storage bills while stopped</td>
+<td>Yes</td>
+<td>No</td>
+</tr>
+<tr>
+<td>DigitalOcean (<code>do</code>)</td>
+<td>The copied <code>~/.config/doctl/config.yaml</code>, an API token (DigitalOcean's custom scopes can limit it to droplets)</td>
+<td>Every port is open by default [23]</td>
+<td>Supported; a powered-off droplet bills in full</td>
+<td>Yes</td>
+<td>No</td>
+</tr>
+<tr>
+<td>Mithril (<code>mithril</code>)</td>
+<td>The copied <code>~/.config/mithril/config.yaml</code></td>
+<td>SkyPilot can't open ports there [24]: SSH tunnel, always</td>
+<td>Supported by SkyPilot</td>
+<td>Yes</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>Seeweb (<code>seeweb</code>)</td>
+<td>The copied <code>~/.seeweb_cloud/seeweb_keys</code></td>
+<td>Every port is open by default [25]</td>
+<td>Supported</td>
+<td>Yes</td>
+<td>No</td>
+</tr>
+<tr>
+<td>Slurm (<code>slurm</code>)</td>
+<td>No cloud credential: down cancels the job. Autodown only for container jobs, on clusters with Pyxis [26]</td>
+<td>None: SSH tunnel, always</td>
+<td>Only with Pyxis</td>
+<td>Only with Pyxis</td>
+<td>No</td>
+</tr>
+<tr>
+<td>OCI (<code>oci</code>), Cudo (<code>cudo</code>), Shadeform (<code>shadeform</code>), SCP (<code>scp</code>), vSphere (<code>vsphere</code>), IBM (<code>ibm</code>)</td>
+<td>Refused: no Docker images there in 0.14.2 [27]</td>
+<td></td>
+<td></td>
+<td>No</td>
+<td></td>
+</tr>
+<tr>
+<td>Hyperbolic (<code>hyperbolic</code>), PrimeIntellect (<code>primeintellect</code>), Verda (<code>verda</code>), Yotta (<code>yotta</code>)</td>
+<td>Refused: no autodown there in 0.14.2, so a replica whose controller is gone would bill until someone deleted it [28]</td>
+<td></td>
+<td>No stop</td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table></div>
+<p>The same on every cloud:</p>
+<ul>
+<li><strong>Autostop is set after setup.</strong> SkyPilot sets it in the <code>PRE_EXEC</code> stage, after provisioning, the image pull and
+  setup, through the skylet, for every cloud alike (Kubernetes also gets it as pod annotations) [30]. That's the gap
+  <a href="#the-lease">The lease</a> describes.</li>
+<li><strong>Down always means delete.</strong> The skylet's autostop with <code>down</code> calls the cloud's <code>terminate_instances</code>, never
+  <code>stop_instances</code> [32]; Merit Order launches with <code>down=True</code>, puts <code>down: true</code> in the task, tears down with
+  <code>sky.down</code> (which deletes), sets autodown again on a cluster that shows none, and tears down any cluster it finds
+  <code>STOPPED</code>.</li>
+<li><strong>Every cloud's credentials go to every machine.</strong> SkyPilot copies the credential files of every cloud it finds where
+  the controller runs to every cluster it launches, whichever cloud that is [29]: a Lambda replica gets your AWS keys
+  too, if they're there. The exceptions are the cloud a cluster runs on, when its <code>remote_identity</code> isn't
+  <code>LOCAL_CREDENTIALS</code>, and any cloud whose <code>remote_identity</code> is <code>NO_UPLOAD</code>, both in <code>~/.sky/config.yaml</code> (for AWS and
+  GCP only there: a task can't set them [33]).</li>
+</ul>
+<p>So where self-deletion is safe depends on the cloud. On AWS, and on GCP with <code>remote_identity: SERVICE_ACCOUNT</code>, the
+machine deletes itself with an identity of its own, nothing to steal but what that role may do (broad: all of EC2 and
+S3, or compute and storage admin on the project). On every other cloud it deletes itself with a long-lived key that is
+copied onto it: an account-wide API key on Lambda, RunPod, Vast, Fluidstack, Paperspace, DigitalOcean, Mithril and
+Seeweb, a service-account key on Nebius, and on Azure your own <code>az login</code>. Anyone who gets onto a replica (vLLM runs in
+the same container as the gate) can read it. So:</p>
+<ul>
+<li><strong>Give SkyPilot keys of their own</strong>, made for it alone, that you can revoke: a separate Lambda, RunPod or Vast API
+  key; a Nebius service account limited to the project; a DigitalOcean token with only droplet scopes; for Azure, log
+  the controller in with a service principal that is Contributor on one subscription (<code>az login --service-principal</code>),
+  not your own account. The controller warns when the config loads, for each key it finds that SkyPilot will copy.</li>
+<li><strong>Keep other clouds' keys off the machines</strong>: mount only the credentials of the clouds you launch on, and set
+  <code>remote_identity</code> in SkyPilot's config:</li>
+</ul>
+<pre><code class="language-yaml"># ~/.sky/config.yaml where the controller runs (or the file SKYPILOT_GLOBAL_CONFIG names)
+aws:
+  remote_identity: NO_UPLOAD        # AWS machines delete themselves with the skypilot-v1 role; no keys copied anywhere
+gcp:
+  remote_identity: SERVICE_ACCOUNT  # GCP machines use the skypilot-v1 service account; your gcloud files stay here
+# and for a cloud whose credentials are here but you don't launch on, e.g.:
+# lambda:
+#   remote_identity: NO_UPLOAD
+</code></pre>
+<p>Don't set <code>NO_UPLOAD</code> or <code>SERVICE_ACCOUNT</code> for Azure, Lambda, RunPod, Nebius, Vast, Fluidstack, Paperspace,
+DigitalOcean, Mithril or Seeweb if you launch there: their machines need the key to delete themselves.</p>
+<p><strong>Image size.</strong> All the extras above make SkyPilot's environment in the <code>-gpu</code> image about 2.0 GB, up from about
+0.8 GB with only <code>aws,gcp,kubernetes,lambda</code> (installed for Linux x86-64 and Python 3.12, measured in November 2026).
+Azure's CLI and SDKs are about 1 GB of it. <code>--build-arg SKYPILOT_EXTRAS=aws,gcp,kubernetes,lambda</code> (or any list)
+builds a smaller one. OCI's SDK would add about 0.5 GB for a cloud Merit Order can't use, so it isn't in the default.</p>
+<p>Sources (SkyPilot 0.14.2, paths under <code>sky/</code>):
+[1] <code>provision/aws/config.py</code>, <code>_configure_iam_role</code>. [2] <code>skylet/events.py</code>, <code>_stop_cluster_with_new_provisioner</code>.
+[3] <code>clouds/aws.py</code>, <code>get_credential_file_mounts</code>. [4] <code>provision/aws/instance.py</code>, <code>open_ports</code>, <code>cleanup_ports</code>.
+[5] <code>clouds/gcp.py</code>, <code>get_credential_file_mounts</code>. [6] <code>provision/gcp/config.py</code>, <code>_configure_iam_role</code>;
+<code>provision/gcp/constants.py</code>, <code>DEFAULT_SERVICE_ACCOUNT_ROLES</code>. [7] <code>provision/gcp/instance.py</code>, <code>open_ports</code>,
+<code>cleanup_ports</code>. [8] <code>templates/gcp-ray.yml.j2</code>, <code>scheduling</code>. [9] <code>adaptors/azure.py</code>, <code>get_client</code>
+(<code>AzureCliCredential</code>). [10] <code>provision/azure/azure-config-template.json</code>. [11] <code>templates/azure-ray.yml.j2</code>
+(<code>priority: Spot</code>, no eviction policy). [12] <code>clouds/lambda_cloud.py</code>, <code>get_credential_file_mounts</code>.
+[13] <code>provision/lambda_cloud/instance.py</code>, <code>open_ports</code>, <code>cleanup_ports</code>. [14] <code>provision/runpod/instance.py</code>,
+<code>query_ports</code>. [15] <code>provision/nebius/instance.py</code>, <code>cleanup_ports</code>. [16] <code>provision/nebius/utils.py</code>,
+<code>PreemptionPolicy.STOP</code>. [17] <code>templates/kubernetes-ray.yml.j2</code>, <code>autoscaler_role</code>. [18] <code>utils/schemas.py</code>,
+<code>get_default_remote_identity</code>. [19] <code>provision/kubernetes/network.py</code>; <code>provision/kubernetes/instance.py</code>,
+<code>terminate_instances</code>. [20] <code>provision/vast/utils.py</code>, <code>launch</code>; <code>provision/vast/instance.py</code>, <code>query_ports</code>.
+[21] <code>provision/fluidstack/instance.py</code>, <code>open_ports</code>. [22] <code>provision/paperspace/instance.py</code>, <code>open_ports</code>.
+[23] <code>provision/do/instance.py</code>, <code>open_ports</code>. [24] <code>clouds/mithril.py</code>, <code>OPEN_PORTS</code>. [25] <code>provision/seeweb/instance.py</code>,
+<code>open_ports</code>. [26] <code>clouds/slurm.py</code>, <code>_unsupported_features_for_resources</code>. [27] <code>clouds/oci.py</code>, <code>cudo.py</code>,
+<code>shadeform.py</code>, <code>scp.py</code>, <code>vsphere.py</code>, <code>ibm.py</code>: <code>DOCKER_IMAGE</code> unsupported. [28] <code>clouds/hyperbolic.py</code>,
+<code>primeintellect.py</code>, <code>verda.py</code>, <code>yotta.py</code>: <code>AUTODOWN</code> unsupported. [29] <code>check.py</code>,
+<code>get_cloud_credential_file_mounts</code>; <code>backends/backend_utils.py</code>, <code>write_cluster_config</code> (<code>remote_identity</code>).
+[30] <code>execution.py</code>, <code>Stage.PRE_EXEC</code>; <code>backends/cloud_vm_ray_backend.py</code>, <code>set_autostop</code>.
+[31] <code>execution.py</code> (autodown and the task's features requested); <code>backends/cloud_vm_ray_backend.py</code>,
+<code>check_features_are_supported</code> in the failover loop. [32] <code>skylet/events.py</code>, <code>StopEvent</code>.
+[33] <code>skylet/constants.py</code>, <code>OVERRIDEABLE_CONFIG_KEYS_IN_TASK</code>.</p>
+<h3 id="checking-it-on-a-real-cloud">Checking it on a real cloud</h3>
+<p><code>scripts/skypilot_check.py</code> runs a full cycle against a running gateway and controller, through Merit Order's API, on
+any cloud a replica can run on (<code>--cloud</code>, Lambda by default). It picks the cheapest GPU on that cloud that holds the
+model (<code>gpu-small</code>'s gpt-oss-20b: its size from Hugging Face, the price from SkyPilot's catalog as the controller sees
+it, as the break-even tab sizes replicas; one A10 on Lambda), prints what one replica costs an hour and what the run
+should cost, and says how to set the deployment to that GPU and cloud if it isn't. Then it starts one replica and waits
+until it's warm, sends a few requests pinned to it, checks that the replica answers 401 without the key, with a wrong
+key and on <code>/metrics</code>, scales to zero and checks the cluster is gone, then starts one again, stops the controller, and
+checks that the machine deletes itself within the lease plus autostop. "Gone" is checked twice: in SkyPilot's list, and
+in the cloud's own list of instances (<code>sky.provision.query_instances</code> for that cloud, with what SkyPilot recorded about
+the cluster while it ran; this needs SkyPilot's state where the script asks, so not with a remote API server, and says
+so). It prints the time and the estimated cost at each step, needs <code>--yes-spend</code>, and always unpins, restarts the
+controller and tears down anything left in a <code>finally</code>. It asks SkyPilot about the clusters as the controller sees them:
+in the Compose controller's container by default (<code>--sky local</code> for a controller on the same machine). Usually 45 to 75
+minutes of one machine (about $1 to $1.60 on a Lambda A10). When the controller gives up on a start (the deployment goes back to API only, or gets a failure cooldown), the script stops at once: it prints why each replica failed, with the driver and CUDA versions and vLLM's last 40 lines from the GPU activity log, unpins in the <code>finally</code>, and exits with status 1. It has run once, on Lambda: with the CUDA 13 image, vLLM stopped before it was ready, and the cause was lost with the machine.</p>
+<h3 id="skypilots-state">SkyPilot's state</h3>
+<p>SkyPilot keeps its state in <code>~/.sky</code> of the user the controller runs as (its local API server, the SSH keys and per-cluster
+SSH configs it makes, and its record of the clusters it launched) and reads cloud credentials from the usual places
+(<code>~/.lambda_cloud</code>, <code>~/.aws</code>, <code>~/.config/gcloud</code>, and so on). Losing <code>~/.sky</code> doesn't leave a GPU running for long:
+each replica stops when its lease runs out. But a controller that keeps it sees and stops its clusters at once, so keep
+it on a volume.</p>
+<ul>
+<li><strong>Compose:</strong> mount <code>~/.sky</code> (a named volume, <code>sky-state</code>) and the credentials into the <code>controller</code> service (the
+  lines are commented out in <code>compose.yaml</code>; <a href="deployment.html#skypilot-gpus">07</a>).</li>
+<li><strong>Helm:</strong> <code>controller.skypilot</code> gives the controller a writable home (a claim the chart makes, one of yours, or an
+  emptyDir) and mounts credential Secrets inside it (<a href="deployment.html#skypilot-gpus">07</a>).</li>
+</ul>
+<h2 id="cold-starts">Cold starts</h2>
+<p>The first real start on Lambda (one A10, gpt-oss-20b, <code>vllm/vllm-openai:v0.32.0-cu129</code>, November 2026) took about
+11 minutes from the launch to a warm replica: about 8 for the machine to boot, SkyPilot to set it up and Docker to pull
+the ~10 GB image, and about 3 to download ~13 GB of weights from Hugging Face and load them. Those 11 minutes bill
+without serving, which is why the break-even counts them (<a href="#the-break-even-test">The break-even test</a>).</p>
+<h3 id="what-a-start-is-made-of">What a start is made of</h3>
+<p>Every SkyPilot replica's start is timed in phases. The controller marks when it asked SkyPilot for the launch and when
+SkyPilot's launch returned; the replica's gate marks the rest on the machine (<code>startup</code> in the gate's
+<code>/meritorder/status</code> and in every lease reply):</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Phase</th>
+<th>From</th>
+<th>To</th>
+<th>What happens</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>machine boots</td>
+<td>launch requested (controller)</td>
+<td>machine booted (<code>/proc/uptime</code>)</td>
+<td>the cloud finds capacity and boots the VM</td>
+</tr>
+<tr>
+<td>image pull</td>
+<td>machine booted</td>
+<td>container started (PID 1 in <code>/proc</code>)</td>
+<td>SkyPilot sets up Docker's GPU runtime, pulls the image, starts the container</td>
+</tr>
+<tr>
+<td>SkyPilot setup</td>
+<td>container started</td>
+<td>SkyPilot's launch returned (controller)</td>
+<td>SkyPilot's runtime in the container, the task submitted</td>
+</tr>
+<tr>
+<td>task start</td>
+<td>launch returned</td>
+<td>gate started</td>
+<td>usually zero: the task starts as the launch returns</td>
+</tr>
+<tr>
+<td>GPU check</td>
+<td>gate started</td>
+<td>vLLM started</td>
+<td><code>nvidia-smi</code>, the broken-package check</td>
+</tr>
+<tr>
+<td>weights download</td>
+<td>vLLM started</td>
+<td>vLLM logs <code>Time spent downloading weights</code></td>
+<td>Hugging Face download (vLLM prints it only when it took over 0.5 s)</td>
+</tr>
+<tr>
+<td>weights load</td>
+<td>download</td>
+<td>vLLM logs <code>Model loading took … seconds</code> (or <code>Loading weights took</code>)</td>
+<td>the weights into GPU memory</td>
+</tr>
+<tr>
+<td>engine start</td>
+<td>weights loaded</td>
+<td>vLLM's port takes a connection</td>
+<td>memory profiling, torch.compile, CUDA graphs, the KV cache</td>
+</tr>
+<tr>
+<td>first ready probe</td>
+<td>listening</td>
+<td>the controller's probe of <code>/v1/models</code> answers</td>
+<td>up to one controller cycle (60 s)</td>
+</tr>
+</tbody>
+</table></div>
+<p>A mark that isn't known (no download line on a warm cache, an older gate) merges its phase into the next one
+("weights download + weights load"). The controller's marks and the machine's are on two clocks, both normally kept by
+NTP, so a phase across them is clamped at zero; the phases add up to the total. Only a launch the controller made
+itself, in this process, is timed: after a restart, when it was asked for isn't known, and nothing is made up.</p>
+<p>When a replica is first ready, the controller logs its phases, writes a <code>replica_ready</code> entry to the GPU activity log
+(the phases, the total, and vLLM's own download and load seconds), and adds the total to the deployment's rolling
+average (<code>cold_start</code> in its record: the last 10 starts, their average and the last one's phases). The break-even uses
+that average. On Kubernetes the start is timed as a whole, from the controller's start to the first ready replica. The
+GPUs page shows each replica's start under its status ("started in 11.2 min", the phases on hover), the last start and
+what a start needs in the deployment's cost column, and the <code>replica_ready</code> entries in the activity log.
+<code>scripts/skypilot_check.py</code> prints the phases each time the replica is warm.</p>
+<h3 id="faster-starts">Faster starts</h3>
+<p>What each change saves is an estimate for the Lambda A10 run above, not measured yet.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Change</th>
+<th>On by default</th>
+<th>Expected saving</th>
+<th>Trade-off</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Xet high-performance downloads (<code>HF_XET_HIGH_PERFORMANCE=1</code>)</td>
+<td>yes, every replica</td>
+<td>none over vLLM 0.32's own default (it sets this itself when unset); it keeps the fast path with other images</td>
+<td>uses every core and the whole link while it downloads</td>
+</tr>
+<tr>
+<td><code>serve.load_format</code> (<code>runai_streamer</code>, <code>fastsafetensors</code>)</td>
+<td>no (<code>auto</code>)</td>
+<td>perhaps 10 to 60 s of the load for a 13 GB model; more for large models</td>
+<td>not checked with every model (gpt-oss's MXFP4 weights are unconfirmed); a model that fails to load shows in its <code>replica_failed</code> entry</td>
+</tr>
+<tr>
+<td><code>serve.weights_cache: volume</code></td>
+<td>no</td>
+<td>most of the ~3 minute download after the first start, plus part of the engine start (vLLM's compile cache is on the volume too)</td>
+<td>only on Kubernetes and RunPod; bills every month; see below</td>
+</tr>
+<tr>
+<td>A copy of the image near the GPUs (<code>SKYPILOT_DOCKER_*</code>)</td>
+<td>no</td>
+<td>part of the ~10 GB pull; depends on the registry and the cloud</td>
+<td>you keep the copy up to date</td>
+</tr>
+<tr>
+<td>Pre-baked machine images</td>
+<td>not built</td>
+<td>the whole image pull, and the download if the weights are baked in too</td>
+<td>see below</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Hugging Face downloads.</strong> The Hub now serves files through Xet, and huggingface_hub 1.x (vLLM 0.32 needs 1.31 or
+later) ignores <code>HF_HUB_ENABLE_HF_TRANSFER</code>: <code>hf_transfer</code> "can't be used anymore", and the vLLM image doesn't ship it.
+Xet's high-performance mode is its successor. vLLM 0.32 turns it on itself when the variable isn't set
+(<code>model_executor/model_loader/weight_utils.py</code>, <code>enable_xet_high_performance</code>); the task sets it anyway so it holds
+for other images. Nothing is installed at boot.</p>
+<p><strong>Load formats.</strong> <code>serve.load_format</code> is passed to vLLM as <code>--load-format</code> (every provisioner); <code>auto</code> (the default) is
+vLLM's own loader, which every model works with. vLLM v0.32.0's image includes <code>runai-model-streamer</code> (with its S3,
+GCS and Azure extras) and <code>fastsafetensors</code> (a CUDA requirement), so both work without installing anything. Both read
+safetensors faster than the default, but both download a Hugging Face repo first and then read the local copy, so they
+don't shorten the download. <code>runai_streamer</code> takes <code>--model-loader-extra-config '{"concurrency":16}'</code> (or
+<code>memory_limit</code>) in <code>vllm_args</code>. <code>fastsafetensors</code> runs without GPUDirect Storage (it falls back by itself, and turns
+it off for tensor parallel). Neither is confirmed with every quantization; try one on the model with
+<code>scripts/skypilot_check.py</code> before you leave it on. vLLM's source at tag v0.32.0: <code>vllm/config/load.py</code>,
+<code>model_loader/runai_streamer_loader.py</code>, <code>model_loader/weight_utils.py</code>.</p>
+<p><strong>The image pull.</strong> SkyPilot 0.14.2 has no setting that makes the pull itself faster: it runs a plain <code>docker pull</code>
+before it starts the container (<code>sky/provision/docker_utils.py</code>), on every launch. What it does offer is a registry login:
+with <code>SKYPILOT_DOCKER_USERNAME</code>, <code>SKYPILOT_DOCKER_PASSWORD</code> and <code>SKYPILOT_DOCKER_SERVER</code> all set where the controller
+runs, each launch takes them as SkyPilot secrets and the machine logs in before it pulls. Copy the vLLM image to ECR or
+Artifact Registry in the region the GPUs run in and point <code>serve.image</code> at the copy, and the pull stays inside that
+cloud. For ECR the password may be empty: the machine logs in with its IAM role. This helps on AWS and GCP; on Lambda
+and other GPU clouds there's no registry next to the GPUs, and Docker Hub is as close as any.</p>
+<h3 id="the-weights-cache-volume">The weights cache volume</h3>
+<p><code>serve.weights_cache: volume</code> (default <code>none</code>) keeps the Hugging Face cache on a SkyPilot volume where the GPUs run.
+The first start fills it; later starts find the weights there and skip the download. vLLM's compile cache
+(<code>VLLM_CACHE_ROOT</code>) goes on it as well, so a later start can load compiled graphs instead of compiling them.</p>
+<pre><code class="language-yaml">    serve:
+      provisioner: skypilot
+      clouds: [runpod]
+      regions: [CA]                            # optional; must be the volume's region if set
+      weights_cache: volume
+      weights_cache_infra: runpod/CA/CA-MTL-1  # runpod/&lt;region&gt;/&lt;data center&gt;, or kubernetes[/&lt;context&gt;]
+      weights_cache_gb: 50                     # the weights and some room: you pay for every GB a month
+      weights_cache_usd_per_gb_month: null     # null: RunPod's published price; set it for a Kubernetes PVC
+</code></pre>
+<p><strong>Where it works.</strong> SkyPilot 0.14.2 has volumes on two clouds only (<code>sky/utils/volume.py</code>, <code>VolumeType</code>):</p>
+<ul>
+<li><strong>Kubernetes:</strong> a PersistentVolumeClaim (<code>k8s-pvc</code>). With <code>max_replicas</code> above 1 it's asked for as <code>ReadWriteMany</code>,
+  so every replica can mount it at once, and your storage class must allow that; with one replica, <code>ReadWriteOnce</code>.</li>
+<li><strong>RunPod:</strong> a network volume in one data center (<code>runpod-network-volume</code>, at least 10 GB).</li>
+</ul>
+<p><strong>Not on Lambda, AWS, GCP, Azure or the other clouds.</strong> AWS, GCP and Azure have only the disks a machine is launched
+with (<code>resources.volumes</code>), which go with the machine. Lambda has persistent filesystems, but SkyPilot 0.14.2 doesn't
+attach them (its Lambda launch sends none: <code>sky/provision/lambda_cloud/instance.py</code>). A config that asks for a volume
+anywhere else is refused when it loads, and so is one whose <code>clouds</code> or <code>regions</code> would let a replica run away from its
+volume (SkyPilot refuses such a task too: <code>Task.resolve_and_validate_volumes</code>).</p>
+<p><strong>How it's made.</strong> The volume is <code>mo-&lt;install id&gt;-&lt;deployment&gt;-hf</code>. Before a deployment's first launch in a controller
+process, the controller makes it with <code>sky.volumes.apply</code> if SkyPilot doesn't list it; the launch then mounts it at
+<code>/mnt/meritorder-cache</code> with <code>HF_HOME</code> and <code>VLLM_CACHE_ROOT</code> under it. A volume that can't be made fails the launch like
+any other (a <code>replica_failed</code> entry, the usual retry after 10 minutes). Several replicas writing the same cache at once
+rely on huggingface_hub's file locks, which work on most shared filesystems.</p>
+<p><strong>What it costs.</strong> A volume bills every hour it exists, GPUs running or not. RunPod's network volumes cost $0.07 a GB a
+month for the first TB and $0.05 beyond (docs.runpod.io, November 2026); 50 GB is about $3.50 a month. A PVC costs what
+your storage class does, which Merit Order doesn't know unless <code>weights_cache_usd_per_gb_month</code> says. The config load
+logs the monthly estimate. The controller records each volume it makes (the <code>gpu_volumes</code> setting, and a <code>volume</code> entry
+in the GPU activity log), and every cycle adds its price for the time since the last cycle to the deployment's GPU
+spend (730 hours a month), so it counts against the GPU budget and shows in "GPU spend this month". It isn't part of
+the burn rate or the fleet's dollars-an-hour limit, which are about machines. A volume without a known price isn't
+counted. The GPUs page lists the volumes and their monthly cost under "GPU cost by deployment".</p>
+<p><strong>Cleaning up.</strong> Nothing deletes a volume by itself: not the sweep (it lists and tears down clusters only), not a
+teardown, not switching <code>weights_cache</code> back to <code>none</code>, not removing the deployment. It bills until you delete it, where
+the controller runs (SkyPilot and the database):</p>
+<pre><code>meritorder gpu volumes                                  # this install's volumes, what they cost, what uses them
+meritorder gpu volumes delete mo-ab12cd34-gpu-small-hf --yes
+</code></pre>
+<p>Deleting is refused while a replica uses the volume. It's recorded in the GPU activity log (<code>volume_deleted</code>), and the
+volume stops counting in GPU spend. If the deployment still asks for a volume, its next start makes a new, empty one.</p>
+<h3 id="pre-baked-images-not-built">Pre-baked images (not built)</h3>
+<p>On AWS, GCP and Azure a launch can start from your own machine image (<code>image_id</code> with an AMI, a GCP image or an Azure
+image instead of <code>docker:</code>). SkyPilot takes one or the other, so the image would hold vLLM itself (its Python
+environment, the CUDA libraries the driver needs) and the model's weights in its Hugging Face cache, and the task would
+run vLLM on the machine rather than in a container. That skips both the image pull and the download: on the run above,
+most of the 11 minutes but the boot. It isn't built, because it means one image per model, region and cloud, rebuilt
+for every new vLLM or model version, with its own storage cost, and a second way of running vLLM beside the
+container, with its own driver checks. Lambda and most GPU clouds don't take custom images in SkyPilot
+0.14.2 (<code>IMAGE_ID</code> is unsupported there), so it would help only the large clouds.</p>
+<h2 id="kubernetes">Kubernetes</h2>
+<p>Teams with GPUs in their own cluster can have the controller run vLLM there (<code>provisioner: kubernetes</code>),
+through KServe or llm-d. The controller drives it like SkyPilot: the same break-even test, controls,
+safeguards, activity log and cost accounting.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th></th>
+<th>KServe (<code>api: kserve</code>, the default)</th>
+<th>llm-d (<code>api: llm-d</code>)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Merit Order creates</td>
+<td>An <code>InferenceService</code> (<code>serving.kserve.io/v1beta1</code>) per deployment, in KServe's Standard mode with its autoscaler off (<code>serving.kserve.io/autoscalerClass: none</code>) and <code>minReplicas</code> = <code>maxReplicas</code> = what the controller wants</td>
+<td>A <code>Deployment</code> of vLLM pods per deployment, with the labels of an <code>InferencePool</code> you installed with llm-d's router, listening on the pool's target port</td>
+</tr>
+<tr>
+<td>You install first</td>
+<td>KServe in Standard mode (Knative isn't needed)</td>
+<td>llm-d's router: a Gateway, the <code>InferencePool</code> (<code>inference.networking.k8s.io/v1</code>; <code>v1alpha2</code> for older llm-d) and its endpoint picker</td>
+</tr>
+<tr>
+<td>Which replica gets a request</td>
+<td>The gateway, which keeps a session on the pod holding its cache (<a href="#inside-the-gpu-pool">below</a>; gateways must run in the cluster to reach pods), else KServe's Service</td>
+<td>llm-d's endpoint picker: the replica with the most of the prompt in its cache and a short queue. Gateway affinity is off unless <code>replica_affinity: true</code></td>
+</tr>
+<tr>
+<td>Endpoint gateways use</td>
+<td><code>endpoint:</code>, else the InferenceService's cluster address (<code>status.address.url</code>) + <code>/v1</code></td>
+<td><code>endpoint:</code> (required): the Gateway's <code>/v1</code> URL</td>
+</tr>
+<tr>
+<td>Stop</td>
+<td>The InferenceService is deleted</td>
+<td>The Deployment is deleted; the router and pool stay</td>
+</tr>
+</tbody>
+</table></div>
+<p>Both run the same vLLM as SkyPilot: <code>serve.image</code>, <code>vllm serve &lt;hf_id&gt;</code> with prefix caching and
+priority scheduling, tensor parallel across the replica's GPUs, then <code>vllm_args</code>. Each pod asks for the
+GPU count in <code>accelerators</code> (<code>H100:4</code> is <code>nvidia.com/gpu: 4</code>; <code>gpu_resource: amd.com/gpu</code> for AMD),
+tolerates that resource's taint, gets shared memory at <code>/dev/shm</code> and a Hugging Face cache (<code>cache_pvc</code>,
+else an emptyDir, so every start downloads the weights again), and has a readiness probe on <code>/health</code>.
+A pod removed by a scale-down gets <code>termination_grace_seconds</code> (120) to finish its requests. <code>cpu</code> and <code>memory</code>
+become the container's requests and limits beside its GPUs. KServe deployments need both: KServe gives a
+predictor without them its own defaults, 1 CPU and 2 GiB (KServe 0.21, seen on kind), too little for vLLM to
+load a model, so the configuration is refused without them. llm-d's are optional (blank: no limit).</p>
+<pre><code class="language-yaml">kubernetes:                          # the cluster
+  namespace: gpus                    # blank: MERITORDER_GPU_NAMESPACE (the Helm chart sets it), else the controller's own
+  node_types:                        # a cluster has no price catalog: what one node costs you an hour (example rates)
+    a3-highgpu-8g: {usd_per_hour: 88.0, gpus: 8, spot_usd_per_hour: 30.0}
+    g6.12xlarge: {usd_per_hour: 4.60, gpus: 4}
+
+backends:
+  gpu-qwen-k8s:
+    kind: self_hosted
+    format: openai
+    gpu_cost_per_hour: 44.0          # only when the node type has no price
+    capacity_tokens_per_second: 4000
+    serve:
+      provisioner: kubernetes
+      model: qwen3-coder-next
+      accelerators: &quot;H100:4&quot;
+      image: vllm/vllm-openai:v0.32.0-cu129
+      vllm_args: &quot;--max-model-len 262144&quot;
+      max_replicas: 4
+      kubernetes:
+        api: kserve                  # or llm-d, with inference_pool and endpoint
+        node_type: a3-highgpu-8g     # a nodeSelector on kubernetes.node_type_label (node.kubernetes.io/instance-type), and the price
+        hf_token_secret: hf-token    # a Secret in the namespace with an HF_TOKEN key, for gated models
+        cpu: &quot;90&quot;                    # what one replica may use on its node: required for KServe
+        memory: 900Gi
+        cache_pvc: hf-cache          # optional
+        # Also: namespace, node_selector, tolerations, labels, annotations, endpoint, gpu_resource.
+        # llm-d: inference_pool: qwen-pool, endpoint: http://llm-d-gateway.gpus.svc.cluster.local/v1
+</code></pre>
+<p>The model needs a priced route to the backend, as with SkyPilot. The endpoint must be reachable from
+the gateways and the controller: KServe's cluster address works when they run in the same cluster;
+from elsewhere, set <code>endpoint:</code>. For an older KServe that calls Standard mode RawDeployment, set
+<code>annotations: {serving.kserve.io/deploymentMode: RawDeployment}</code>.</p>
+<p><strong>Prices.</strong> A replica costs its share of its node: the node type's price × its GPUs / the node's
+GPUs (four GPUs of an $88 eight-GPU node: $44 an hour), or the spot rate with <code>use_spot</code>. The break-even
+test, the fleet caps and the GPU budget use that price, and the console shows it as the node type's
+rate, with how it was worked out. While running, each pod is priced for the node it landed on: that
+node's type, and its spot rate when the node has a spot label (Karpenter, EKS, GKE or AKS). Reading
+nodes needs a cluster-wide permission (<code>controller.kubernetes.readNodes</code> in the Helm chart); without it,
+pods are priced at the configured node type. A pod with no node yet costs nothing. With no node type
+or no price for it, <code>gpu_cost_per_hour</code> is the price; with neither, the configuration is refused, since an unpriced
+GPU can't be held by the GPU budget or the fleet caps. These are your rates, so they are only as right as the table.</p>
+<p><strong>Readiness and failures.</strong> A deployment is ready when at least one pod is Ready and the endpoint
+answers <code>/v1/models</code>. While it starts, the console's card and the activity log say what holds it up:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>What Kubernetes reports</th>
+<th>What the controller does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A pod waits for a node (<code>Unschedulable</code>, e.g. <code>Insufficient nvidia.com/gpu</code>)</td>
+<td>Waits: a cluster autoscaler may be adding one. The 45-minute provisioning timeout still applies</td>
+</tr>
+<tr>
+<td>Pods can't be created (<code>ReplicaFailure</code>: an exceeded quota, PodSecurity, a webhook)</td>
+<td>Fails: deletes it, 30-minute cooldown</td>
+</tr>
+<tr>
+<td>The image can't be pulled (not found, unauthorized, an invalid name)</td>
+<td>Fails. A pull error that may pass (a registry timeout) waits</td>
+</tr>
+<tr>
+<td><code>CreateContainerConfigError</code>, e.g. the HF token Secret is missing</td>
+<td>Fails</td>
+</tr>
+<tr>
+<td>vLLM crash-loops 3 times (<code>OOMKilled</code>, a bad argument)</td>
+<td>Fails</td>
+</tr>
+<tr>
+<td>The Kubernetes API doesn't answer, or refuses</td>
+<td>Replicas that still answer stay warm; a start keeps waiting. With no credentials or no permission, and nothing answering: fails</td>
+</tr>
+<tr>
+<td>The resource was deleted by someone else</td>
+<td>Fails: traffic moves to APIs, 30-minute cooldown</td>
+</tr>
+<tr>
+<td>The resource is already there (a controller restarted mid-run)</td>
+<td>Replaced with the current spec, unless another install's label is on it: then the start fails</td>
+</tr>
+<tr>
+<td>A stop</td>
+<td>The resource is deleted, and the stop waits until it and its pods are gone (their grace period, plus 60 s at most), which is billed too. Pods still there after that: the stop failed, the deployment stays running (and billed), and it's tried again next cycle</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Stopping what's no longer configured, and the sweep.</strong> A deployment switched off, removed, renamed (its backend or its
+model) or moved (another namespace, KServe instead of llm-d) while it runs is stopped as soon as the controller loads
+that configuration. On top of that, every cycle while a Kubernetes deployment is configured (or the last sweep found
+leftovers), the controller lists the InferenceServices and Deployments in its GPU namespaces labelled
+<code>app.kubernetes.io/managed-by: meritorder</code> and <code>meritorder.dev/install: &lt;install id&gt;</code>, and deletes each one no running
+deployment owns: one removed while the controller was down, or what's left of a stop that failed. Each is logged, and
+recorded in the GPU activity log (<code>sweep</code>; a delete that fails is an <code>error</code>, tried again next cycle). The install label
+keeps two installs sharing a namespace out of each other's resources; anything KServe made (it has an owner) and
+resources made before the install label existed are left alone.</p>
+<p><strong>Utilization.</strong> Each pod's address is in its replica entry, so the controller reads vLLM's <code>/metrics</code>
+from each ready pod (it runs in the cluster), as for SkyPilot replicas, not through the Service, which
+would answer for one pod at random. With <code>kv_events</code>, it follows each pod's KV events the same way.</p>
+<p><strong>Draining</strong> is the gateways' job, as with SkyPilot: no new sessions go to the deployment while warm
+ones finish, and the pods stay until it's drained. Then the resource is deleted.</p>
+<p><strong>The Kubernetes API</strong> is called over plain HTTPS with httpx, no client library. In the cluster the
+controller uses its service account (the token is read again when it rotates). For development it
+reads a kubeconfig (<code>kubernetes.kubeconfig</code>, <code>KUBECONFIG</code> or <code>~/.kube/config</code>, with <code>kubernetes.context</code>):
+a token, token file, client certificate, or exec plugin (<code>aws eks get-token</code>, <code>gke-gcloud-auth-plugin</code>,
+<code>kubelogin</code>). Setup and permissions: <a href="deployment.html#gpus-on-your-kubernetes-cluster">07: GPUs on your Kubernetes cluster</a>.</p>
+<h3 id="checked-on-kind">Checked on kind</h3>
+<p>On 2026-11-14, with <code>scripts/kind/</code> (<a href="deployment.html#gpus-on-your-kubernetes-cluster">07</a>): kind 0.33 running
+Kubernetes 1.36.1, KServe 0.21.0 from its own charts (minimal CRDs, Standard mode), the Gateway API Inference
+Extension 1.6.2's InferencePool CRD, cert-manager 1.21.3, and Merit Order from its Helm chart (Helm 4.3.1) with the
+controller in the cluster under the chart's Role. The node advertised eight fake <code>nvidia.com/gpu</code>, and the model servers
+were <code>scripts/fake_vllm.py</code>, which takes <code>vllm serve</code>'s command line and serves vLLM's endpoints and metric names. Times
+are with a 10-second controller cycle (60 by default) and the image already on the node.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Verified on kind</th>
+<th>Still needs real GPUs, llm-d's router, or a cloud</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>KServe: an InferenceService in Standard mode with <code>autoscalerClass: none</code>; KServe makes the predictor Deployment (labeled <code>serving.kserve.io/inferenceservice</code>) and Service, and <code>status.address.url</code> (port 80) reaches the container's port 8000; <code>spec.predictor.labels</code> reach the pods; scaling by patching <code>minReplicas</code> and <code>maxReplicas</code></td>
+<td>vLLM itself: downloading and loading weights, its time to ready, host memory and <code>/dev/shm</code> for tensor parallelism, and shutting down within <code>termination_grace_seconds</code> (the stand-in stops at once)</td>
+</tr>
+<tr>
+<td>KServe fills in a predictor's missing <code>cpu</code> and <code>memory</code> with 1 CPU and 2 GiB: a KServe deployment now has to set both</td>
+<td>GPU nodes: the device plugin, GPU taints, and a cluster autoscaler adding a node for a pod that waits</td>
+</tr>
+<tr>
+<td>llm-d: model server pods with the InferencePool's labels and target port, the pool read from <code>inference.networking.k8s.io/v1</code></td>
+<td>llm-d's Gateway and endpoint picker routing to the pods (a plain Service stood in for the Gateway), and <code>/v1/models</code> through it as the readiness check</td>
+</tr>
+<tr>
+<td>Up, warm (12 to 22 s), requests through the gateway pinned to the deployment, each pod's metrics, its address, node type, zone and price from the node's labels (<code>readNodes</code>), scaling up and down (12 to 22 s), draining (pods stay for <code>drain_minutes</code>, then go), stopping at once</td>
+<td>KV events from real vLLM, replica affinity on real replicas</td>
+</tr>
+<tr>
+<td>Failures: a missing HF token Secret (failed in 12 s), an image that doesn't exist (12 s), vLLM crash-looping (3 restarts, 42 to 52 s), a GPU quota of 0 (ReplicaFailure, 12 s); each deleted and cooled down. A pinned start cools down too. More GPUs than a node has: it waits</td>
+<td>NetworkPolicies between the controller and the pods</td>
+</tr>
+<tr>
+<td>The chart's Role, narrowed to the calls the controller makes (no <code>list</code> on InferenceServices, no <code>get</code> on pods): no request was refused</td>
+<td>Exec-plugin kubeconfigs against EKS, GKE and AKS; workload identity</td>
+</tr>
+<tr>
+<td>The controller on the plain image (no SkyPilot): it now says once, not every cycle, that catalog prices can't be fetched</td>
+<td>Prices against a real cluster's bill</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="controls-and-safeguards">Controls and safeguards</h2>
+<p>The console's <strong>GPUs</strong> page shows, for every deployment: where each replica runs (cloud, region,
+zone, instance, spot or on-demand, from SkyPilot; on Kubernetes the pod's node, zone and node type),
+how long it has been up, its load, how many sessions sit on it and how many are probably still warm
+there, its burn rate, what this run and this month have cost, what demand would pay for it at API
+prices, and why the controller is doing what it's doing. A <em>Cache affinity</em> line says whether sessions
+are kept on their replica and what warm caches are known from (KV events, an estimate from KV-cache
+metrics, or the cache TTL), and <em>Sessions on its replicas</em> lists the recent ones: replica, last turn,
+context size, and the share of the prefix probably cached now (admins see every session, team leads
+their team's). An activity log records every state change, scale, and admin action with who did it,
+what holds up a start (on Kubernetes no GPU node free or an image that won't pull; on SkyPilot a launch that
+failed, or a replica whose gate doesn't answer yet), every SkyPilot replica that failed with its last output and
+driver (<a href="#when-a-replica-fails">When a replica fails</a>), and every cluster the <a href="#the-sweep">sweep</a> tore down. On
+SkyPilot each replica's status also shows its cluster's name, how long its lease has left, and whether it's
+reached through an SSH tunnel.</p>
+<p>Admins can override the controller:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Control</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Stop</strong> (drain first)</td>
+<td>No new sessions; warm ones finish for up to <code>drain_minutes</code>, then the replicas go down. Skips the usual hold time</td>
+</tr>
+<tr>
+<td><strong>Stop now</strong></td>
+<td>Replicas go down at once; their sessions continue on APIs (caches rebuild there)</td>
+</tr>
+<tr>
+<td><strong>Pin N replicas</strong></td>
+<td>Runs N (up to <code>max_replicas</code>) regardless of demand, skipping the scale-up wait and any failure cooldown. If a start then fails, the pin ends (an activity log entry by the controller says why) and the deployment cools down for 30 minutes, then follows demand. A pin that outlived its failure would launch the same broken deployment (an image the driver can't run, a missing secret) again after every cooldown, for as long as nobody looks. Pin it again to retry at once</td>
+</tr>
+<tr>
+<td><strong>Back to automatic</strong></td>
+<td>Demand decides again</td>
+</tr>
+<tr>
+<td><strong>Stop all GPUs</strong></td>
+<td>Every deployment stops (at once, or after draining) and none start until someone resumes the fleet</td>
+</tr>
+</tbody>
+</table></div>
+<p>Stops and pins can expire after a set number of hours (up to 90 days) and can carry a reason, which the activity
+log and the alert show. Gateways stop routing to a stopped deployment within seconds, before the
+controller acts; the controller wakes up as soon as a control changes. For a static server, Merit
+Order can only stop sending it traffic.</p>
+<p>Organization safeguards apply on top, to pins as well (<a href="auth-and-spend.html#organization-wide-safeguards">06</a>):
+a monthly GPU budget, a fleet burn-rate cap, and a replica cap. The burn-rate cap counts each running replica at what
+it really burns when that's more than the expected price. A pin that ends because its start failed removes only itself
+from the controls: a Stop all GPUs or another pin saved while that cycle ran stays.</p>
+<h3 id="what-gpus-cost">What GPUs cost</h3>
+<p>Prices come from <strong>SkyPilot's catalog</strong>, the same list prices its optimizer uses to pick a cloud:</p>
+<ul>
+<li><strong>Before launching</strong>, the break-even test uses the cheapest catalog offer for the deployment's
+  accelerators within its allowed clouds and regions (spot or on-demand, per <code>use_spot</code>).</li>
+<li><strong>While running</strong>, each replica is priced for its actual cloud, region, instance type, and
+  spot/on-demand, so a replica that lands in a pricier region costs what it really costs.</li>
+<li><strong>On Kubernetes</strong> there's no catalog: prices are configured per node type, and a replica pays its
+  share of its node (<a href="#kubernetes">Kubernetes</a>). The console labels which price it used.</li>
+<li><code>gpu_cost_per_hour</code> is only a fallback, used for static servers (your own hardware), a Kubernetes
+  deployment whose node type has no price, and when SkyPilot isn't installed where the controller runs.
+  On SkyPilot and Kubernetes, a replica with no price at all is never started (<a href="#the-break-even-test">The break-even test</a>).</li>
+</ul>
+<p>Cost is accrued every cycle from the moment provisioning starts until the replicas are down (a stop counts until it
+returns), and stored per hour (<code>gpu_usage</code>). After a gap in the controller's cycles (it was down, or Postgres was), the
+whole gap is counted on Kubernetes and for static servers, which run on without the controller, and for the weights
+cache volumes. A SkyPilot replica stops itself <code>lease_minutes</code> after its last lease renewal and is deleted
+<code>autostop_minutes</code> later, so its gap is counted up to then; when the last renewal isn't known, the whole gap.</p>
+<p>Self-hosted tokens are charged back at the same live price: each request on a GPU carries its share (its tokens at
+<code>capacity_tokens_per_second</code>), which is what its team and person are charged. The organization's spend counts the
+accrued time instead, idle and starting included, and the GPU time no request paid for comes off the self-hosting
+savings (<a href="reporting.html#gpu-time-in-spend">08</a>, decision 64). A GPU that runs for little traffic shows as a loss,
+not as nearly free.</p>
+<p>These are <strong>list prices</strong>, not your bill: they don't include negotiated discounts, reservations,
+or credits, and they leave out disks and egress. Every machine SkyPilot runs for Merit Order is a replica, so all of
+them are priced, in the ledger, the GPU budget and the fleet caps: on SkyPilot the burn rate counts every cluster of
+the deployment that exists or is being launched (one being torn down too) at its own catalog price. Spot prices in the
+catalog are refreshed periodically, not live. SkyPilot tags every instance with <code>meritorder-deployment: &lt;backend&gt;</code>,
+and Reports → Bills compares the recorded GPU cost with what AWS, Google Cloud and Azure billed for instances with
+that tag (<a href="reporting.html#checking-costs-against-the-bills">08</a>). Kubernetes GPU time isn't in that comparison:
+its nodes are shared and carry no such tag, and its prices are the rates you configured.</p>
+<p>SkyPilot runs in its own Python environment (<code>/opt/skypilot</code> in the <code>-gpu</code> image, built with
+<code>--build-arg SKYPILOT=0.14.2</code>), so its dependencies never mix with the gateway's. Merit Order
+calls its SDK in SkyPilot's Python (<code>MERITORDER_SKY_PYTHON</code>, found from the <code>sky</code> command when unset), or in-process
+when SkyPilot is importable where Merit Order runs. Launches, teardowns and status get the controller's environment
+(its cloud credentials); price lookups run without them: no AWS variable but the region, and no AWS config or
+credentials file, reaches them.</p>
+<p>If the controller stops running while GPUs are up, the console flags it: nothing would scale them
+down. SkyPilot replicas then stop by themselves when their lease runs out (<a href="#the-lease">The lease</a>); Kubernetes ones
+stay until the controller is back (which stops and sweeps what no longer runs, <a href="#kubernetes">Kubernetes</a>). If a stop fails at the cloud, the deployment stays marked as running and the controller
+keeps retrying, so a GPU that may still be billing is never shown as off; so does a start that failed halfway whose
+teardown failed too. A SkyPilot cluster that slipped through anyway is torn down by the <a href="#the-sweep">sweep</a>.</p>
+<h2 id="overflow">Overflow</h2>
+<figure class="diagram"><pre class="mermaid">flowchart LR
+    REQ[&quot;New session for qwen3-coder-next&quot;] --&gt; H{&quot;Self-hosted pool&lt;br/&gt;has headroom?&quot;}
+    H -- &quot;yes&quot; --&gt; SELF[&quot;Self-hosted deployment&lt;br/&gt;(the least loaded replica; later turns&lt;br/&gt;go back to it while that pays)&quot;]
+    H -- &quot;no&quot; --&gt; API{&quot;Another route?&lt;br/&gt;e.g. Bedrock / OpenRouter&quot;}
+    API -- &quot;yes&quot; --&gt; SPILL[&quot;Same model via API&quot;]
+    API -- &quot;no&quot; --&gt; Q[&quot;Waits in vLLM&#x27;s queue,&lt;br/&gt;up to max_waiting per replica;&lt;br/&gt;then 503&quot;]
+    SPILL -.-&gt; SIG[&quot;Controller sees the demand:&lt;br/&gt;adds replicas&quot;]</pre></figure>
+<p>Up to 60% load (<code>routing.shadow_knee</code>), a self-hosted token is priced at 2% of its route's price
+(<code>routing.shadow_floor</code>). Above that the shadow price rises toward the full price, so new sessions
+drift to APIs before the GPU is full. At 100%, nothing new goes there while any other route can
+take it; sessions already there move too. A saturated GPU that's a model's only route still takes
+requests, which wait in vLLM, until <code>max_waiting</code> (default 32) per replica are waiting. Set <code>max_concurrency</code> so gateways see saturation
+within seconds instead of at the controller's next sample. Details:
+<a href="how-it-decides.html#when-a-gpu-is-full">When a GPU is full</a>.</p>
+<h2 id="inside-the-gpu-pool">Inside the GPU pool</h2>
+<ul>
+<li><strong>Continuous batching</strong> is the engine's job (vLLM / SGLang). The gateway sends concurrently and
+  never serializes requests per replica.</li>
+<li><strong>Replica choice</strong> is the gateway's when it can address the replicas: a session goes back to the
+  replica that holds its KV cache unless that replica is gone, full, draining, or busy enough that
+  rebuilding the cache elsewhere costs less (<a href="routing.html#which-replica-of-a-gpu-deployment">03</a>).
+  Otherwise (or with <code>replica_affinity: false</code>) KServe's Service, or your load balancer, picks. SkyPilot has
+  none: the gateway always picks. On Kubernetes the gateway addresses pods directly, so it must run in the cluster. Behind llm-d,
+  affinity is off unless set: llm-d's endpoint picker already sends each request to the replica with the
+  most of its prompt cached.</li>
+<li><strong>Eviction</strong> is seen in vLLM's KV events (<code>kv_events: true</code>) or estimated from each replica's KV-cache
+  metrics, so a session whose cache is gone isn't treated as warm
+  (<a href="caching-and-sessions.html#gpu-replicas-which-one-holds-the-cache">04</a>).</li>
+<li><strong>Priority scheduling</strong>: free-upgrade requests go to vLLM with <code>priority: 10</code> (lower runs first),
+  so traffic at its own floor goes ahead of them.</li>
+<li><strong>The vLLM command</strong> is the same on SkyPilot and Kubernetes: <code>vllm serve &lt;hf_id&gt; --host 0.0.0.0 --port 8000</code>
+  (behind llm-d, the pool's target port; on SkyPilot <code>--host 127.0.0.1 --port 8001</code>, behind the gate) <code>--served-model-name &lt;the route's model id&gt; --tensor-parallel-size &lt;GPUs in accelerators&gt; --enable-prefix-caching
+  --scheduling-policy priority --enable-prompt-tokens-details</code>, plus <code>--kv-events-config</code> with <code>kv_events</code>, then
+  <code>vllm_args</code>. <code>served_model_name</code> overrides the name.</li>
+<li><strong>Engine knobs</strong> go in <code>vllm_args</code> (e.g. <code>--max-model-len</code>, <code>--max-num-seqs</code>, <code>--max-num-batched-tokens</code>,
+  speculative decoding). Prefix caching and priority scheduling are always on.</li>
+</ul></section>
+  </main>
+</div>
+
+<script>
+(function () {
+  // Only the all-in-one page: its rail links to sections of the page. One-doc pages mark their own link.
+  var links = Array.prototype.slice.call(document.querySelectorAll('.rail a')).filter(function (a) {
+    return a.getAttribute('href').charAt(0) === '#';
+  });
+  if (!links.length) {
+    var here = document.querySelector('.rail a.active');
+    if (here && here.scrollIntoView && window.matchMedia('(max-width: 860px)').matches) {
+      here.scrollIntoView({ block: 'nearest', inline: 'center' });
+      window.scrollTo(0, 0);
+    }
+    return;
+  }
+  var byId = {};
+  links.forEach(function (a) { byId[a.getAttribute('href').slice(1)] = a; });
+  function setActive(id) {
+    links.forEach(function (a) { a.classList.toggle('active', a === byId[id]); });
+    var a = byId[id];
+    if (a && a.scrollIntoView && window.matchMedia('(max-width: 860px)').matches) {
+      a.scrollIntoView({ block: 'nearest', inline: 'center' });
+    }
+  }
+  if ('IntersectionObserver' in window) {
+    var obs = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) { if (e.isIntersecting) setActive(e.target.id); });
+    }, { rootMargin: '-20% 0px -70% 0px' });
+    document.querySelectorAll('main section').forEach(function (s) { obs.observe(s); });
+  }
+  setActive((location.hash || '#overview').slice(1));
+})();
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js"></script>
+<script>
+(function () {
+  var t = document.documentElement.getAttribute('data-theme');
+  var dark = t ? t === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+  mermaid.initialize({ startOnLoad: true, theme: dark ? 'dark' : 'default', securityLevel: 'strict' });
+})();
+</script>
+</body>
+</html>

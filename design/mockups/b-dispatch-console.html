@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup B: Dispatch Console</title>
+<style>
+/* Design B — "Dispatch console": the power-grid metaphor made literal. Dark, dense,
+   built for the platform team watching it live. Hero is a merit-order stack:
+   capacity sorted by marginal cost, with today's demand line. Sample data. */
+:root {
+  --bg: #0b0f14; --panel: #111821; --panel2: #16202b; --ink: #d7e0ea; --dim: #7d8b99; --line: #1f2a36;
+  --amber: #ffb547; --green: #39d98a; --cyan: #4cc9f0; --red: #ff6b6b; --violet: #a78bfa;
+  --mono: "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace;
+  --font: "Inter", -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 13px/1.5 var(--font); }
+.top { display: flex; align-items: center; gap: 20px; padding: 0 20px; height: 48px; border-bottom: 1px solid var(--line); background: #0d131a; }
+.brand { font-family: var(--mono); font-weight: 700; letter-spacing: .08em; color: var(--amber); }
+.tabs { display: flex; gap: 4px; }
+.tabs a { color: var(--dim); text-decoration: none; padding: 6px 10px; border-radius: 4px; font-weight: 500; }
+.tabs a.on { color: var(--ink); background: var(--panel2); }
+.live { margin-left: auto; font-family: var(--mono); font-size: 12px; color: var(--green); display: flex; align-items: center; gap: 8px; }
+.live::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--green); box-shadow: 0 0 8px var(--green); }
+.grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 12px; padding: 14px 20px; }
+.p { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 14px 16px; }
+.p h3 { margin: 0 0 10px; font-size: 11px; font-weight: 600; color: var(--dim); text-transform: uppercase; letter-spacing: .1em; display: flex; justify-content: space-between; }
+.p h3 em { font-style: normal; color: var(--ink); text-transform: none; letter-spacing: 0; font-family: var(--mono); }
+.span3 { grid-column: span 3; } .span4 { grid-column: span 4; } .span5 { grid-column: span 5; } .span8 { grid-column: span 8; } .span12 { grid-column: span 12; } .span7 { grid-column: span 7; }
+.big { font-family: var(--mono); font-size: 26px; font-weight: 600; letter-spacing: -.01em; }
+.sub { color: var(--dim); font-family: var(--mono); font-size: 12px; }
+.g { color: var(--green); } .a { color: var(--amber); } .r { color: var(--red); } .c { color: var(--cyan); }
+svg text { font-family: var(--mono); }
+.tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.tile { background: var(--panel2); border: 1px solid var(--line); border-radius: 4px; padding: 8px 10px; }
+.tile b { display: block; font-weight: 600; font-size: 12px; }
+.tile .s { font-family: var(--mono); font-size: 11px; color: var(--dim); display: flex; justify-content: space-between; margin-top: 4px; }
+.tile.bad { border-color: #5a2a2a; } .tile.warnb { border-color: #5a4520; }
+.feed { font-family: var(--mono); font-size: 12px; max-height: 260px; overflow: hidden; }
+.feed div { display: grid; grid-template-columns: 62px 120px 1fr 74px 66px; gap: 8px; padding: 5px 0; border-bottom: 1px dashed var(--line); white-space: nowrap; }
+.feed .m { overflow: hidden; text-overflow: ellipsis; }
+.chip { font-size: 10px; padding: 1px 6px; border-radius: 3px; background: #1d2a1f; color: var(--green); margin-left: 6px; }
+.gpu { display: grid; grid-template-columns: 1fr auto; gap: 6px 10px; align-items: center; font-family: var(--mono); font-size: 12px; }
+.meter { grid-column: span 2; height: 6px; background: var(--panel2); border-radius: 3px; overflow: hidden; }
+.meter b { display: block; height: 100%; }
+.sample { position: fixed; bottom: 12px; right: 12px; background: var(--amber); color: #111; font-size: 12px; padding: 4px 10px; border-radius: 4px; font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="top">
+  <span class="brand">MERIT ORDER</span>
+  <nav class="tabs"><a class="on" href="#">Dispatch</a><a href="#">Reports</a><a href="#">Models</a><a href="#">Backends</a><a href="#">GPUs</a><a href="#">Teams</a><a href="#">Keys</a><a href="#">Config</a></nav>
+  <span class="live">LIVE · 3 gateways · 1,842 req/min</span>
+</div>
+<div class="grid">
+  <div class="p span3"><h3>Spend today</h3><div class="big">$9,412</div><div class="sub">baseline $21,880 · <span class="g">−57%</span></div></div>
+  <div class="p span3"><h3>Spend this month</h3><div class="big">$186,240</div><div class="sub">pace $612k / budget $750k</div></div>
+  <div class="p span3"><h3>Saved this month</h3><div class="big g">$226,740</div><div class="sub">routing 61% · cache 28% · GPU 11%</div></div>
+  <div class="p span3"><h3>Cache hit rate</h3><div class="big c">81.4%</div><div class="sub">2.9B cached tokens read</div></div>
+
+  <div class="p span8">
+    <h3>Merit order · capacity sorted by marginal cost <em>demand now: 214k tok/s</em></h3>
+    <svg viewBox="0 0 820 300" width="100%" role="img" aria-label="merit order stack">
+      <g stroke="#1f2a36"><line x1="60" x2="810" y1="20" y2="20"/><line x1="60" x2="810" y1="90" y2="90"/><line x1="60" x2="810" y1="160" y2="160"/><line x1="60" x2="810" y1="230" y2="230"/></g>
+      <g fill="#7d8b99" font-size="10"><text x="52" y="24" text-anchor="end">$12</text><text x="52" y="94" text-anchor="end">$8</text><text x="52" y="164" text-anchor="end">$4</text><text x="52" y="234" text-anchor="end">$0</text>
+        <text x="60" y="270">0</text><text x="430" y="270" text-anchor="middle">capacity (k tokens/s) →</text><text x="810" y="270" text-anchor="end">400k</text>
+        <text x="20" y="150" transform="rotate(-90 20 150)" text-anchor="middle">$/M tokens (blended)</text></g>
+      <!-- steps: self-hosted (near zero), cheap open-weight, mid, frontier -->
+      <rect x="60" y="226" width="150" height="4" fill="#39d98a"/><text x="135" y="216" fill="#39d98a" font-size="10" text-anchor="middle">GPU qwen3-coder</text>
+      <rect x="210" y="222" width="110" height="8" fill="#4cc9f0" opacity=".9"/><text x="265" y="212" fill="#4cc9f0" font-size="10" text-anchor="middle">deepseek-flash</text>
+      <rect x="320" y="205" width="90" height="25" fill="#4cc9f0" opacity=".75"/><text x="365" y="198" fill="#4cc9f0" font-size="10" text-anchor="middle">glm-5.3</text>
+      <rect x="410" y="168" width="110" height="62" fill="#a78bfa" opacity=".8"/><text x="465" y="160" fill="#a78bfa" font-size="10" text-anchor="middle">kimi-k3.1</text>
+      <rect x="520" y="150" width="140" height="80" fill="#ffb547" opacity=".8"/><text x="590" y="142" fill="#ffb547" font-size="10" text-anchor="middle">claude-sonnet</text>
+      <rect x="660" y="70" width="150" height="160" fill="#ff6b6b" opacity=".7"/><text x="735" y="62" fill="#ff6b6b" font-size="10" text-anchor="middle">claude-opus</text>
+      <line x1="590" x2="590" y1="14" y2="234" stroke="#fff" stroke-width="2" stroke-dasharray="5 4"/>
+      <rect x="596" y="16" width="118" height="20" rx="3" fill="#ffffff"/><text x="602" y="30" fill="#0b0f14" font-size="11" font-weight="700">demand 214k tok/s</text>
+      <text x="80" y="44" fill="#d7e0ea" font-size="11">cleared at $5.20/M</text><text x="80" y="60" fill="#7d8b99" font-size="10">everything left of the line is dispatched</text>
+    </svg>
+  </div>
+  <div class="p span4">
+    <h3>GPU fleet <em>$32/h · break-even ✓</em></h3>
+    <div class="gpu">
+      <span>gpu-qwen-coder · 2× H100:4</span><span class="g">WARM</span>
+      <div class="meter"><b style="width:71%;background:var(--green)"></b></div>
+      <span class="sub">util 71% · demand $58/h vs GPU $32/h</span><span></span>
+      <span style="margin-top:10px">gpu-kimi · 0× H100:8</span><span class="a" style="margin-top:10px">PROVISIONING</span>
+      <div class="meter"><b style="width:35%;background:var(--amber)"></b></div>
+      <span class="sub">ready in ~12 min · demand $71/h</span><span></span>
+      <span style="margin-top:10px">local-vllm · gpt-oss-120b</span><span class="sub" style="margin-top:10px">API ONLY</span>
+      <div class="meter"><b style="width:8%;background:#3a4756"></b></div>
+      <span class="sub">demand $3/h below $8/h</span><span></span>
+    </div>
+  </div>
+
+  <div class="p span7">
+    <h3>Live dispatch <em>last 60 s</em></h3>
+    <div class="feed">
+      <div><span class="sub">14:02:11</span><span>ana@platform</span><span class="m">auto → qwen3-coder <span class="chip">free upgrade</span></span><span class="g">$0.0004</span><span class="sub">gpu</span></div>
+      <div><span class="sub">14:02:11</span><span>svc-helpdesk</span><span class="m">auto → deepseek-v4.1-flash</span><span>$0.0011</span><span class="sub">openrouter</span></div>
+      <div><span class="sub">14:02:10</span><span>lee@ds</span><span class="m">claude-opus (pinned) · cache 96%</span><span class="a">$0.0420</span><span class="sub">anthropic</span></div>
+      <div><span class="sub">14:02:10</span><span>raj@platform</span><span class="m">auto → claude-sonnet · coding:5</span><span>$0.0181</span><span class="sub">foundry</span></div>
+      <div><span class="sub">14:02:09</span><span>kim@platform</span><span class="m">auto → kimi-k3.1 · effort low</span><span>$0.0032</span><span class="sub">openrouter</span></div>
+      <div><span class="sub">14:02:09</span><span>svc-indexer</span><span class="m">embeddings → qwen3-embedding-8b</span><span>$0.0001</span><span class="sub">openrouter</span></div>
+      <div><span class="sub">14:02:08</span><span>sam@ds</span><span class="m">auto → claude-sonnet · stayed (rebuild $0.41)</span><span>$0.0097</span><span class="sub">anthropic</span></div>
+      <div><span class="sub">14:02:08</span><span>ana@platform</span><span class="m">auto → qwen3-coder</span><span class="g">$0.0003</span><span class="sub">gpu</span></div>
+    </div>
+  </div>
+  <div class="p span5">
+    <h3>Backends <em>9/10 live</em></h3>
+    <div class="tiles">
+      <div class="tile"><b>anthropic</b><div class="s"><span>412 ms</span><span class="g">0.1%</span></div></div>
+      <div class="tile bad"><b>bedrock</b><div class="s"><span class="r">auth expired</span><span>—</span></div></div>
+      <div class="tile"><b>foundry-claude</b><div class="s"><span>508 ms</span><span class="g">0.0%</span></div></div>
+      <div class="tile"><b>openrouter</b><div class="s"><span>640 ms</span><span class="g">0.4%</span></div></div>
+      <div class="tile warnb"><b>deepseek</b><div class="s"><span class="a">2.1 s</span><span class="a">3.2%</span></div></div>
+      <div class="tile"><b>azure-openai</b><div class="s"><span>377 ms</span><span class="g">0.0%</span></div></div>
+      <div class="tile"><b>gpu-qwen-coder</b><div class="s"><span>188 ms</span><span class="g">71%</span></div></div>
+      <div class="tile"><b>mistral</b><div class="s"><span>455 ms</span><span class="g">0.2%</span></div></div>
+      <div class="tile"><b>vertex</b><div class="s"><span class="sub">off</span><span></span></div></div>
+    </div>
+  </div>
+</div>
+<div class="sample">Mockup B · sample data</div>
+</body>
+</html>

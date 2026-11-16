@@ -1,0 +1,7 @@
+id: g4-workshop-grid
+task: general
+level: 4
+kind: answer
+generate: meritorder.evals.generators.puzzles:logic_grid
+generate_args: {seed: 44, theme: workshop}
+summary: "Generated 5x4 logic grid, 15 irredundant mostly relational clues (only two direct pairings); unique solution proven by solver, needs case splits even under full propagation"

@@ -1,0 +1,64 @@
+id: session-spend-cap
+task: coding
+level: 4
+kind: agent
+commit: 3c3ef60
+summary: "Two routing controls: a per-team cap on one session's spend enforced with a 429, and reasoning effort lowered for simple auto requests in each backend's wire shape, never overriding the client and held stable for the session"
+env: meritorder.evals.envs.codebase:CodebaseEnv
+env_args: {task: session-spend-cap}
+max_turns: 80
+est_turns: 30
+est_tool_tokens: 5000    # new tokens per turn (tool results and the reply), from runs of this suite
+est_output_tokens: 1500
+preamble_file: ../PREAMBLE.md
+prompt: |
+  ## Issue: a looping agent can spend the team's month in an hour, and `auto` always thinks at full effort
+
+  Two gaps in what the gateway lets a team control.
+
+  First, the only spending limits are monthly: per team and per person. An agent stuck in a loop (retrying the
+  same failing tool call, re-reading the same files) can burn a person's whole month in one session before
+  anyone sees the alert. Teams want a cap on what one session may spend.
+
+  Second, the models that take a reasoning effort setting (Claude's `output_config.effort`, OpenAI's
+  `reasoning_effort`) run at their default effort for every `auto` request, including a one-line question. The
+  classifier already rates each request; that rating should set the effort on simple requests, which cuts
+  output tokens and latency without changing which model answers.
+
+  **Per-session spend cap**
+
+  - A team may set `max_session_usd` (USD, optional, unset means no cap). Spend is counted per session, the
+    same session the gateway already tracks (the `x-session-id` header, or the derived id), from the actual cost
+    of its completed requests.
+  - Once a session's spend has reached the cap, each further request in that session is refused with a 429
+    (`rate_limit_error`, in the client's wire format) whose message says what the session has spent and the
+    cap, and suggests starting a new session or asking an admin to raise `max_session_usd`. Other sessions of
+    the same person or team are untouched. A session's first request always goes through.
+
+  **Reasoning effort for `auto`**
+
+  - A model config may list `effort_levels`, the reasoning effort values the model accepts, in increasing
+    order (default empty: never set effort for that model). In the shipped config, the Claude models take
+    `[low, medium, high, xhigh, max]` and the GPT models `[low, medium, high]`.
+  - For an `auto` request served by a model with `effort_levels`, the effort is chosen from the request's
+    quality floor level: floor 1 or 2 give `low`, floor 3 gives `medium`, and higher floors leave the model's
+    default. Make that mapping a routing config setting, `routing.effort_by_floor`, defaulting to
+    `{1: low, 2: low, 3: medium}`. A chosen effort the model doesn't list is not sent.
+  - It is sent to the backend in that backend's shape: `output_config.effort` for Anthropic-format backends,
+    `reasoning_effort` for OpenAI-format backends. Nothing else about the request changes.
+  - The client's own choice always wins: when the request already carries `output_config.effort` (Anthropic
+    format) or `reasoning_effort` (OpenAI format), it is passed through untouched and the gateway sets nothing.
+  - A request that names its model is never touched, whatever the model lists.
+  - Effort stays fixed for a session: once an `auto` session has been served with an effort, later turns of
+    that session served by the same model use the same effort even if the classifier would now rate them
+    higher (changing it would invalidate the prompt cache). Serving the session with a different model starts
+    over.
+
+  **Interface**
+
+  - `TeamConfig.max_session_usd: float | None = None`; a capped session answers 429 with kind `rate_limit_error`
+    once its spend reaches the cap.
+  - `ModelConfig.effort_levels: list[str] = []`.
+  - `RoutingConfig.effort_by_floor: dict[int, str] = {1: "low", 2: "low", 3: "medium"}`.
+  - Upstream body: `output_config.effort` (Anthropic format) or `reasoning_effort` (OpenAI format), only for
+    `auto`, only when the client set none, stable within a session.

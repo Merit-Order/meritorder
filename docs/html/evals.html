@@ -1,0 +1,809 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Evals: measuring model quality · Merit Order docs</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Source+Sans+3:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a design-notes reader. Sticky chapter rail on the left, one long readable column on the right; rail folds into a scrolling chip row on phones. */
+:root {
+  --bg: #f4f7f6;
+  --surface: #ffffff;
+  --fg: #142120;
+  --muted: #566866;
+  --line: #d6e0de;
+  --accent: #0b7566;
+  --accent-soft: #e0f0ec;
+  --code-bg: #ecf2f1;
+  --z1: #e3f3ea; --i1: #1d6a3a;
+  --z2: #fcf1d8; --i2: #865600;
+  --z3: #fbe4e3; --i3: #9a1f1c;
+  --curve: #2556c4; --over: #c0392b;
+  --font-display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Source Sans 3", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d1413; --surface: #141d1c; --fg: #e2ebe9; --muted: #92a6a2; --line: #253331;
+    --accent: #4fcab4; --accent-soft: #15302b; --code-bg: #17221f;
+    --z1: #132c1d; --i1: #82d6a0; --z2: #2f260e; --i2: #f0c566; --z3: #351817; --i3: #f39b95;
+    --curve: #7da4ff; --over: #ff7d6e;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0d1413; --surface: #141d1c; --fg: #e2ebe9; --muted: #92a6a2; --line: #253331;
+  --accent: #4fcab4; --accent-soft: #15302b; --code-bg: #17221f;
+  --z1: #132c1d; --i1: #82d6a0; --z2: #2f260e; --i2: #f0c566; --z3: #351817; --i3: #f39b95;
+  --curve: #7da4ff; --over: #ff7d6e;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 24px; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body {
+  background: var(--bg); color: var(--fg);
+  font-family: var(--font-body); font-size: 17px; line-height: 1.6;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+
+.hero { max-width: 1180px; margin: 0 auto; padding-block: 56px 36px; display: grid; gap: 14px; border-bottom: 1px solid var(--line); }
+.eyebrow { font-family: var(--font-mono); font-size: 12.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+.hero h1 { font-family: var(--font-display); font-weight: 700; font-size: clamp(2.1rem, 5vw, 3.4rem); line-height: 1.05; letter-spacing: -.02em; margin: 0; text-wrap: balance; }
+.hero .lede { max-width: 68ch; color: var(--fg); }
+.hero .lede p { margin: 0 0 .7em; }
+.hero .lede ol { margin: 0 0 .7em; padding-left: 1.3em; display: grid; gap: 4px; }
+.hero .lede strong { color: var(--accent); }
+.also { color: var(--muted); font-size: 15.5px; }
+.contents { margin-top: 6px; max-width: 68ch; }
+.contents summary { cursor: pointer; font-family: var(--font-mono); font-size: 12.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+.contents ol { margin: 10px 0 0; padding-left: 1.3em; columns: 2 260px; column-gap: 32px; }
+.contents li { break-inside: avoid; margin: 0 0 4px; }
+h2[id], h3[id], h4[id] { scroll-margin-top: 72px; }
+
+.layout { max-width: 1180px; margin: 0 auto; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 56px; padding-block: 36px 96px; }
+.rail { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 24px); align-self: start; }
+.rail p { font-family: var(--font-mono); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0 0 10px; }
+.rail ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.rail a { display: flex; gap: 10px; align-items: baseline; padding: 6px 10px; border-radius: 6px; color: var(--fg); text-decoration: none; font-size: 15.5px; line-height: 1.3; }
+.rail a:hover { background: var(--accent-soft); }
+.rail a.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.rail a:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.n { font-family: var(--font-mono); font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.rail a.active .n { color: var(--accent); }
+
+main { min-width: 0; max-width: 860px; }
+section { padding-bottom: 56px; margin-bottom: 56px; border-bottom: 1px solid var(--line); }
+section:last-child { border-bottom: 0; }
+.sec-head { display: flex; align-items: baseline; gap: 14px; margin-bottom: 18px; }
+.sec-head .n { font-size: 14px; color: var(--accent); }
+h2 { font-family: var(--font-display); font-weight: 700; font-size: clamp(1.7rem, 3.4vw, 2.3rem); letter-spacing: -.015em; line-height: 1.1; margin: 0; text-wrap: balance; }
+h3 { font-family: var(--font-display); font-weight: 600; font-size: 1.3rem; letter-spacing: -.01em; margin: 2.2em 0 .5em; text-wrap: balance; }
+h4 { font-family: var(--font-body); font-weight: 600; font-size: 1.05rem; margin: 1.6em 0 .4em; }
+p, ul, ol { max-width: 68ch; }
+ul, ol { padding-left: 1.3em; }
+li { margin: .25em 0; }
+a { color: var(--accent); text-underline-offset: 3px; }
+strong { font-weight: 600; }
+
+code { font-family: var(--font-mono); font-size: .84em; background: var(--code-bg); padding: .1em .35em; border-radius: 4px; }
+pre:not(.mermaid) { background: var(--code-bg); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; overflow-x: auto; font-size: 14px; line-height: 1.5; }
+pre:not(.mermaid) code { background: none; padding: 0; font-size: inherit; }
+
+.table-wrap { overflow-x: auto; margin: 1em 0 1.4em; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 15.5px; }
+th, td { text-align: left; vertical-align: top; padding: 9px 14px; border-bottom: 1px solid var(--line); }
+tr:last-child td { border-bottom: 0; }
+th { font-family: var(--font-mono); font-size: 12px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); background: var(--code-bg); }
+td { font-variant-numeric: tabular-nums; }
+
+figure { margin: 1.4em 0 1.8em; }
+.diagram { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px; overflow-x: auto; }
+.diagram pre.mermaid { margin: 0; display: flex; justify-content: center; background: none; }
+
+.chart { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px; overflow-x: auto; }
+.chart svg { display: block; width: 100%; min-width: 520px; max-width: 720px; height: auto; margin: 0 auto; font-family: var(--font-body); }
+.chart figcaption { color: var(--muted); font-size: 15px; margin-top: 10px; max-width: 68ch; }
+.chart .z1 { fill: var(--z1); } .chart .z2 { fill: var(--z2); } .chart .z3 { fill: var(--z3); }
+.chart .t { font-size: 13px; font-weight: 600; }
+.chart .i1 { fill: var(--i1); } .chart .i2 { fill: var(--i2); } .chart .i3 { fill: var(--i3); }
+.chart .lbl { font-size: 13px; fill: var(--fg); }
+.chart .tick { font-size: 12px; fill: var(--muted); }
+.chart .tick.i3 { fill: var(--i3); }
+.chart .axis { stroke: var(--fg); stroke-width: 1.5; fill: none; }
+.chart .ref { stroke: var(--muted); stroke-width: 1.5; stroke-dasharray: 6 5; fill: none; }
+.chart .curve { stroke: var(--curve); stroke-width: 3.5; fill: none; }
+.chart .over { stroke: var(--over); stroke-width: 3.5; fill: none; }
+.chart .dot { fill: var(--over); }
+
+@media (max-width: 860px) {
+  .layout { grid-template-columns: minmax(0, 1fr); gap: 20px; padding-top: 20px; }
+  .rail { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); margin-inline: calc(-1 * max(16px, env(safe-area-inset-left, 0px))); padding: 10px max(16px, env(safe-area-inset-left, 0px)); border-bottom: 1px solid var(--line); }
+  .rail p { display: none; }
+  .rail ol { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; }
+  .rail a { white-space: nowrap; border: 1px solid var(--line); background: var(--surface); }
+  body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+  .hero { padding-block: 36px 24px; }
+  body { font-size: 16px; }
+}
+</style>
+</head>
+<body>
+
+
+<header class="hero">
+  <div class="eyebrow">Merit Order docs · 11</div>
+  <h1>Evals: measuring model quality</h1>
+  <div class="lede"><p class="also"><a href="index.html">All docs on one page</a> · <a href="how-it-all-works.html">How it all works</a></p><details class="contents"><summary>On this page</summary><ol><li><a href="#quality-scores-from-published-benchmarks">Quality scores from published benchmarks</a></li><li><a href="#offline-vs-live">Offline vs live</a></li><li><a href="#running-one">Running one</a></li><li><a href="#how-each-model-is-run">How each model is run</a></li><li><a href="#the-suites">The suites</a></li><li><a href="#seeing-the-tasks">Seeing the tasks</a></li><li><a href="#four-kinds-of-task">Four kinds of task</a></li><li><a href="#from-results-to-scores">From results to scores</a></li><li><a href="#writing-your-own-tasks">Writing your own tasks</a></li><li><a href="#cost">Cost</a></li></ol></details></div>
+</header>
+
+<div class="layout">
+  <nav class="rail" aria-label="Chapters">
+    <p>Docs</p>
+    <ol><li><a href="overview.html"><span class="n">&nbsp;&nbsp;</span>Overview</a></li><li><a href="how-it-all-works.html"><span class="n">00</span>How it all works (start here)</a></li><li><a href="architecture.html"><span class="n">01</span>Architecture</a></li><li><a href="request-flow.html"><span class="n">02</span>Request flow</a></li><li><a href="routing.html"><span class="n">03</span>Routing</a></li><li><a href="caching-and-sessions.html"><span class="n">04</span>Caching &amp; sessions</a></li><li><a href="gpu-autoscaling.html"><span class="n">05</span>GPU autoscaling</a></li><li><a href="auth-and-spend.html"><span class="n">06</span>Auth &amp; spend</a></li><li><a href="deployment.html"><span class="n">07</span>Deployment</a></li><li><a href="reporting.html"><span class="n">08</span>Reporting</a></li><li><a href="decisions.html"><span class="n">09</span>Decisions</a></li><li><a href="how-it-decides.html"><span class="n">10</span>How it decides</a></li><li><a href="evals.html" class="active" aria-current="page"><span class="n">11</span>Evals: measuring model quality</a></li><li><a href="feature-sheet.html"><span class="n"></span>Merit Order feature sheet</a></li></ol>
+  </nav>
+  <main>
+    
+    <section id="doc"><p><code>auto</code> routing sends each request to the cheapest model good enough for it. "Good enough" comes from
+each model's <strong>quality scores</strong>: 1–5 per task type (coding, general). The classifier gives every
+request a floor from its work (coding:3 for ordinary coding, 2 for tests, renames and docstrings, +1 for hard
+wording, 5 for the hardest such as system design; tools make it coding but never set the level; never from its length), and only models scoring at least that are considered. Scores
+that are too high send hard work to models that can't do it; scores that are too low waste money.</p>
+<p>Scores come from one of three sources, set by <code>quality.source</code>. A model's <code>quality_override</code> wins over all of them.
+Your own eval runs feed the <code>config</code> source or the override, never the published scores.</p>
+<figure class="diagram"><pre class="mermaid">flowchart LR
+  epoch[&quot;Epoch AI data&lt;br/&gt;(default, no key)&quot;] --&gt; src{&quot;quality.source&quot;}
+  aa[&quot;Artificial Analysis index&lt;br/&gt;(needs a key)&quot;] --&gt; src
+  cfg[&quot;each model&#x27;s quality&lt;br/&gt;in the config&quot;] --&gt; src
+  src --&gt; scale[&quot;quality.scale&lt;br/&gt;(absolute, best or range)&quot;]
+  scale --&gt; score[&quot;score per task type&lt;br/&gt;1 to 5, one decimal&quot;]
+  ovr[&quot;quality_override&quot;] --&gt; score
+  score --&gt; route[&quot;auto routing&lt;br/&gt;(threshold or cost per success)&quot;]
+  run[&quot;eval run&lt;br/&gt;(console or CLI)&quot;] -- &quot;Apply as quality&quot; --&gt; cfg
+  run -- &quot;Apply as override&quot; --&gt; ovr</pre></figure>
+<p><strong>What's tested.</strong> The runner, the grading of each task kind, the sandbox, retries, the cost estimate and cap,
+scoring, and applying scores are tested in CI against mock gateways and canned replies (<code>tests/test_evals*.py</code>,
+<code>tests/test_eval_harness.py</code>, <code>tests/test_codebase_suite.py</code>, <code>tests/evals/</code>). Measured scores on real models are
+not yet a verified result: <a href="overview.html#whats-verified-and-what-still-needs-live-accounts">docs/README.md</a> lists them
+under what still needs live accounts. The run figures quoted below (pass counts, costs) come from runs made by hand
+during development.</p>
+<h2 id="quality-scores-from-published-benchmarks">Quality scores from published benchmarks</h2>
+<p>By default the scores come from benchmarks run the same way for every model, not from this gateway's
+own runs: a handful of tasks can't separate the strongest models, and published suites can. The worker
+refreshes them every <code>quality.refresh_hours</code> (24) and the Models page shows, for each score, where it
+came from and how it was worked out.</p>
+<pre><code class="language-yaml">quality:
+  source: epoch          # epoch | artificial_analysis | config
+  scale: absolute        # absolute | best | range
+  anchor: {coding: 0.6994, general: 0.7685}   # absolute: the chance on the reference that scores 5
+  reference: {coding: FrontierSWE, general: FrontierSWE}
+  evidence: {coding: [FrontierSWE, FrontierCode]}
+  fallback: {coding: [Terminal Bench, GSO-Bench, MirrorCode]}
+</code></pre>
+<ul>
+<li><strong><code>epoch</code></strong> (default, no key): <a href="https://epoch.ai/benchmarks">Epoch AI's benchmarking data</a>, CC BY 4.0.
+  Epoch places every model on one ability scale (its Capabilities Index, fitted across about 40
+  benchmarks) and every benchmark on the same scale by difficulty, so a model's chance of solving a
+  benchmark's tasks follows from the two. A model's score for a task type is its chance of solving a task
+  as hard as the <strong>reference</strong> benchmark (FrontierSWE: for coding, Claude Fable 5.2 solves about 70%,
+  Haiku 5.5 about 44%). For coding, a model's own results on the <strong>evidence</strong> benchmarks (FrontierSWE,
+  FrontierCode) set its ability where they exist, so coding strength counts, not just general ability;
+  results at the effort <code>auto</code> uses for hard work are preferred. A score estimated from general ability
+  alone is marked with a * on the Models page. A model with neither those results nor an index (some
+  open models) gets its ability from the <strong>fallback</strong> benchmarks, older coding suites (Terminal Bench,
+  GSO, MirrorCode). They come last because, checked against the 16 models that have both kinds of
+  results, they predict FrontierSWE and FrontierCode results less well than the index does (they miss
+  by about 2.6 points on the ability scale, the index by 2.2), and averaging the two gains about 0.1. WeirdML v3
+  isn't usable from its file: the index is fitted on a rescaled score the file doesn't carry.</li>
+<li><strong><code>artificial_analysis</code></strong>: the <a href="https://artificialanalysis.ai">Artificial Analysis</a> Intelligence
+  Index (a free key in <code>ARTIFICIAL_ANALYSIS_API_KEY</code>), for every task type: it no longer publishes a
+  coding index.</li>
+<li><strong><code>config</code></strong>: the scores written on each model, for example applied from your own eval runs.</li>
+</ul>
+<p>The <strong>scale</strong> turns chances into 1–5 with one decimal. <code>absolute</code> (default): a 5 is a fixed chance, the <strong>anchor</strong>
+(<code>quality.anchor</code>: 0.6994 for coding and 0.7685 for general, what Claude Fable 5.2 solved on 12 November 2026), and every
+other model scores in proportion, at most 5; a new model, however strong, changes nobody else's score (decision 58).
+<code>best</code>: the best model scores 5 and every other in proportion to how much it solves, so one that solves 60% as much
+scores 3, and a stronger new model lowers everyone else's. <code>range</code>: the weakest model with data scores 1 and the best 5.
+Scores never go below 1, so any model can take level-1 work.</p>
+<p>A harder reference spreads models further apart, which sends more work to the top models: against
+Remote Labor Index, which Fable solves about 37% of the time, Opus 5.5 would score 2.8 for general work,
+and ordinary level-3 work would go only to Fable. FrontierSWE keeps level 3 within reach of models like
+Sonnet while still reserving level-5 work for the best.</p>
+<p>A model the source doesn't cover isn't picked by <code>auto</code> for that task type (its score shows as "–" on
+the Models page): a score nobody measured would otherwise compete with measured ones, and since the
+cheapest eligible model wins, an optimistic guess would win. Requests that name the model still work, and
+<code>quality_override: {coding: 4.5}</code> puts it back in, winning over everything else too, for when your own
+evals show a model does better or worse on your work than published benchmarks suggest.</p>
+<p>Models are matched to names in the data in this order: <code>benchmark_name</code> if set, then their route ids
+(without provider prefixes such as <code>anthropic/</code>), their Hugging Face repository name (<code>hf_id</code>: Epoch names
+some open models that way, such as Qwen3-Coder-480B-A35B-Instruct), and aliases that aren't patterns. The
+first that matches is used. For a model whose name in the data matches none of the others, set
+<code>benchmark_name: "Claude Opus 5.5"</code>. Until a source has been fetched at all, the scores written on each
+model stand.</p>
+<h2 id="offline-vs-live">Offline vs live</h2>
+<p>Evals measure models. Routing is measured separately, in two places, and neither spends anything:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th></th>
+<th>Offline: the routing simulator</th>
+<th>Live: the outcome report</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>What it answers</td>
+<td>Which strategy costs least per finished task, and fails how often, on a known population</td>
+<td>Whether each level is right for <em>your</em> work</td>
+</tr>
+<tr>
+<td>Where the work comes from</td>
+<td>Simulated tasks with a known difficulty, calibrated to Epoch's FrontierSWE and SWE-bench Verified results (<a href="routing.html#how-we-measure-routing">03</a>)</td>
+<td>Your own task starts, a few explored a level down or up</td>
+</tr>
+<tr>
+<td>What a model's success is</td>
+<td>Drawn from its published ability against the task's difficulty</td>
+<td>Outcome signals: tests failing, corrections, resends, raised floors</td>
+</tr>
+<tr>
+<td>What runs for real</td>
+<td>The router, classifier, learned-router path, <code>outcomes.py</code> and the pricing code</td>
+<td>Everything</td>
+</tr>
+<tr>
+<td>Cost</td>
+<td>None: no model is called</td>
+<td>Only the explored task starts' differences</td>
+</tr>
+<tr>
+<td>When</td>
+<td>Before a change merges (CI), or by hand</td>
+<td>All the time, once a team explores</td>
+</tr>
+<tr>
+<td>Command</td>
+<td><code>uv run python scripts/routing_sim.py run</code></td>
+<td>Reports → Levels, <code>GET /v1/reports/levels/outcomes</code></td>
+</tr>
+</tbody>
+</table></div>
+<p>An eval run is how a model's score changes; the simulator then says what that score does to routing, and the outcome
+report whether real work agrees. The simulator's <strong>replay</strong> mode joins the two: it reads explored task starts exported
+from the gateway and scores other level policies on them, weighted by each arm's chance, without running them
+(<code>routing_sim.py replay</code>, <a href="routing.html#replay-real-task-starts">03</a>).</p>
+<p><strong>The regression check.</strong> CI runs <code>scripts/routing_sim.py check</code>: the default strategy (<code>auto</code> as the shipped
+configuration routes it) and the threshold on the same 1,000 standard tasks (seed 7), with the prices and scores frozen in
+<code>tests/fixtures/routing_eval_prices.json</code>. It fails when the total per finished task, counting failed
+attempts (model spend plus failed attempts times a $15 price per failed attempt; a failed attempt costs someone time:
+noticing it, asking again, waiting, cleaning up, and that price is an assumption you can change), is more than 5% above the stored
+baseline (<code>tests/fixtures/routing_eval_baseline.json</code>), when the success rate is more than 2 points below
+it, or when any task class with at least 20 tasks in the check spends more than 10% above the threshold per finished task
+(model spend only; decision 67), so the default can't drift back to buying strong models for easy work. The baseline
+file keeps both strategies' numbers per class. The same comparison runs in <code>tests/test_routing_eval.py</code>. Frozen prices keep a price refresh from failing someone
+else's change; only code and the shipped configuration move the result.</p>
+<p>To accept a change on purpose (a new default that costs more but fails less, a new strategy), run
+<code>uv run python scripts/routing_sim.py check --update</code>, commit the new baseline with the change, and say in the pull
+request why the numbers moved. To move the prices and scores the check uses, copy <code>config/prices.json</code> over the fixture
+and update the baseline in the same commit.</p>
+<h2 id="running-one">Running one</h2>
+<p>Only admins start, cancel and apply runs. A run goes through these steps, whether the console or the CLI starts it:</p>
+<figure class="diagram"><pre class="mermaid">sequenceDiagram
+  autonumber
+  participant A as Admin (console or CLI)
+  participant G as Gateway admin API
+  participant R as Runner (worker or CLI)
+  participant P as Gateway /v1 (like any client)
+  A-&gt;&gt;G: POST /v1/admin/evals/estimate
+  G--&gt;&gt;A: estimate by model, warning, default cap
+  A-&gt;&gt;G: POST /v1/admin/evals/runs (max_cost_usd required)
+  G--&gt;&gt;A: run queued (console) or running (CLI)
+  loop each task, each model, each repeat
+    R-&gt;&gt;P: requests tagged eval=&lt;suite&gt;-&lt;time&gt;
+    P--&gt;&gt;R: replies, graded by checks, tests, environment or judges
+    R-&gt;&gt;G: progress and cost
+  end
+  Note over R: no new task starts once the cap is spent
+  R-&gt;&gt;G: results, status done
+  A-&gt;&gt;G: POST /v1/admin/evals/runs/{id}/apply
+  G--&gt;&gt;A: new config version</pre></figure>
+<p>A run's status moves like this. Cancelling a queued run ends it at once; cancelling a running one lets the
+tasks under way finish.</p>
+<figure class="diagram"><pre class="mermaid">stateDiagram-v2
+  [*] --&gt; queued: console
+  [*] --&gt; running: CLI
+  queued --&gt; running: worker claims it
+  queued --&gt; cancelled: cancel
+  running --&gt; cancelling: cancel
+  cancelling --&gt; cancelled: tasks under way finish
+  running --&gt; done: all tasks ran, or the cap was reached
+  running --&gt; failed: an error, or the worker stopped
+  done --&gt; [*]
+  cancelled --&gt; [*]
+  failed --&gt; [*]</pre></figure>
+<p><strong>From the console:</strong> Models → <strong>Evals</strong> → <em>Run an eval…</em>. Pick models and suites (<code>starter,frontier</code> unless
+you change it), read the estimated cost and its warning, set the spending cap (1.5 times the estimate unless
+you change it), confirm you understand the cost, and start it (see <a href="#cost">Cost</a>). The worker runs queued runs
+one at a time, in the background, against the gateway like any client. Progress, cost, and every task's result
+show on the page. When a run finishes, <em>Apply scores…</em> shows what would change and writes the measured scores
+into the configuration as a new version, which you can roll back from Config → History. Applying needs
+Postgres, where configuration versions live. Choose how they're written:</p>
+<ul>
+<li><strong>Write as quality</strong> (the default): each model's <code>quality</code>, which routing uses only with
+  <code>quality.source: config</code> (or before a benchmark source has ever been fetched). Under a benchmark
+  source, routing keeps using the published scores, and the dialog says so. It also writes
+  <code>quality.measured_best_rate</code>, the best measured model's pass rate on hard tasks for each task type: what a
+  measured 5 means. That's what lets routing by cost per success turn measured scores into chances of
+  success (<a href="how-it-decides.html#threshold-or-cost-per-success">10, How it decides</a>); without it, the
+  threshold decides.</li>
+<li><strong>Write as override</strong>: each model's <code>quality_override</code>, which wins over every source, so routing uses
+  it within seconds. Use it when your own results show a model does better or worse on your work than
+  the benchmarks suggest; remove it in Config → Models to go back.</li>
+</ul>
+<p><em>Run again…</em> starts a new run with the same models, suites, repeat count and task filter. The estimate and
+the cap are worked out again.</p>
+<p><strong>From the command line</strong> (on a machine with Docker, so code tasks run too). It needs an admin key
+(<code>--key</code>, <code>MERITORDER_API_KEY</code>, or the key <code>meritorder login</code> saved) and the gateway's address (<code>--gateway</code>,
+<code>MERITORDER_URL</code>, the saved one, else <code>http://localhost:8080</code>):</p>
+<pre><code class="language-bash">uv run meritorder eval --models claude-sonnet,claude-opus,claude-fable          # shows the estimate and cap, asks first
+uv run meritorder eval --models ... --only 'c5-*,a5-*' --repeat 3               # just the level-5 code and agent tasks, 3 times each
+uv run meritorder eval --models ... --apply                                      # also write the scores into the config
+</code></pre>
+<p>CLI runs are recorded on the gateway too, so they appear on the Evals page, and cancelling one there stops it.
+<code>--apply</code> writes as quality, and only for a run the gateway recorded.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Default</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--models</code></td>
+<td>every chat model with a live route</td>
+<td>Comma-separated model names. Each needs a live route</td>
+</tr>
+<tr>
+<td><code>--suite</code></td>
+<td><code>starter,frontier</code></td>
+<td>Built-in suites (<code>starter</code>, <code>frontier</code>, <code>codebase</code>), task directories or YAML files, comma-separated</td>
+</tr>
+<tr>
+<td><code>--only</code></td>
+<td>all tasks</td>
+<td>Task id patterns, e.g. <code>c5-*,g4-*</code></td>
+</tr>
+<tr>
+<td><code>--repeat</code></td>
+<td>1</td>
+<td>Runs per task. More runs mean less luck in the scores, at proportional cost</td>
+</tr>
+<tr>
+<td><code>--concurrency</code></td>
+<td>4</td>
+<td>Tasks running at once</td>
+</tr>
+<tr>
+<td><code>--judges</code></td>
+<td><code>claude-opus,gpt-sol,gemini-carbon</code></td>
+<td>Models that grade open-ended tasks (those with a live route); each answer gets the two from other families</td>
+</tr>
+<tr>
+<td><code>--sandbox</code></td>
+<td><code>docker</code></td>
+<td><code>none</code> skips tasks that run model-written code</td>
+</tr>
+<tr>
+<td><code>--max-cost</code></td>
+<td>1.5 × the estimate</td>
+<td>The run's spending cap in USD: no new task starts once it has spent this</td>
+</tr>
+<tr>
+<td><code>--yes</code></td>
+<td>off</td>
+<td>Don't ask first. The estimate, the warning and the cap still apply</td>
+</tr>
+<tr>
+<td><code>--apply</code></td>
+<td>off</td>
+<td>Write the measured scores into the config as each model's <code>quality</code></td>
+</tr>
+<tr>
+<td><code>--out</code></td>
+<td>none</td>
+<td>Save the scores and every result as JSON</td>
+</tr>
+<tr>
+<td><code>--show-failures</code></td>
+<td>3</td>
+<td>Failed tasks listed per model at the end</td>
+</tr>
+<tr>
+<td><code>--gateway</code>, <code>--key</code></td>
+<td>see above</td>
+<td>Where the gateway is, and the admin key</td>
+</tr>
+</tbody>
+</table></div>
+<p>Eval traffic goes through the gateway with its usual budgets, rate limits and per-request cap, and is
+tagged <code>eval=&lt;suite&gt;-&lt;time&gt;</code> in the ledger. Its spend counts like any other (for the person who ran it,
+their team, the models, and the organization), and Reports → Breakdown → <strong>Tag</strong> → <code>eval</code> shows each
+run's cost on its own line. It isn't counted as savings: a run on Haiku isn't money saved and one on
+Fable isn't money lost, because you'd have run those models anyway, so its baseline is the model it
+ran. The prompt caching the gateway adds to it isn't counted either, since the run wouldn't exist without
+Merit Order. Agent tasks over Anthropic's Messages API ask for Claude's 5-minute cache themselves, as
+Claude Code does: their turns come back to back, so a 1-hour cache would only cost more. Runs from the console use
+a temporary key for the person who started them, revoked when the run ends (and expiring after 12 hours in any
+case). Eval requests bypass the opt-in response cache (<code>X-MeritOrder-Cache: off</code>), so every reply is the model's own.</p>
+<h2 id="how-each-model-is-run">How each model is run</h2>
+<p>A comparison is only fair if nothing but the model differs, so a run fixes everything else and records it:</p>
+<ul>
+<li><strong>No output limit.</strong> Requests set no <code>max_tokens</code>, so each model may write as much as it can
+  (<code>max_output_tokens</code>: 128,000 for current Claude and GPT models), thinking included. A reply that
+  fills the model's own maximum fails and is marked <em>cut off</em>. The per-request cost limit on Controls
+  still applies: if it stops a reply first, the result is <em>not graded</em> (left out of the scores) and
+  says how many tokens it allowed, so you can raise the limit and run it again. At $40 per million
+  output tokens, Fable's full 128,000 costs $5.12.</li>
+<li><strong>The same effort.</strong> Each task runs at the reasoning effort <code>auto</code> uses for its level
+  (<code>routing.effort_by_floor</code>: low for 1–2, medium for 3, high for 4–5), not at each model's own
+  default, which differs (Claude Opus 5.5 and Haiku 5.5 default to medium, Fable and Sonnet to high).
+  A model that doesn't take that effort runs at its default. A task can set its own (<code>effort: max</code>).</li>
+<li><strong>One route per model.</strong> Each model runs on its first live route, which in the shipped config is
+  its own provider's API for Claude, GPT and Gemini (OpenRouter for open models), rather than whichever
+  reseller the router finds cheapest or fastest that minute. Judges too.</li>
+<li><strong>Each model in its own API.</strong> Agent tasks talk to Claude over Anthropic's Messages API, the way
+  Claude Code does, sending each reply back unchanged so Claude's thinking carries from one tool call
+  to the next (Chat Completions has nowhere to put it, so it would be lost). Other models use Chat
+  Completions; Gemini's reasoning details (on its native API, the thought signature on each tool call) go
+  back with each turn's tool results.</li>
+<li><strong>Answers are kept.</strong> Each result keeps what the model wrote (the first 60,000 characters), an
+  agent's tool calls in order, and each judge's verdict and reason on every rubric point. Click a
+  result on the Evals page to read them, for instance to see which judge was right when they
+  disagree.</li>
+</ul>
+<p>Long replies take a while: 100,000 tokens is 15–20 minutes on the largest models. The gateway streams
+from the provider meanwhile, so nothing times out.</p>
+<h2 id="the-suites">The suites</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Suite</th>
+<th>What's in it</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>starter</code></td>
+<td>24 short tasks, levels 1–5: facts, arithmetic, one tool call, small code questions. Cheap; strong models max it out</td>
+</tr>
+<tr>
+<td><code>frontier</code></td>
+<td>32 hard tasks at levels 3–5, built so strong models separate from the very top: 12 code tasks with 14–48 hidden tests each (an interpreter with tail calls, a regex engine matching Python's, unified diffs, recurrence rules, cron, a streaming JSON tokenizer…), 6 multi-step tool tasks (fixing bugs in small repositories, a purchase with traps, revenue from a messy database, an incident's root cause), and 14 general tasks (multi-hop questions over documents of 6k–45k words, logic grids, exact combinatorics, writing under constraints, and 3 judged pieces of open-ended work)</td>
+</tr>
+<tr>
+<td><code>codebase</code></td>
+<td>26 real changes to Merit Order itself, taken from its own history, at levels 4–5 (18 at 5), from 22 to 1,100 lines each: the model gets the repository as it was before the change (6,000–17,000 lines of Python and 50–630 tests, depending on the commit, plus the config and the docs) and an issue describing what to build, and works through file tools and pytest. Graded like SWE-bench: the change's own tests must pass, and so must every test that passed before. Not run by default: a run reads a lot of code (one model's run of the suite, about $10–$600; see <a href="#cost">Cost</a>)</td>
+</tr>
+</tbody>
+</table></div>
+<p>The built-in suites live in <code>src/meritorder/evals/</code>: <code>starter.yaml</code>, and one directory per task under
+<code>suites/frontier/</code> and <code>suites/codebase/</code>.</p>
+<p>Levels mean what the classifier means by them: 2 is simple coding (tests, renames, docstrings) or general work; 3 is
+ordinary coding or analysis; 4 is hard coding (concurrency, security, migrations, performance, multi-file changes); 5 is
+the hardest (system design, proofs, codebase-wide refactors). An agent's many tools don't change the level (decision 61). A long context doesn't change the level. With the default rules
+(<code>routing.levels</code>) the classifier gives general work level 3 at most; general requests reach 4 and 5 only
+through <code>X-Route-Floor</code> or <code>X-Route-Hint: smart</code>.</p>
+<h3 id="the-codebase-suite">The codebase suite</h3>
+<p><code>frontier</code>'s tasks are self-contained: a precise spec for one module, or a bug in a 300-line repository.
+The strongest models solve nearly all of them, so they can't tell the very top apart. The <code>codebase</code>
+suite asks for what real work asks: find where a change belongs in a large codebase someone else wrote,
+fit it to the conventions there, and don't break anything.</p>
+<p>Each task is one commit from this repository's history (<code>scripts/build_codebase_suite.py</code> builds them).
+The model gets the repository as it stood before the commit and an issue that describes the behaviour
+wanted and the names the tests call (the way SWE-bench Verified states an interface), never how the
+commit did it. It works through <code>list_files</code>, <code>read_file</code> (400 lines at a time), <code>search</code>, <code>edit_file</code>,
+<code>write_file</code>, <code>delete_file</code>, <code>apply_patch</code> (the patch format OpenAI's models are trained to write), <code>shell</code>
+(a command in a throwaway read-only copy: <code>grep -rn</code>, <code>python -c</code>) and <code>run_tests</code> (pytest, with the tests
+that need Redis or Postgres skipped). When it's done, <code>tests/</code> is replaced by the tests as the commit
+left them, and two lists grade it, both found by running the tests in the same sandbox before and after
+the commit:</p>
+<ul>
+<li><strong>fail_to_pass</strong>: the tests the commit added or changed, which fail before it and pass after it;</li>
+<li><strong>pass_to_pass</strong>: every other test that passed before and after it (50–630). Breaking any of them
+  fails the task.</li>
+</ul>
+<p>Tests that passed once and failed once after the commit are flaky and left out. The tasks were built
+while the repository was private, from changes newer than every model's training data then, so no model
+had seen them. The repository is public from release 0.0.1, so a model trained after that may have (see
+<em>Public tasks leak</em> below). The console's Tasks tab shows, for each task, the files the commit changed, the tests that grade it, and the
+commit's own change, which CI checks passes its tests.</p>
+<p><strong>How the tasks were chosen.</strong> 35 commits that change code and add tests were candidates. Each issue
+was written from the commit's problem and its tests, by checking every assertion the tests make: a
+strong engineer reading only the issue and the repository must be able to pass them, and the issue must
+not say where or how to make the change, only the behaviour wanted and the names, strings and figures
+the tests rely on. Nine candidates were dropped:</p>
+<ul>
+<li>the small ones that are easy to find, or that a test names directly (under about 15 lines);</li>
+<li>PRs that squash several unrelated features together;</li>
+<li>changes that are mostly UI;</li>
+<li>changes whose tests pin so much internal structure that a fair issue would dictate the code.</li>
+</ul>
+<p>The rest range from 22 to 1,100 lines (median about 200), 18 at level 5. To add a task, put its commit
+in <code>src/meritorder/evals/suites/codebase/&lt;id&gt;/task.yaml</code>, run
+<code>uv run python scripts/build_codebase_suite.py &lt;id&gt;</code>, write the issue, and run
+<code>scripts/review_codebase_tasks.py &lt;id&gt;</code>. The build reads the commit from git, so it needs a clone with that
+history. The public repository starts at 0.0.1 without the private history, so the 26 tasks can't be rebuilt from
+it: their snapshots are stored in <code>src/meritorder/evals/envs/fixtures/codebase/</code> (<code>blobs.json</code> holds each file's
+text once). Those snapshots are the repository as it was before each commit.</p>
+<p><strong>Where it comes from.</strong> The tasks and their issues come from this repository's own history, and were drafted
+with one model family, so their tests may encode that family's design choices. To keep a model from grading
+work in its own style, the tools cover both styles of editing (Claude Code's exact-text edits and
+OpenAI's patches, plus a shell), each issue states only what its tests need, and every issue is checked
+against its tests by GPT-6.1 Sol (<code>scripts/review_codebase_tasks.py</code>), by default a reviewer from a different
+family. Even so, read a lead by the drafting family on this suite with that in mind.</p>
+<p>The tasks run in their own sandbox: an image with the repository's own pinned packages
+(<code>python:3.12-slim</code> plus <code>uv.lock</code>'s, built locally the first time a task needs it, about a minute),
+1 GB of memory, 1 CPU, 256 processes, 10 minutes per test run, 60 seconds per <code>shell</code> command, and a
+256 MB <code>/tmp</code> that programs can run from (some tests write a stand-in CLI there). The container still has no network. A whole test run takes about 35
+seconds. At most two run at once, however many tasks are running (<code>MERITORDER_EVAL_SANDBOXES</code> changes
+that): Docker Desktop's VM is often small and shared, and a model's turns mostly wait on the model.</p>
+<h2 id="seeing-the-tasks">Seeing the tasks</h2>
+<p>Models → Evals → <strong>Tasks</strong> lists every task in the built-in suites: what it tests and how it's graded.
+Open one to read everything about it: the full prompt and the tools the model gets, then what only the
+grader sees (the checks, the hidden tests with a reference solution and a plausible wrong one, an agent
+task's repository and the grader's data, a judged task's rubric and reference answer), and how each
+model did on it in the latest run that graded it.</p>
+<h2 id="four-kinds-of-task">Four kinds of task</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Kind</th>
+<th>The model gets</th>
+<th>Graded by</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>answer</code></td>
+<td>One prompt</td>
+<td>Mechanical checks: an exact final answer (<code>Final answer: …</code>), a number, JSON fields, a tool call, or writing constraints (word count, bullets, required phrases)</td>
+</tr>
+<tr>
+<td><code>code</code></td>
+<td>A precise spec for a Python module</td>
+<td>Hidden unit tests, run against its code in a sandbox. Every test must pass</td>
+</tr>
+<tr>
+<td><code>agent</code></td>
+<td>A goal and tools</td>
+<td>A scripted environment answers the tools (a small repository, a booking API, a database, logs), then checks the end state: the right fix with stricter hidden tests, the right booking made once, the exact figure</td>
+</tr>
+<tr>
+<td><code>judged</code></td>
+<td>Open-ended work (a summary, a critique, a recommendation)</td>
+<td>Two judge models from different families, against a rubric of concrete statements and a reference answer. Both must agree every point is met</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>The judges.</strong> A model tends to rate answers like its own higher, and a weaker model misses what a
+stronger one gets right or wrong. So there are three judges, one from each family at the same tier:
+Claude Opus 5.5, GPT-6.1 Sol and Gemini 4 Carbon. Each answer is graded by the two whose family isn't
+its model's: a Claude answer by Sol and Carbon, a GPT answer by Opus and Carbon, a Gemini answer by
+Opus and Sol. The judges don't know which model wrote the answer, they work at high effort, every
+criterion is a checkable statement ("states the outage lasted 47 minutes"), and the answer passes
+only if both say every criterion is met. Each judge's verdict and reason on every point is kept with
+the result. Everything else is graded mechanically, which is cheaper and repeatable. The learned router's judged
+labels use the same panel and the same rule for choosing among it, one judge a pair, with the same cost warnings before
+they're turned on (<a href="routing.html#judged-labels">03</a>).</p>
+<p><strong>The sandbox.</strong> Model-written code runs in a throwaway Docker container (<code>python:3.12-slim</code>):
+no network, a read-only filesystem apart from a small <code>/tmp</code>, an unprivileged user, no
+capabilities, and limits on memory (512 MB), CPU (1), processes (64) and time (30 s for a code task's
+tests unless the task sets <code>timeout</code>). Each hidden test also has its own CPU-time limit (10 s, a task's
+<code>per_test_timeout</code>), so one runaway loop fails that test, not the whole task. A task can forbid
+imports (the regex task forbids <code>re</code>); that's checked in the code's syntax tree, which keeps honest
+solutions honest but wouldn't stop code written to get around it. Without Docker, those tasks are skipped
+and the results say so. The worker in the Docker Compose stack has no Docker access by default, so
+console runs skip code tasks there: run those with <code>meritorder eval</code> on a machine with Docker, and
+their results land on the same page. (Giving a container the Docker socket gives it control of the
+host, so it isn't on by default.)</p>
+<h2 id="from-results-to-scores">From results to scores</h2>
+<p>Measured scores use the same 1–5 scale, with one decimal, as the published ones routing uses, so the two can
+be compared side by side. They are relative to the best measured model, like <code>quality.scale: best</code>; the
+published scores' default is <code>absolute</code>, a fixed bar (decision 58). Applied scores also reach the learned router
+(<a href="routing.html#the-learned-router">03</a>): it compares each request's difficulty with the score of the model that
+served it. Eval traffic itself isn't recorded for the learned router, since a run repeats the same prompts in new
+sessions, which would look like people giving up and asking again. For each task type:</p>
+<ul>
+<li><strong>Score</strong>: 5 × (the model's pass rate on <strong>hard tasks</strong>, levels 4 and 5, ÷ the best measured
+  model's), with one decimal and never below 1. The best model measured scores 5, and one that passes
+  60% as many hard tasks scores 3. Easy tasks don't count: strong and weak models alike pass them, so
+  they would only squeeze every score towards 5.</li>
+<li><strong>Range</strong>: the 90% confidence range beside each score, from how many hard tasks it rests on. A model
+  that passed 13 of 15 has a wide one (about 3.3–4.8 when the best passed all 15): <code>--repeat</code> narrows it.</li>
+<li><strong>Too few</strong>: a score needs at least <strong>10 graded hard tasks</strong> for that task type. The <code>frontier</code>
+  suite has 10 coding and 13 general ones; <code>starter</code> has 5 of each, so on its own it needs
+  <code>--repeat 2</code>. Runs a provider stopped (below) don't count, so a model that hit rate limits for most
+  of a run shows <em>too few</em> rather than a score from a handful of tasks.</li>
+<li><strong>Marked with a warning</strong>: the score routing uses now is outside the measured range. Your own tasks say it's off;
+  whether to act on that (<em>Apply scores…</em> as an override) is up to you.</li>
+</ul>
+<figure class="diagram"><pre class="mermaid">flowchart TD
+  res[&quot;stored results of every finished run&quot;] --&gt; latest[&quot;each model&#x27;s latest result, task by task&lt;br/&gt;(newest run that graded the task)&quot;]
+  latest --&gt; skip{&quot;skipped?&lt;br/&gt;no sandbox, no judge, 402, 429 or 5xx after retries,&lt;br/&gt;stopped by the per-request cost limit&quot;}
+  skip -- yes --&gt; out[&quot;left out&quot;]
+  skip -- no --&gt; hard{&quot;level 4 or 5?&quot;}
+  hard -- no --&gt; easy[&quot;counts in the pass rate,&lt;br/&gt;not in the score&quot;]
+  hard -- yes --&gt; enough{&quot;at least 10 graded&lt;br/&gt;for the task type?&quot;}
+  enough -- no --&gt; few[&quot;too few&quot;]
+  enough -- yes --&gt; sc[&quot;score = 5 × pass rate ÷ best model&#x27;s&lt;br/&gt;one decimal, at least 1&lt;br/&gt;with a 90% range&quot;]</pre></figure>
+<p>Scores are worked out together for every model's latest result, so a run that measured only weak
+models doesn't make the best of them a 5. A model's latest result is task by task: each task counts
+from the newest finished run that graded it, so running only the tasks a run skipped (or only a few
+tasks again) fills them in instead of replacing everything else; a full run replaces them all. A run's
+own page shows its models scored that way too: what applying it would write. Scores are worked out
+again from the stored results every time they're shown, so runs from before a change to scoring show
+today's numbers.</p>
+<p>How much a measured score tells you depends on the suite. The built-in suites can't yet separate the
+strongest models on coding: on 11 November 2026, Opus 5.5 and Sonnet 5.5 passed 15 of 15 hard coding
+tasks, Haiku 5.5 14 and Fable 5.2 13, all within each other's ranges, where published benchmarks put
+Haiku well below Fable. That's why routing uses published benchmarks by default. Your own evals are
+best at catching a model that does much worse on your kind of work than its benchmarks suggest.</p>
+<p>Beside the scores, each model shows what its tasks took, because two models that pass the same tasks
+can still differ a lot in time and money:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Median time</strong> (and 90th percentile)</td>
+<td>The model's own time to complete a task: every request it answered, without grading, judges or the environment's tools</td>
+</tr>
+<tr>
+<td><strong>Turns / tools</strong></td>
+<td>Average requests and tool calls per task. An agent that needs 20 turns where another needs 6 is slower and costs more even at the same price per token</td>
+</tr>
+<tr>
+<td><strong>Output</strong></td>
+<td>Average output tokens per task, thinking included</td>
+</tr>
+<tr>
+<td><strong>Per solve</strong></td>
+<td>Cost divided by tasks passed: what a solved task costs on this model, which is what matters when choosing one</td>
+</tr>
+<tr>
+<td><strong>Cut off</strong></td>
+<td>Replies that hit an output limit</td>
+</tr>
+</tbody>
+</table></div>
+<p>A rate limit or a busy provider (HTTP 429, 503 or 529) is waited out first: as long as the provider
+asks (<code>Retry-After</code>), or with a growing back-off, for up to 10 minutes in all. A spending limit (an
+organization, team, personal or session budget used up) also answers 429, but waiting won't clear it:
+the gateway marks those <code>x-meritorder-limit: budget</code>, and the task is skipped at once. Other server errors
+(HTTP 500, 502 or 504: a stream that broke off, a dropped connection upstream) and a lost connection to
+the gateway are tried three times in all, 5 and then 10 seconds apart. Only the request that failed is
+sent again, so an agent task carries on from where it was. Runs that say nothing about quality are
+skipped and don't count: no sandbox, no judges, a judge that failed to give a verdict, a rate limit or
+server error that outlasted the retries (HTTP 429 or 5xx), a lost connection, a provider account that
+can't pay (HTTP 402), or a reply the per-request cost limit stopped. Run them again (<code>--only</code> with
+their ids) to fill them in. Other errors (a reply that fills the model's maximum output or its context
+window, a request the model rejects) count as fails. A wrong answer is never retried: that would
+score a model's best of several tries. <code>--repeat</code> runs every task several times and counts every try.</p>
+<h2 id="writing-your-own-tasks">Writing your own tasks</h2>
+<p>The best suite is made from your own work: a model that's good at public puzzles may still be wrong
+for your codebase. A suite is a directory of task directories (or a YAML file of <code>answer</code> tasks).</p>
+<pre><code class="language-yaml"># my-suite/c4-invoice-rounding/task.yaml
+id: c4-invoice-rounding
+task: coding          # or general
+level: 4
+kind: code            # answer | code | agent | judged
+prompt_file: prompt.md
+code: {tests: tests.py, timeout: 30, per_test_timeout: 10}   # hidden tests: top-level test_* functions; forbid: [re] bans imports
+reference: reference.py                                       # a correct solution, never sent to models
+</code></pre>
+<ul>
+<li><code>answer</code>: <code>prompt</code> and <code>checks</code> (see <code>src/meritorder/evals/runner.py</code> → <code>grade</code>). Ask for
+  <code>Final answer: …</code> on the last line and check it with <code>final</code>, <code>final_number</code> or <code>final_one_of</code>.</li>
+<li><code>agent</code>: <code>env: module:Class</code>, <code>env_args</code>, <code>max_turns</code> (30 by default). Environments subclass
+  <code>meritorder.evals.envs.Env</code>: tools, <code>call</code>, and <code>grade</code>.</li>
+<li><code>judged</code>: <code>rubric</code> (concrete statements) and <code>reference_answer</code>.</li>
+<li>Generated prompts (long documents built from a seed): <code>generate: module:function</code> with
+  <code>generate_args</code>.</li>
+<li>Optional on any task: <code>effort</code> (instead of the level's) and <code>max_tokens</code> (only if you want the
+  task to have a limit; built-in tasks don't).</li>
+</ul>
+<p>Run it with <code>meritorder eval --suite ./my-suite</code>, or alongside the built-in ones:
+<code>--suite starter,frontier,./my-suite</code>. Task ids must be unique across the suites in one run. Check every
+task offline before trusting it: the repository's <code>tests/evals/</code> shows how (reference solutions pass the hidden tests, deliberately wrong ones fail).</p>
+<p><strong>Public tasks leak.</strong> Anything in a public repository can end up in a model's training data, which
+makes it easier than it looks. That now includes this repository's own suites, <code>codebase</code> among them. Keep
+a private suite for the decisions that matter, and refresh it.</p>
+<h2 id="cost">Cost</h2>
+<p><strong>Evals spend real money, and nothing starts without saying how much.</strong> Before every run, the console and
+<code>meritorder eval</code> show the estimate, by model, with a warning that real runs have cost up to three times
+as much, and what's left of the organization's monthly budget when the run could reach it.</p>
+<ul>
+<li><strong>Confirmation.</strong> Starting a run estimated at $1 or more needs an explicit "I understand" in the console.
+  The CLI asks <code>[y/N]</code>, and at $10 or more it wants <code>yes</code> typed out.</li>
+<li><strong>A spending cap on every run.</strong> No new task starts once the run has spent its cap; tasks already running
+  finish. The cap defaults to 1.5 times the estimate (rounded up to a dollar), and <code>--max-cost</code> or the
+  console's "Spending cap" field changes it. A run stopped at its cap still counts, and says how many task
+  runs didn't start.</li>
+<li><strong>The API requires a cap too.</strong> <code>POST /v1/admin/evals/runs</code> refuses a run without <code>max_cost_usd</code> and
+  says what it's estimated at, so even direct API users see the cost first. <code>POST /v1/admin/evals/estimate</code>
+  returns the estimate, the default cap and the warning without starting anything.</li>
+<li><strong>The CLI's <code>--yes</code></strong> skips the question, not the warning or the cap.</li>
+</ul>
+<p>The estimate before a run counts each task's prompt and a typical reply for every model, and
+judging. Reasoning models often write several times more than that, and with no output limit a hard
+task can run to tens of thousands of tokens, so treat it as a rough guide.
+Long-document and agent tasks dominate: a level-5 document task sends about 60k tokens, and an agent
+task resends its growing conversation every turn. The estimate follows an agent task turn by turn,
+with the context growing each time, and prices each turn at its context size, since some providers
+charge more for long contexts (Claude Haiku 5.5 five times as much above 100,000 tokens).</p>
+<p>The <code>codebase</code> suite is by far the dearest. A big task runs 60–90 turns and reaches 300,000 tokens of
+context, so one model's run of the whole suite is estimated at about $10 (DeepSeek V4.1 Flash), $19
+(Haiku), $84 (Sonnet), $96 (GPT-6.1 Sol), $168 (Opus), $303 (Fable) and $587 (GPT-6 Astra).
+Claude Haiku's first run cost about three times what the estimate said then, before it followed turns and counted
+long-context prices. The current estimate puts the seven tasks that run finished at $4.81, against $3.80 spent: about
+four fifths. Organization and personal budgets and the
+per-request cap (Controls) apply to eval traffic like any other.</p></section>
+  </main>
+</div>
+
+<script>
+(function () {
+  // Only the all-in-one page: its rail links to sections of the page. One-doc pages mark their own link.
+  var links = Array.prototype.slice.call(document.querySelectorAll('.rail a')).filter(function (a) {
+    return a.getAttribute('href').charAt(0) === '#';
+  });
+  if (!links.length) {
+    var here = document.querySelector('.rail a.active');
+    if (here && here.scrollIntoView && window.matchMedia('(max-width: 860px)').matches) {
+      here.scrollIntoView({ block: 'nearest', inline: 'center' });
+      window.scrollTo(0, 0);
+    }
+    return;
+  }
+  var byId = {};
+  links.forEach(function (a) { byId[a.getAttribute('href').slice(1)] = a; });
+  function setActive(id) {
+    links.forEach(function (a) { a.classList.toggle('active', a === byId[id]); });
+    var a = byId[id];
+    if (a && a.scrollIntoView && window.matchMedia('(max-width: 860px)').matches) {
+      a.scrollIntoView({ block: 'nearest', inline: 'center' });
+    }
+  }
+  if ('IntersectionObserver' in window) {
+    var obs = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) { if (e.isIntersecting) setActive(e.target.id); });
+    }, { rootMargin: '-20% 0px -70% 0px' });
+    document.querySelectorAll('main section').forEach(function (s) { obs.observe(s); });
+  }
+  setActive((location.hash || '#overview').slice(1));
+})();
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js"></script>
+<script>
+(function () {
+  var t = document.documentElement.getAttribute('data-theme');
+  var dark = t ? t === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+  mermaid.initialize({ startOnLoad: true, theme: dark ? 'dark' : 'default', securityLevel: 'strict' });
+})();
+</script>
+</body>
+</html>

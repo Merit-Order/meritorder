@@ -1,0 +1,104 @@
+{{- /* Model-based compression's service: LLMLingua-2 on the -compressor image (docs/04-caching-and-sessions.md).
+     The gateways (and every other component, which validate the same config) get its address and model through
+     MERITORDER_COMPRESSOR_URL and MERITORDER_COMPRESSOR_MODEL (_helpers.tpl). */}}
+{{- if .Values.compressor.enabled }}
+{{- $c := .Values.compressor }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "meritorder.fullname" . }}-compressor
+  labels: {{- include "meritorder.labels" . | nindent 4 }}
+    app.kubernetes.io/component: compressor
+  {{- include "meritorder.deploymentAnnotations" . | nindent 2 }}
+spec:
+  replicas: {{ $c.replicas }}
+  selector:
+    matchLabels: {{- include "meritorder.selector" . | nindent 6 }}
+      app.kubernetes.io/component: compressor
+  template:
+    metadata:
+      labels: {{- include "meritorder.selector" . | nindent 8 }}
+        app.kubernetes.io/component: compressor
+        {{- include "meritorder.podMeta" . | nindent 8 }}
+      annotations:
+        checksum/env: {{ toYaml .Values.secretEnv | sha256sum }}
+    spec:
+      automountServiceAccountToken: false  # it calls nothing in the cluster
+      securityContext: {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      {{- with ($c.nodeSelector | default .Values.nodeSelector) }}
+      nodeSelector: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with ($c.tolerations | default .Values.tolerations) }}
+      tolerations: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        - name: models
+          {{- if $c.cache.existingClaim }}
+          persistentVolumeClaim:
+            claimName: {{ $c.cache.existingClaim }}
+          {{- else }}
+          emptyDir:
+            sizeLimit: {{ $c.cache.sizeLimit }}
+          {{- end }}
+      containers:
+        - name: compressor
+          image: {{ include "meritorder.image" . }}{{ $c.imageSuffix }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext: {{- toYaml .Values.securityContext | nindent 12 }}
+          args: ["meritorder", "compressor", "--host", "0.0.0.0", "--port", {{ $c.port | quote }}]
+          {{- if include "meritorder.hasSecret" . }}
+          envFrom:  # HF_TOKEN for a gated model, MERITORDER_COMPRESSOR_KEY for a shared secret
+            - secretRef:
+                name: {{ include "meritorder.secretName" . }}
+          {{- end }}
+          env:
+            - name: MERITORDER_COMPRESSOR_MODEL
+              value: {{ $c.model | quote }}
+            - name: MERITORDER_COMPRESSOR_DEVICE
+              value: {{ $c.device | quote }}
+            {{- with $c.revision }}
+            - name: MERITORDER_COMPRESSOR_REVISION
+              value: {{ . | quote }}
+            {{- end }}
+            - name: HF_HOME  # the model's files: an emptyDir downloads them again on every restart, a claim keeps them
+              value: /models
+            - name: XDG_CACHE_HOME
+              value: /tmp/.cache
+          ports:
+            - name: http
+              containerPort: {{ $c.port }}
+          startupProbe:  # the first start downloads the model
+            httpGet: {path: /healthz, port: http}
+            periodSeconds: 10
+            failureThreshold: 90
+          readinessProbe:
+            httpGet: {path: /healthz, port: http}
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: {path: /healthz, port: http}
+            periodSeconds: 30
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: models
+              mountPath: /models
+          resources: {{- toYaml $c.resources | nindent 12 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "meritorder.fullname" . }}-compressor
+  labels: {{- include "meritorder.labels" . | nindent 4 }}
+    app.kubernetes.io/component: compressor
+spec:
+  type: ClusterIP
+  selector: {{- include "meritorder.selector" . | nindent 4 }}
+    app.kubernetes.io/component: compressor
+  ports:
+    - name: http
+      port: {{ $c.port }}
+      targetPort: http
+{{- end }}

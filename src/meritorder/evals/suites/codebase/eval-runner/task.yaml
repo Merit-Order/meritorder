@@ -1,0 +1,89 @@
+id: eval-runner
+task: coding
+level: 4
+kind: agent
+commit: d9e0042
+summary: "A new eval package from scratch: a YAML suite loader with a 24-task starter suite, eight mechanical check kinds with exact semantics, a concurrent runner through the gateway that tags its ledger rows, and level-based score suggestions"
+env: meritorder.evals.envs.codebase:CodebaseEnv
+env_args: {task: eval-runner}
+max_turns: 80
+est_turns: 40
+est_tool_tokens: 5000    # new tokens per turn (tool results and the reply), from runs of this suite
+est_output_tokens: 2500
+preamble_file: ../PREAMBLE.md
+prompt: |
+  ## Issue: quality scores are guessed by hand; nothing measures them
+
+  `auto` routing picks models by the 1-5 `quality` scores in the config (per task type: `coding`, `general`).
+  Those numbers are typed in by whoever edits the config, with nothing to check them against. We need a small
+  eval runner: a suite of mechanically graded tasks at levels 1-5, run through the gateway against the
+  configured models, scored into suggested quality levels. It will back a `meritorder eval` command and an
+  admin endpoint later; this issue is about the library, `meritorder.evals.runner`, and its built-in suite.
+
+  ### Suites
+
+  `load_suite(path=None)` reads a YAML suite and returns `{"name": <str>, "tasks": [<task dicts>]}`. A suite
+  file has `name` and `tasks`; each task has `id`, `task` (`coding` or `general`), `level` (1-5), `prompt`, and
+  `checks` (a list, each a one-key mapping, see below); optionally `tools` (OpenAI function tools, sent with the
+  request) and `max_tokens`. A task missing any required field fails to load with a `ValueError`. Without a
+  path, the built-in starter suite ships with the package: named `starter`, with exactly 24 tasks, covering
+  both task types and every level, written so that a wrong answer is detectable by the checks (short factual
+  questions, arithmetic, JSON extraction, what-does-this-code-print, a tool call, a regex to write, and so on).
+
+  ### Checks
+
+  `grade(check, reply)` grades one check against one OpenAI-format chat completion (`reply`) and returns
+  `(passed: bool, why: str)`, `why` explaining a failure. The reply's text is the first choice's message
+  content. Kinds:
+
+  - `contains` / `not_contains`: case-insensitive substring of the text.
+  - `equals`: the text, with a surrounding code fence removed, whitespace trimmed and a trailing period
+    dropped, equals the value exactly: `"OK."` passes `equals: OK`, `"OK, sure"` does not.
+  - `regex`: the pattern matches somewhere in the text (case-insensitive, multiline).
+  - `number`: the last number in the text (thousands commas removed, so `"1,200"` is 1200) is within
+    `tolerance` (default 1e-6) of the value: `"2 hours 35 minutes = 155 minutes"` passes `number: 155`.
+  - `json`: the text (fence removed) parses as a JSON object and every expected key is present with an equal
+    value, types included (`{"age": "34"}` fails `json: {age: 34}`).
+  - `tool_call`: some tool call in the reply has the given `name`, and every given argument matches the call's
+    argument compared as strings, ignoring case and surrounding whitespace (`{"city": "oslo"}` satisfies
+    `arguments: {city: Oslo}`); extra arguments are fine; a reply with no such call fails.
+  - `regex_behaves`: the text is itself a regular expression (fence and surrounding slashes removed); it must
+    fully match every string under `match` and none under `reject`. An invalid pattern fails.
+
+  ### Running
+
+  `run_suite(gateway, key, models, suite, concurrency=4, repeat=1, progress=None, client=None)` runs every task
+  of the suite against every model (`repeat` times each), at most `concurrency` at once, and returns a list of
+  `TaskResult`. Each task is one chat completion to `<gateway>/v1/chat/completions` with the bearer `key`, the
+  task's prompt as the user message (and its `tools` if any). `TaskResult` is a dataclass with `model`,
+  `task_id`, `task`, `level`, `passed`, `reasons` (the failed checks' `why`), `cost` (from the per-request cost
+  header the gateway returns), `latency_ms`, and `error` (set, with `passed` False, when the request fails or
+  returns a non-200). A task passes when every check passes. `progress`, when given, is called with each result
+  as it arrives. `client` is an `httpx.AsyncClient` to send through instead of creating one (so tests can run
+  against the in-process app with `gateway="http://test"`); when none is given the runner makes and closes its
+  own.
+
+  Every request must be traceable in the ledger: the runner tags each request through the gateway's request
+  tags header with an `eval` tag whose value is the suite's name, a hyphen, and a timestamp for the run
+  (`mini-...` for a suite named `mini`), and uses a fresh session id per task so turns do not stick together.
+
+  ### Scores
+
+  `score(results, threshold=0.75)` returns, per model, a dict with `tasks`: per task type, `suggested` (an
+  int), the pass rate at each level, and the task type's pass rate; plus the model's overall pass rate, error
+  count, total cost, average latency, and the failed tasks with why. `suggested` is the highest level L such
+  that at every level from 1 to L that has results, the pass rate is at least `threshold` (levels without
+  results are skipped over); it is 0 when nothing passed and never below 1 once anything did. So with one task
+  per level: passing 1-5 gives 5; passing 1, 2, 3 and 5 gives 3; passing only 2 and 3 gives 1.
+
+  **Interface**
+
+  - `meritorder.evals.runner.load_suite(path: str | Path | None = None) -> dict` (`{"name", "tasks"}`); the
+    built-in `starter` suite with 24 tasks
+  - `meritorder.evals.runner.grade(check: dict, reply: dict) -> tuple[bool, str]`
+  - `meritorder.evals.runner.TaskResult(model, task_id, task, level, passed, reasons=[], cost=0.0, latency_ms=0,
+    error=None)`
+  - `meritorder.evals.runner.run_suite(gateway, key, models, suite, concurrency=4, repeat=1, progress=None,
+    client=None) -> list[TaskResult]`
+  - `meritorder.evals.runner.score(results, threshold=0.75) -> dict[str, dict]` with
+    `[model]["tasks"][task_type]["suggested"]`

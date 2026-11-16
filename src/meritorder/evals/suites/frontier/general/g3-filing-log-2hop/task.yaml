@@ -1,0 +1,7 @@
+id: g3-filing-log-2hop
+task: general
+level: 3
+kind: answer
+generate: meritorder.evals.generators.records:multi_hop
+generate_args: {seed: 11, words: 6000, hops: 2}
+summary: "6k-word filing log: ticket -> current project -> current lead, with a later transfer, a lead change, an unfiled proposal, a near-duplicate ticket number and a near-duplicate name on a look-alike codename"

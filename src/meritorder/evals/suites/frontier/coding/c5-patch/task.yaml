@@ -1,0 +1,11 @@
+id: c5-patch
+task: coding
+level: 5
+kind: code
+prompt_file: prompt.md
+code:
+  tests: tests.py
+  timeout: 30
+reference: reference.py
+wrong: wrong.py
+summary: "Apply a unified diff with offset search carried between hunks, reverse mode, no-newline markers and exact error attribution; many interacting rules"

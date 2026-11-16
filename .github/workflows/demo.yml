@@ -1,0 +1,95 @@
+name: demo
+# The static console demo (docs/07-deployment.md#the-console-demo) at https://dev.meritorder.dev: make its sample data
+# again, build it, click through every page, check the gateway's own console has none of it, and on main upload it to
+# the demo's S3 bucket behind CloudFront (deploy/aws/). Pull requests build and test it without deploying.
+on:
+  push:
+    branches: [main]
+    paths: ["ui/**", "src/**", "config/**", "scripts/build_demo_data.py", ".github/workflows/demo.yml"]
+  pull_request:
+  schedule:
+    - cron: "17 6 1 * *"  # the 1st of each month, so the demo's "this month" is this month
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: demo-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  demo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults: {run: {working-directory: ui}}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e  # v6
+        with: {version: "0.10.9"}
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4.4.0
+        with: {node-version: "26.13.0", cache: npm, cache-dependency-path: ui/package-lock.json}
+      - name: Make the sample data again, dated today
+        working-directory: .
+        run: |
+          uv sync --frozen
+          uv run python scripts/build_demo_data.py
+          uv run pytest -q tests/test_demo_data.py tests/test_demo_site.py
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium || npx playwright install chromium
+      - run: npm run typecheck
+      - run: npm run build:demo
+      - name: The production build has no demo code or data
+        run: |
+          npx vite build
+          if grep -rlE "Demo: sample data|mo-demo-admin-key|alex\.morgan@example\.com" ../src/meritorder/ui_dist; then
+            echo "::error::demo code or data in the production console bundle"; exit 1
+          fi
+          ls -l ../src/meritorder/ui_dist/assets dist-demo/assets
+      - run: npm run e2e:demo  # under the site's Content-Security-Policy (vite preview sends it)
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        with:
+          name: console-demo
+          path: ui/dist-demo/
+          include-hidden-files: true  # .nojekyll
+          retention-days: 30
+      - if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        with:
+          name: playwright-report-demo
+          path: |
+            ui/playwright-report-demo/
+            ui/test-results/
+          retention-days: 14
+
+  # On main only (push, the monthly run, or a run started by hand on main), and only once the stack exists: the role,
+  # bucket and distribution come from repository variables (deploy/aws/README.md). The role trusts main of this
+  # repository alone, so the job names no environment (that would change the token's subject).
+  deploy:
+    needs: demo
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && vars.DEMO_DEPLOY_ROLE_ARN != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
+    concurrency: {group: demo-deploy, cancel-in-progress: false}
+    env:
+      BUCKET: ${{ vars.DEMO_BUCKET }}
+      DISTRIBUTION: ${{ vars.DEMO_DISTRIBUTION_ID }}
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4.3.0
+        with: {name: console-demo, path: dist-demo}
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd  # v6.3.0
+        with:
+          role-to-assume: ${{ vars.DEMO_DEPLOY_ROLE_ARN }}
+          role-session-name: demo-${{ github.run_id }}
+          aws-region: us-east-1
+      - name: Upload (hashed assets first, so the new index.html never points at a file that isn't there yet)
+        run: |
+          aws s3 sync dist-demo/assets "s3://$BUCKET/assets" --cache-control "public, max-age=31536000, immutable" --only-show-errors
+          aws s3 sync dist-demo "s3://$BUCKET" --exclude "assets/*" --exclude ".nojekyll" --cache-control "no-cache" \
+            --delete --only-show-errors
+          aws s3 sync dist-demo/assets "s3://$BUCKET/assets" --cache-control "public, max-age=31536000, immutable" \
+            --delete --only-show-errors
+      - name: Invalidate CloudFront
+        run: aws cloudfront create-invalidation --distribution-id "$DISTRIBUTION" --paths "/*" --query Invalidation.Id --output text
+      - run: echo "Deployed to https://dev.meritorder.dev/" >> "$GITHUB_STEP_SUMMARY"

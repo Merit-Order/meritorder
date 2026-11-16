@@ -1,0 +1,19 @@
+id: a3-retry-trace
+task: coding
+level: 3
+kind: agent
+prompt: |
+  You're helping the on-call engineer understand a Python service. Its repository is only reachable through
+  the tools (list_files, read_file, search); you can't run anything.
+
+  Question: the nightly job (`reconcile nightly`) fetches the day's bank statement and retries when the bank
+  feed times out. With the production profile, if the bank feed keeps timing out, how many attempts does the
+  job make in total for one fetch (the first try included), and how many seconds does it wait right before
+  the last attempt?
+
+  Work it out from the code, not from the docs. End your reply with one line exactly in this form:
+  attempts=<number> final_wait=<seconds>
+env: meritorder.evals.envs.repo:RepoQAEnv
+env_args: {project: reconcile}
+max_turns: 20
+summary: "Trace a retry policy through 4 files (job -> profile lookup -> settings -> dataclass defaults); outdated docs, a legacy backoff module and tests with factor 2 point the wrong way"

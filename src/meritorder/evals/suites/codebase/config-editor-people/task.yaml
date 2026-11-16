@@ -1,0 +1,65 @@
+id: config-editor-people
+task: coding
+level: 5
+kind: agent
+commit: 79676a4
+summary: "People management (user records decide team and role on every request, admin pins, disable) plus a structured config document API with blank-field pruning; spans auth, admin, store and configstore"
+env: meritorder.evals.envs.codebase:CodebaseEnv
+env_args: {task: config-editor-people}
+max_turns: 80
+est_turns: 35
+est_tool_tokens: 5000    # new tokens per turn (tool results and the reply), from runs of this suite
+est_output_tokens: 1500
+preamble_file: ../PREAMBLE.md
+prompt: |
+  ## Issue: user records should decide team and role, and the config API should take a structured document
+
+  Two gaps the console's new pages need.
+
+  **1. Moving or disabling a person does nothing to the keys they already hold.** A principal's team and role
+  come from the API key row (or the Entra claims) at authentication time. The users table exists, but nothing
+  reads it back, so an admin can't move someone to another team, change their role, or disable them without
+  revoking every key they have. There's also no way to list people.
+
+  Wanted: the user record is the source of truth for team and role. On every authenticated request (key or
+  Entra token), once the key or token is accepted, the user's record overrides the team and role it carried.
+  A disabled user is refused with 401 and a detail that contains the word `disabled` (every key of theirs stops
+  working at once on the gateway that made the change; elsewhere within the auth cache's lifetime). A user with
+  no record keeps what the key says.
+
+  Records are either managed by the identity provider (`managed: "idp"`, the default for new records) or pinned
+  by an admin (`managed: "local"`). An Entra login refreshes team and role only on an idp-managed record. An
+  admin setting team or role pins the record. An admin can hand the record back to Entra, after which the next
+  login refreshes it again. Creating a key for someone must not overwrite an existing record's team or role.
+
+  Endpoints under `/v1/admin`, same authentication as the other admin routes:
+
+  - `GET /v1/admin/users` (team leads and up): `{"users": [...], "teams": [<every team name in the config>],
+    "oidc": <bool>}`. Admins see everyone; a team lead sees only users whose team is theirs. Each user has
+    `id`, `email`, `display_name`, `team`, `role`, `managed`, `disabled` (bool), `active_keys` (count of
+    unrevoked keys), `last_seen` (ISO time or null), `spend_month`, `requests_month`.
+  - `PATCH /v1/admin/users/{user_id}` (admins only, 403 otherwise; 409 without Postgres like key management):
+    body with any of `team`, `role` (`user` | `team_lead` | `finance` | `admin`), `disabled` (bool),
+    `follow_idp` (true: set `managed` back to `"idp"`). A `team` that isn't defined in the config is a 400.
+    Unknown user: 404. Returns `{"id", "team", "role", "managed", "disabled"}`.
+
+  **2. The config editor sends forms, not YAML.** `GET /v1/admin/config/source` must also return the raw
+  mapping as `document`, next to `yaml`. `POST /v1/admin/config/validate` and `PUT /v1/admin/config` accept
+  either `{"yaml": "..."}` or `{"document": {...}}` (so `yaml` becomes optional). Blank form fields arrive as
+  `null`, `""` or mappings that end up empty, and mean "use the default": prune them before validating, at
+  every depth (a team sent as `{"budget_usd_month": 250, "user_budget_usd_month": null, "baseline_model": "",
+  "rate_limits": {"user_rpm": null}}` validates as `{"budget_usd_month": 250}`). The validate response always
+  carries the pruned `document` and its rendering as `yaml`, whether or not it validates: `{"ok": true,
+  "summary": ..., "document": ..., "yaml": ...}` or `{"ok": false, "error": ..., "document": ..., "yaml": ...}`.
+  The existing error texts (invalid YAML, literal keys, undefined backends) are unchanged.
+
+  **Interface**
+
+  - Store (in-memory and Postgres, where the new state persists):
+    `upsert_user(user_id, team, role, email=None, display_name=None, source="idp")`: `source="idp"` is a login
+    and refreshes team/role unless the record is pinned. Key creation must leave an existing record's team and
+    role alone, whatever the key says.
+    `get_user(user_id) -> dict | None` with at least `team`, `role`, `managed`.
+    Pinning, disabling and listing are reached through the endpoints.
+  - Config body model: `yaml: str | None`, `document: dict | None`, `comment: str | None`.
+  - Everything else as described above.

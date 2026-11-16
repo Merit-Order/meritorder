@@ -1,0 +1,96 @@
+id: control-panel-apis
+task: coding
+level: 5
+kind: agent
+commit: 6c54d38
+summary: "Control-panel read APIs (overview, merit-order stack, feed, backend health, attention) from live telemetry, plus stored configuration versions with validation, hot reload and restore; touches state, store, proxy, admin and a new console module"
+env: meritorder.evals.envs.codebase:CodebaseEnv
+env_args: {task: control-panel-apis}
+max_turns: 120
+est_turns: 75
+est_tool_tokens: 5000    # new tokens per turn (tool results and the reply), from runs of this suite
+est_output_tokens: 2500
+preamble_file: ../PREAMBLE.md
+prompt: |
+  ## Issue: control-panel APIs and database-backed configuration
+
+  The console (a React app, not part of this change) needs two things the gateway can't give it today: live
+  operational data scoped by role, and a way to change the configuration without editing the YAML file and
+  restarting every gateway.
+
+  ### A. Live telemetry and `/v1/console`
+
+  Every request the gateway answers (normal, response-cache hit, embeddings) should feed, besides the ledger,
+  a recent-events feed and per-backend health counters (requests, errors, latency) that every gateway of an
+  installation sees alike, in memory when running alone and shared when Redis is configured. A backend attempt
+  that fails before a fallback counts as an error for that backend. The console must also be able to count the
+  gateways currently running.
+
+  New endpoints under `/v1/console`, for team leads, finance and admins (a plain user gets 403). Team leads see
+  only their own team's data; finance and admins see the whole organization.
+
+  - `GET /v1/console/overview` -> `scope` (`"organization"`, or the team name for a lead), `today` and `month`
+    (each with `spend`, `baseline`, `saved`, `requests`, `cache_hit_rate`), `budget`, `forecast`,
+    `requests_per_minute` (the recent rate; above zero right after traffic), `gateways` (live count),
+    `config_version`.
+  - `GET /v1/console/merit?minutes=15` -> the merit-order stack from real traffic: `tiers`, one per served
+    model with tokens in the window (`model`, `tokens`, `tokens_per_second`, `cost`, `price_per_m` = actual cost
+    per million tokens, `requests`, `gpu`), sorted by `price_per_m` ascending; `clearing_price_per_m` is the
+    `price_per_m` of the most expensive tier (null without traffic); `blended_price_per_m`;
+    `demand_tokens_per_second`; `minutes`.
+  - `GET /v1/console/feed?limit=60` -> `{"events": [...]}`, newest first, one per request, each with at least
+    `ts`, `user`, `team`, `model`, `backend`, `cost`, `status`, `tokens`, `latency_ms`. A lead's feed holds only
+    their team's events.
+  - `GET /v1/console/backends?minutes=5` -> `{"minutes", "backends": [...]}`, one entry per configured backend
+    with `name`, `kind`, `enabled`, `live`, `requests`, `errors`, `error_rate` (0 when no requests),
+    `avg_latency_ms`, `models`.
+  - `GET /v1/console/attention` -> `{"items": [...]}`: things needing attention (failing backends, teams near
+    budget, recent alerts), each with `level` (`critical` | `warning` | `info`), `title`, `detail`, `page`.
+    Alerts the gateway raises (budget thresholds, spikes) should appear here too, for 24 hours.
+
+  ### B. Configuration versions
+
+  Admins save configurations from the console; versions live in the store, and every gateway applies the newest
+  within seconds. The YAML file stays the starting point until a version is saved.
+
+  Validation rules for a submitted document: it must be valid YAML and a mapping; `include:` is refused;
+  secrets must be environment references, so a backend `auth.value` that isn't `${NAME}` or `${NAME:-default}`
+  is refused with a message containing `literal secret`, and a static key with a literal `key` is refused with a
+  message containing `literal key` (use `key_env`); then the usual config validation applies. A file that
+  holds literal keys therefore fails validation when its own YAML is submitted. Invalid YAML gives an error
+  whose text contains `YAML`.
+
+  Endpoints under `/v1/admin`, admins only (403 for a team lead):
+
+  - `GET /v1/admin/config/source` -> `{"source": "file" | "database", "version": <id or null>, "yaml": <the
+    running document as YAML>, "summary": {...}, "storage": <store kind>}`. The gateway holds the raw mapping
+    it loaded from the YAML file (includes merged, `${ENV}` references left as written) as `gateway.file_raw`,
+    an attribute that can also be assigned on a gateway built without `create_app`. `source` is `"file"`
+    until a version exists.
+  - `POST /v1/admin/config/validate` with `{"yaml": "..."}` -> `{"ok": true, "summary": {...}}` or
+    `{"ok": false, "error": "..."}` (HTTP 200 either way). `summary` includes counts: `models` (chat models),
+    `embedding_models`, `teams`, `backends_enabled`, `backends_disabled`, `unpriced_routes`.
+  - `PUT /v1/admin/config` with `{"yaml": "...", "comment": "..."}`: 422 when invalid; otherwise saves a new
+    version (ids 1, 2, 3, ... in order), applies it to this gateway at once and returns `{"version": <id>,
+    "summary": {...}}`. Once applied, `gateway.cfg` is the new configuration and routing and authentication
+    follow it at once (static keys given as `key_env` resolve from the environment), while requests already in
+    flight finish undisturbed. Like key management, saving needs a durable store: refuse with 409 when the
+    store's `kind` isn't `"postgres"`, and judge that by `kind` alone. The in-memory store must offer the same
+    version operations for the life of the process.
+  - `GET /v1/admin/config/versions` -> `{"active": <id applied here>, "versions": [{"id", "created_at",
+    "author", "comment"}, ...]}`, newest first.
+  - `GET /v1/admin/config/versions/{id}` -> that version with its `yaml`; 404 if unknown.
+  - `POST /v1/admin/config/versions/{id}/restore`: re-validates that body, saves it as a new version and
+    applies it; returns `{"version": <new id>, "restored_from": <id>}`.
+
+  A save must reach the other gateways within seconds: the shared state exposes a configuration token,
+  `await state.get_config_token()`, that is None until something has been saved and changes whenever the stored
+  configuration (or stored prices) changes, so a gateway can tell its applied configuration is out of date.
+
+  **Interface**
+
+  - State: `get_config_token() -> str | None`.
+  - Store: a durable version history (id, author, comment, time, body) in Postgres, and the same operations
+    in memory.
+  - `Gateway.file_raw` (raw file mapping or None); `Gateway.cfg` is the applied configuration.
+  - Response shapes and status codes as above.

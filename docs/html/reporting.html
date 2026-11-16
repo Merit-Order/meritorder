@@ -1,0 +1,1746 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reporting · Merit Order docs</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Source+Sans+3:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a design-notes reader. Sticky chapter rail on the left, one long readable column on the right; rail folds into a scrolling chip row on phones. */
+:root {
+  --bg: #f4f7f6;
+  --surface: #ffffff;
+  --fg: #142120;
+  --muted: #566866;
+  --line: #d6e0de;
+  --accent: #0b7566;
+  --accent-soft: #e0f0ec;
+  --code-bg: #ecf2f1;
+  --z1: #e3f3ea; --i1: #1d6a3a;
+  --z2: #fcf1d8; --i2: #865600;
+  --z3: #fbe4e3; --i3: #9a1f1c;
+  --curve: #2556c4; --over: #c0392b;
+  --font-display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Source Sans 3", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d1413; --surface: #141d1c; --fg: #e2ebe9; --muted: #92a6a2; --line: #253331;
+    --accent: #4fcab4; --accent-soft: #15302b; --code-bg: #17221f;
+    --z1: #132c1d; --i1: #82d6a0; --z2: #2f260e; --i2: #f0c566; --z3: #351817; --i3: #f39b95;
+    --curve: #7da4ff; --over: #ff7d6e;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0d1413; --surface: #141d1c; --fg: #e2ebe9; --muted: #92a6a2; --line: #253331;
+  --accent: #4fcab4; --accent-soft: #15302b; --code-bg: #17221f;
+  --z1: #132c1d; --i1: #82d6a0; --z2: #2f260e; --i2: #f0c566; --z3: #351817; --i3: #f39b95;
+  --curve: #7da4ff; --over: #ff7d6e;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 24px; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body {
+  background: var(--bg); color: var(--fg);
+  font-family: var(--font-body); font-size: 17px; line-height: 1.6;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+
+.hero { max-width: 1180px; margin: 0 auto; padding-block: 56px 36px; display: grid; gap: 14px; border-bottom: 1px solid var(--line); }
+.eyebrow { font-family: var(--font-mono); font-size: 12.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+.hero h1 { font-family: var(--font-display); font-weight: 700; font-size: clamp(2.1rem, 5vw, 3.4rem); line-height: 1.05; letter-spacing: -.02em; margin: 0; text-wrap: balance; }
+.hero .lede { max-width: 68ch; color: var(--fg); }
+.hero .lede p { margin: 0 0 .7em; }
+.hero .lede ol { margin: 0 0 .7em; padding-left: 1.3em; display: grid; gap: 4px; }
+.hero .lede strong { color: var(--accent); }
+.also { color: var(--muted); font-size: 15.5px; }
+.contents { margin-top: 6px; max-width: 68ch; }
+.contents summary { cursor: pointer; font-family: var(--font-mono); font-size: 12.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+.contents ol { margin: 10px 0 0; padding-left: 1.3em; columns: 2 260px; column-gap: 32px; }
+.contents li { break-inside: avoid; margin: 0 0 4px; }
+h2[id], h3[id], h4[id] { scroll-margin-top: 72px; }
+
+.layout { max-width: 1180px; margin: 0 auto; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 56px; padding-block: 36px 96px; }
+.rail { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 24px); align-self: start; }
+.rail p { font-family: var(--font-mono); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0 0 10px; }
+.rail ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.rail a { display: flex; gap: 10px; align-items: baseline; padding: 6px 10px; border-radius: 6px; color: var(--fg); text-decoration: none; font-size: 15.5px; line-height: 1.3; }
+.rail a:hover { background: var(--accent-soft); }
+.rail a.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.rail a:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.n { font-family: var(--font-mono); font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.rail a.active .n { color: var(--accent); }
+
+main { min-width: 0; max-width: 860px; }
+section { padding-bottom: 56px; margin-bottom: 56px; border-bottom: 1px solid var(--line); }
+section:last-child { border-bottom: 0; }
+.sec-head { display: flex; align-items: baseline; gap: 14px; margin-bottom: 18px; }
+.sec-head .n { font-size: 14px; color: var(--accent); }
+h2 { font-family: var(--font-display); font-weight: 700; font-size: clamp(1.7rem, 3.4vw, 2.3rem); letter-spacing: -.015em; line-height: 1.1; margin: 0; text-wrap: balance; }
+h3 { font-family: var(--font-display); font-weight: 600; font-size: 1.3rem; letter-spacing: -.01em; margin: 2.2em 0 .5em; text-wrap: balance; }
+h4 { font-family: var(--font-body); font-weight: 600; font-size: 1.05rem; margin: 1.6em 0 .4em; }
+p, ul, ol { max-width: 68ch; }
+ul, ol { padding-left: 1.3em; }
+li { margin: .25em 0; }
+a { color: var(--accent); text-underline-offset: 3px; }
+strong { font-weight: 600; }
+
+code { font-family: var(--font-mono); font-size: .84em; background: var(--code-bg); padding: .1em .35em; border-radius: 4px; }
+pre:not(.mermaid) { background: var(--code-bg); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; overflow-x: auto; font-size: 14px; line-height: 1.5; }
+pre:not(.mermaid) code { background: none; padding: 0; font-size: inherit; }
+
+.table-wrap { overflow-x: auto; margin: 1em 0 1.4em; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 15.5px; }
+th, td { text-align: left; vertical-align: top; padding: 9px 14px; border-bottom: 1px solid var(--line); }
+tr:last-child td { border-bottom: 0; }
+th { font-family: var(--font-mono); font-size: 12px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); background: var(--code-bg); }
+td { font-variant-numeric: tabular-nums; }
+
+figure { margin: 1.4em 0 1.8em; }
+.diagram { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px; overflow-x: auto; }
+.diagram pre.mermaid { margin: 0; display: flex; justify-content: center; background: none; }
+
+.chart { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px; overflow-x: auto; }
+.chart svg { display: block; width: 100%; min-width: 520px; max-width: 720px; height: auto; margin: 0 auto; font-family: var(--font-body); }
+.chart figcaption { color: var(--muted); font-size: 15px; margin-top: 10px; max-width: 68ch; }
+.chart .z1 { fill: var(--z1); } .chart .z2 { fill: var(--z2); } .chart .z3 { fill: var(--z3); }
+.chart .t { font-size: 13px; font-weight: 600; }
+.chart .i1 { fill: var(--i1); } .chart .i2 { fill: var(--i2); } .chart .i3 { fill: var(--i3); }
+.chart .lbl { font-size: 13px; fill: var(--fg); }
+.chart .tick { font-size: 12px; fill: var(--muted); }
+.chart .tick.i3 { fill: var(--i3); }
+.chart .axis { stroke: var(--fg); stroke-width: 1.5; fill: none; }
+.chart .ref { stroke: var(--muted); stroke-width: 1.5; stroke-dasharray: 6 5; fill: none; }
+.chart .curve { stroke: var(--curve); stroke-width: 3.5; fill: none; }
+.chart .over { stroke: var(--over); stroke-width: 3.5; fill: none; }
+.chart .dot { fill: var(--over); }
+
+@media (max-width: 860px) {
+  .layout { grid-template-columns: minmax(0, 1fr); gap: 20px; padding-top: 20px; }
+  .rail { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); margin-inline: calc(-1 * max(16px, env(safe-area-inset-left, 0px))); padding: 10px max(16px, env(safe-area-inset-left, 0px)); border-bottom: 1px solid var(--line); }
+  .rail p { display: none; }
+  .rail ol { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; }
+  .rail a { white-space: nowrap; border: 1px solid var(--line); background: var(--surface); }
+  body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+  .hero { padding-block: 36px 24px; }
+  body { font-size: 16px; }
+}
+</style>
+</head>
+<body>
+
+
+<header class="hero">
+  <div class="eyebrow">Merit Order docs · 08</div>
+  <h1>Reporting</h1>
+  <div class="lede"><p class="also"><a href="index.html">All docs on one page</a> · <a href="how-it-all-works.html">How it all works</a></p><details class="contents"><summary>On this page</summary><ol><li><a href="#data-flow">Data flow</a></li><li><a href="#savings-numbers-have-to-stand-up-to-scrutiny">Savings numbers have to stand up to scrutiny</a></li><li><a href="#gpu-time-in-spend">GPU time in spend</a></li><li><a href="#whats-tracked">What&#x27;s tracked</a></li><li><a href="#views-console-pages">Views (console pages)</a></li><li><a href="#who-sees-what">Who sees what</a></li><li><a href="#ways-to-get-reports">Ways to get reports</a></li><li><a href="#exporting-the-ledger">Exporting the ledger</a></li><li><a href="#checking-costs-against-the-bills">Checking costs against the bills</a></li><li><a href="#prometheus-and-grafana">Prometheus and Grafana</a></li><li><a href="#cost-allocation-tags">Cost allocation tags</a></li><li><a href="#storage-and-scale">Storage and scale</a></li><li><a href="#whats-built-and-what-isnt-yet">What&#x27;s built and what isn&#x27;t yet</a></li></ol></details></div>
+</header>
+
+<div class="layout">
+  <nav class="rail" aria-label="Chapters">
+    <p>Docs</p>
+    <ol><li><a href="overview.html"><span class="n">&nbsp;&nbsp;</span>Overview</a></li><li><a href="how-it-all-works.html"><span class="n">00</span>How it all works (start here)</a></li><li><a href="architecture.html"><span class="n">01</span>Architecture</a></li><li><a href="request-flow.html"><span class="n">02</span>Request flow</a></li><li><a href="routing.html"><span class="n">03</span>Routing</a></li><li><a href="caching-and-sessions.html"><span class="n">04</span>Caching &amp; sessions</a></li><li><a href="gpu-autoscaling.html"><span class="n">05</span>GPU autoscaling</a></li><li><a href="auth-and-spend.html"><span class="n">06</span>Auth &amp; spend</a></li><li><a href="deployment.html"><span class="n">07</span>Deployment</a></li><li><a href="reporting.html" class="active" aria-current="page"><span class="n">08</span>Reporting</a></li><li><a href="decisions.html"><span class="n">09</span>Decisions</a></li><li><a href="how-it-decides.html"><span class="n">10</span>How it decides</a></li><li><a href="evals.html"><span class="n">11</span>Evals: measuring model quality</a></li><li><a href="feature-sheet.html"><span class="n"></span>Merit Order feature sheet</a></li></ol>
+  </nav>
+  <main>
+    
+    <section id="doc"><p>Merit Order exists to save money, so reporting is a core feature: what was spent, what was saved,
+why, by whom, and when.</p>
+<h2 id="data-flow">Data flow</h2>
+<figure class="diagram"><pre class="mermaid">flowchart LR
+    gw[&quot;Gateway&quot;] -- &quot;one row per request (async)&quot; --&gt; ledger[(&quot;Ledger&lt;br/&gt;Postgres, monthly partitions&quot;)]
+    ctl[&quot;Capacity controller&quot;] -- &quot;GPU cost per hour,&lt;br/&gt;activity log&quot; --&gt; gpu[(&quot;gpu_usage, gpu_events&quot;)]
+    ledger --&gt; roll[&quot;Worker&quot;]
+    roll --&gt; agg[(&quot;Hourly rollups&lt;br/&gt;by user, team,&lt;br/&gt;model, backend&quot;)]
+    roll -. &quot;copy of new rows,&lt;br/&gt;every 30 s (optional)&quot; .-&gt; ch[(&quot;ClickHouse&lt;br/&gt;ledger + hourly rollup&quot;)]
+    ch -. &quot;ranges over 7 days,&lt;br/&gt;tag breakdowns&quot; .-&gt; api
+    roll --&gt; alerts[&quot;Alerts and weekly digests&lt;br/&gt;webhook + console&quot;]
+    ctl --&gt; alerts
+    agg --&gt; api[&quot;Reports API&quot;]
+    ledger --&gt; api
+    gpu --&gt; api
+    api --&gt; ui[&quot;Web UI&quot;]
+    api --&gt; cli[&quot;meritorder usage / export&quot;]
+    api --&gt; exp[&quot;JSONL / CSV / Parquet exports&quot;]
+    bills[&quot;Providers&#x27; cost data&lt;br/&gt;Anthropic, OpenAI, AWS,&lt;br/&gt;Google Cloud, Azure&lt;br/&gt;(APIs, or export files)&quot;] -- &quot;every 6 hours&quot; --&gt; roll
+    roll --&gt; bl[(&quot;bill_lines&quot;)]
+    bl --&gt; api
+    gw -. &quot;Prometheus / OpenTelemetry&quot; .-&gt; mon[&quot;Grafana, Datadog, ...&quot;]</pre></figure>
+<p>Reports never contain prompt or response content. The ledger holds metadata only.</p>
+<h2 id="savings-numbers-have-to-stand-up-to-scrutiny">Savings numbers have to stand up to scrutiny</h2>
+<p>If finance finds one inflated number, they stop trusting the whole dashboard. So:</p>
+<p><strong>1. A baseline per team.</strong> "What you'd have done without Merit Order", set in config:</p>
+<pre><code class="language-yaml">baseline_model: claude-sonnet       # everyone's default: API price, no proxy-added caching
+teams:
+  platform:
+    baseline_model: claude-opus     # a team that would have used Opus
+</code></pre>
+<p><strong>2. Savings broken down by cause, never one blended number.</strong> Causes are computed in a fixed order,
+each against the result of the previous step, so they add up exactly to the total with no double
+counting:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Order</th>
+<th>Cause</th>
+<th>How it's counted</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><strong>Routing</strong></td>
+<td>Baseline model's API cost − served model's API cost, both without caching we added</td>
+</tr>
+<tr>
+<td>2</td>
+<td><strong>Prompt caching</strong></td>
+<td>Discount from cache breakpoints <em>we added</em>, minus cache-write premiums we paid (1-hour writes at their own price). Caching the harness set up itself would have happened anyway and isn't counted. Neither is caching added to evals or judged labels: without Merit Order they wouldn't have run at all</td>
+</tr>
+<tr>
+<td>3</td>
+<td><strong>Self-hosting</strong></td>
+<td>Served model's API cost − what the GPUs cost. Per request, the cost is its share of the GPU's time (chargeback: its tokens at the deployment's capacity); for the whole organization, the GPU time the controller accrued, idle and starting time included (<a href="#gpu-time-in-spend">below</a>). It can be negative. For batch work on a GPU, its batch price − the share (the rest is the batch discount). That batch price is what a provider's batch API would have charged: the GPU request's fallback route's, else the model's API route's (its listed batch price, or that provider's own discount: Moonshot 40%, xAI 20%), else half the API price</td>
+</tr>
+<tr>
+<td>4</td>
+<td><strong>Batch discount</strong></td>
+<td>Served model's API cost − the same tokens at its batch price, for requests sent through a provider's batch API (<a href="request-flow.html#batches-work-that-can-wait">02</a>). Kept apart because a client could get it from the provider directly</td>
+</tr>
+<tr>
+<td>5</td>
+<td><strong>Compression (rules)</strong></td>
+<td>What the tokens the rules removed from tool results would have cost on the served model: new tokens at the input price, older history at the cache-read price, at the price for the prompt they'd have made (a prompt that compression kept under a long-prompt tier is credited with the tier's difference too)</td>
+</tr>
+<tr>
+<td>6</td>
+<td><strong>Compression (model)</strong></td>
+<td>The same for what model-based compression removed from what the rules left (<a href="caching-and-sessions.html#model-based-llmlingua-2">04</a>). Each compressed request is also tagged <code>compression: rules</code> or <code>compression: model</code>, to filter by</td>
+</tr>
+<tr>
+<td>7</td>
+<td><strong>Response cache</strong></td>
+<td>What the request cost the first time, for each one answered from the response cache. Not for evals or judged labels, as for caching</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>A refused attempt.</strong> When a model refuses an <code>auto</code> request and another model answers it, the ledger has two rows:
+the refusal (<code>error: refused</code>) and the answer. Without Merit Order the person would have sent the prompt to the baseline
+model once, so only the answer's row carries the baseline. The refusal's row has a baseline of $0 and its whole cost as
+a negative routing saving. Each row, and the request as a whole, still adds up: baseline − actual = the sum of the
+causes.</p>
+<p><strong>A baseline with no known price</strong> (its model has no priced route) makes no routing claim: the baseline is the served
+model's cost, rather than savings or losses measured against $0.</p>
+<p><strong>3. GPUs at what they cost to run.</strong> See <a href="#gpu-time-in-spend">GPU time in spend</a>: savings are counted after paying
+for the GPUs, idle and starting time included, and shown below zero when the GPUs cost more than the API calls they
+replaced.</p>
+<p><strong>4. List price on every row.</strong> The console's headline is savings caused by Merit Order. Each
+ledger row also records <code>list_cost</code> (the served model at list price, no caching), so savings
+against list price can be worked out from the API or an export; the console doesn't show it yet.</p>
+<p><strong>5. Negotiated prices.</strong> A <code>price:</code> on a route replaces the live list price, so costs match what
+the organization actually pays. For 12% off Claude Sonnet's list price:
+<code>price: {input: 1.76, output: 8.8, cache_read: 0.088, cache_write: 2.2, cache_write_1h: 3.52}</code>. Give the cache
+prices too: left out, cache reads cost 10% of input, writes cost the input price, and 1-hour writes twice the input price.</p>
+<p><strong>6. Checked against the bills.</strong> The ledger's costs are computed from prices, except OpenRouter's, which are what
+OpenRouter billed. The worker fetches each provider's own cost data and compares it with the ledger by provider,
+model and day, and alerts when they drift apart. See <a href="#checking-costs-against-the-bills">Checking costs against the bills</a>.
+So far only OpenRouter's recorded costs have been compared with a real bill (by hand: they matched for every request).
+The other bill sources run only against mocks, and the prompt-caching savings Merit Order reports for Claude haven't yet
+been checked against an Anthropic invoice.</p>
+<h3 id="estimated-rows">Estimated rows</h3>
+<p>A stream that breaks off still cost something: the provider bills the whole prompt and what it wrote before it noticed.
+But OpenAI-format backends report usage only in the stream's last chunk, and Claude's first event counts one output
+token, so a client that went away (status 499) or a stream that broke (502) would otherwise be recorded as nearly free.
+For those rows the gateway fills in what the provider didn't say (<code>Gateway.broken_off_usage</code>):</p>
+<ul>
+<li><strong>The prompt</strong>, when the provider sent no count for it: the request's estimate, calibrated for the model
+  (<a href="routing.html">03</a>), less what compression took out. All of it is counted as uncached input, since what the
+  provider's cache held isn't known, so the estimate leans high.</li>
+<li><strong>The output</strong>, when the provider sent no count for it: the text, reasoning and tool calls that streamed, counted.
+  What the model wrote after the gateway stopped reading isn't seen, so this part leans low.</li>
+</ul>
+<p>A count the provider did send is kept as it is, and the estimate never adds to it: it fills a missing count, it isn't
+added on top. The row is tagged <code>usage: estimated</code>, and costs, savings, the spend counters and budgets all use the
+estimate like any other row (Breakdown → Tag → <code>usage</code> shows how much spend is estimated). Estimates never calibrate
+the token estimator, which learns only from successful replies.</p>
+<h2 id="gpu-time-in-spend">GPU time in spend</h2>
+<p>A self-hosted GPU bills for every hour its replicas run, busy or not. The ledger can't hold that: it has one row per
+request. So spend is counted in two parts (<a href="decisions.html">decision 64</a>, <code>spend.py</code>):</p>
+<ul>
+<li><strong>Each request on a GPU</strong> carries its share of the GPU's price in the ledger (<code>actual_cost</code>): its tokens at the
+  deployment's <code>capacity_tokens_per_second</code>, at the hourly price. Its team and its person are charged that share, and
+  their budgets count it.</li>
+<li><strong>The GPU's own cost</strong> is the replica time the capacity controller accrues every cycle while replicas exist
+  (<code>gpu_usage</code>), starting, idle and draining included, and the weights cache volumes. For the whole organization this
+  replaces the requests' shares:</li>
+</ul>
+<pre><code>total spend      = the ledger + GPU idle
+GPU idle         = GPU time accrued − the shares of the requests served on those GPUs
+self-hosting     = (per request: API cost − share) − GPU idle
+                 = API cost the GPU-served requests avoided − what the GPUs cost
+</code></pre>
+<p>"GPU idle, unallocated" is the GPU time no request paid for: starting up, waiting for traffic, draining, and capacity
+the requests left unused. It belongs to no team (the controller decides when GPUs run, from everyone's demand), so
+it shows only at organization level:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Report</th>
+<th>Where GPU idle goes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>By day, hour or month, and the totals</td>
+<td>into each period's spend, GPU column and self-hosting cause</td>
+</tr>
+<tr>
+<td>By backend</td>
+<td>into the GPU backend's row: its spend is what it cost to run</td>
+</tr>
+<tr>
+<td>By team, person, model or tag</td>
+<td>a row of its own, <code>GPU idle, unallocated</code></td>
+</tr>
+<tr>
+<td>A team lead's or a person's view, or any report filtered to a team or person</td>
+<td>not shown: their requests' shares only</td>
+</tr>
+</tbody>
+</table></div>
+<p>Every summary row has <code>api_cost</code> and <code>gpu_cost</code> (<code>actual_cost</code> = the two together) and <code>gpu_idle_cost</code> (the part of
+<code>gpu_cost</code> no request paid for). Savings by cause still add up to baseline − spend. The weekly digest has a message
+for the organization as well as the teams' whenever GPUs ran.</p>
+<p>Only backends with GPU time accrued in the period are set against it. A self-hosted backend no controller runs
+(your own vLLM with a configured <code>gpu_cost_per_hour</code> and no <code>serve:</code>) accrues none, and its requests' shares are its
+cost. If the requests' shares come to more than the GPU cost (capacity set below what the GPU really serves), GPU idle
+is negative: the total is still the GPU's cost. A broken-off stream on a GPU (<a href="#estimated-rows">estimated rows</a>) is
+charged its estimated share like any other request: its team pays it, and the organization's total stays the GPU's
+time, since the share only moves cost out of GPU idle.</p>
+<p>The live run that showed the need: a GPU up for most of a day accrued $1.62 and served a few small requests whose
+shares came to $0.0001. Dispatch said "Spend today $0.0001, without Merit Order $0.0022, −95%". Counted this way it
+says $1.62 (APIs $0 · GPUs $1.62), saved −$1.62.</p>
+<h2 id="whats-tracked">What's tracked</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Area</th>
+<th>Metrics</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Spend</strong></td>
+<td>Actual cost by user, team, tag, model, backend, and hour, day, or month, split into APIs and GPUs, with GPU time no request paid for at organization level (<a href="#gpu-time-in-spend">GPU time in spend</a>); every ledger row also has the key and session; month-end pace against budgets</td>
+</tr>
+<tr>
+<td><strong>Savings</strong></td>
+<td>Total and by cause (above), over time</td>
+</tr>
+<tr>
+<td><strong>GPU fleet</strong></td>
+<td>Where each replica runs (cloud, region, instance, spot; on Kubernetes the node, zone and node type), its load, which sessions sit on it and whether their cache is probably still warm there, uptime, burn rate, cost per run and per month (SkyPilot catalog prices, or a Kubernetes node type's configured price), replica-hours, utilization, demand at API prices vs GPU cost, every state change and admin action</td>
+</tr>
+<tr>
+<td><strong>Routing</strong></td>
+<td>Model mix, free upgrades per group, and for each request the model asked for, its quality floor, the model served, and why (<code>route_reason</code>: the rules that set the floor, any models ruled out by their context windows, and with cost per success the expected costs per success it compared)</td>
+</tr>
+<tr>
+<td><strong>Caching</strong></td>
+<td>Cached tokens read and written, cache hit rate by backend or model, caching savings. Sessions that switched backends and the rebuild cost they paid aren't tracked yet</td>
+</tr>
+<tr>
+<td><strong>Operations</strong></td>
+<td>Latency, time to first token, tokens/s, errors, and failovers per backend</td>
+</tr>
+<tr>
+<td><strong>Budgets</strong></td>
+<td>Team, org, and GPU spend against budgets with month-end pace, each counted as requests are admitted (the ledger, running batches' reservations shown on their own, and for the organization GPU time); each person's spend against their limit, across teams; alerts at 80% and 100%; refused requests by reason</td>
+</tr>
+<tr>
+<td><strong>Bills</strong></td>
+<td>Recorded cost against each provider's own cost data by provider, model and day, with token counts where the bill has them, and the batch tier's share on both sides; bill lines that matched no model and why; credits; GPU time against the cloud bills</td>
+</tr>
+<tr>
+<td><strong>Batches</strong></td>
+<td>Each batch through the providers' batch APIs and running GPUs: status, request counts (done, failed, cancelled, expired), how many requests went to each provider or GPU (GPUs marked), the estimate reserved against budgets against what the results cost, the batch discount, what GPUs took off the batch price, and other savings. For admins, where uploads and GPU work are held and the batch key's state. Every request is also a ledger row (<code>service_tier: batch</code>, <code>batch_id</code>)</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="views-console-pages">Views (console pages)</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Page</th>
+<th>Audience</th>
+<th>Shows</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Dispatch</strong></td>
+<td>Admins, finance, team leads</td>
+<td>Spend today and this month (APIs · GPUs; a team lead sees the team's shares), against the cost without Merit Order, savings by cause in dollars (self-hosting after GPU cost, below zero when GPUs cost more), what running batches reserved. Live: the merit-order stack from real traffic (a chart and a table of each model's price, tokens per second, share and requests), the request feed (time, user and team, what was asked for and what served it, backend, level, cost, saved against the team's default model, latency; not for finance, which sees aggregates only: <code>/v1/console/feed</code> answers 403), backend health, GPU fleet, what needs attention</td>
+</tr>
+<tr>
+<td><strong>Reports</strong></td>
+<td>Everyone (scoped to their role)</td>
+<td>Overview: spend vs baseline by day, savings by cause by day, spend by model, and (not for people who see only their own requests) the top teams and top users; breakdowns by team, person, model, backend, day, or tag; Requests (not for finance): the ledger a page at a time, filtered and sorted on the gateway, with a detail drawer and CSV (<a href="#the-requests-view-reports--requests">below</a>); Levels: how <code>auto</code> gives a request its level (the rules in effect and Claude Code's side jobs) and, for each level, the models the person's team may use, cheapest first, and (admins, team leads) whether each level is too high or too low for the work, from exploration (below); Batches: each batch's status, providers, estimated and actual cost and savings (admins can cancel any, people their own); CSV; Bills (finance and admins): the ledger against each provider's own cost data; Learned router (admins, team leads): where it and the rules disagree, what each would cost, and the outcomes, with its model versions and training (admins), and judged labels: how many, what they cost, how far they agree with the outcome signals, and each team's month against its cap; which store answered each view</td>
+</tr>
+<tr>
+<td><strong>GPUs</strong></td>
+<td>Admins, finance, team leads</td>
+<td>Each deployment: where it runs (each replica's cloud, resources, price, uptime, load, lease and status; a running deployment takes the full width), sessions per replica (and, for admins and team leads, which ones), uptime, burn rate, run and month cost, demand coverage; stop / pin / stop-all (admins); activity log; what-if for models you don't host yet</td>
+</tr>
+<tr>
+<td><strong>Controls</strong></td>
+<td>Admins, finance</td>
+<td>Org (APIs · GPUs, and what running batches reserved), GPU, and team spend against budgets, the totals admission counts: a meter with what's spent, the projection to month end and a tick at the budget; the fleet's burn rate against its limit; safeguards and budgets (editable by admins; an edited budget is marked with what it was until saved)</td>
+</tr>
+<tr>
+<td><strong>Backends</strong></td>
+<td>Admins, team leads</td>
+<td>Health, requests, errors, latency, time to first token, measured speed</td>
+</tr>
+<tr>
+<td><strong>Models</strong></td>
+<td>Admins</td>
+<td>Routes, live prices (cache prices a route doesn't list shown at the defaults it's billed at) and where each came from, quality scores and their source, how each model's prompt tokens compare with the gateway's estimate, eval results (Evals tab)</td>
+</tr>
+<tr>
+<td><strong>Teams</strong></td>
+<td>Admins, finance, team leads</td>
+<td>Each team's limits, policy, and spend this month</td>
+</tr>
+<tr>
+<td><strong>People, Keys</strong></td>
+<td>Admins, team leads</td>
+<td>Who's in which team, their spend and limits; API keys</td>
+</tr>
+<tr>
+<td><strong>Config</strong></td>
+<td>Admins</td>
+<td>Tabs for Teams, Models, Backends, Routing, Access (sign-in and group mappings) and Reporting (where reports come from: Postgres, and ClickHouse's health and how far its copy has got), plus the whole file as YAML; each save is a new version</td>
+</tr>
+<tr>
+<td><strong>My usage</strong></td>
+<td>Everyone</td>
+<td>Own spend, models used, budget remaining</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="is-each-level-right-for-the-work-reports--levels">Is each level right for the work? (Reports → Levels)</h3>
+<p>Under the level rules and the models each level allows, admins and team leads (their team) see whether each level is
+too high or too low for the work, from the organization's own traffic (decision 59). It's <code>GET
+/v1/reports/levels/outcomes?days=30</code> (7, 30 or 90 on the console). It needs the learned router on (shadow mode is
+enough: it records each task start and what followed), and teams that explore
+(<a href="routing.html#your-own-traffic-as-the-benchmark">03</a>); until a team explores, only the served level is measured.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Column</th>
+<th>What it is</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Level</td>
+<td>Task type and level, e.g. <code>coding:3</code></td>
+</tr>
+<tr>
+<td>Traffic, Spend</td>
+<td>The level's share of requests and of spend in the period, from the ledger (every request carries its level)</td>
+</tr>
+<tr>
+<td>Served, One down, One up</td>
+<td>Success rate by exploration arm, with its sample size: served at the level, explored one level down, explored one level up. A success is a task start without a failure signal (a correction in the next prompt, tests failing at the end, sent again, a raised floor, and the rest of <a href="routing.html#what-it-learns-from">the labels</a>, by their weights). Each task start counts 1 ÷ its arm's chance, so teams exploring at different shares pool fairly. A small glyph draws the 90% interval on a 50% to 100% scale; hover for the effective sample size. Dimmed (and the interval dashed) under 200 (<code>routing.benchmark.min_outcomes</code>)</td>
+</tr>
+<tr>
+<td>Too high?</td>
+<td>How well the level below does, as a share of the served level's rate; marked <em>too high</em> when it's at least 95% (<code>as_well</code>) at the low end of its 90% interval, with enough task starts on both sides</td>
+</tr>
+<tr>
+<td>Too low?</td>
+<td>How often the level above succeeds, as a share of the served level's; marked <em>too low</em> when the served level is clearly under 95% of it</td>
+</tr>
+</tbody>
+</table></div>
+<p>Below the table:</p>
+<ul>
+<li><strong>Recommendations</strong> (admins), each on its own line under the level it's about: "coding level 3: level 2 does as well
+  in 98% (n=412 explored, 9,870 served); consider lowering". <em>Apply</em> writes <code>routing.level_map</code> as a new configuration
+  version (<code>POST /v1/admin/levels/apply</code>), and the line says <em>applied</em> from then on. <em>Dismiss</em> sets it aside (<code>POST
+  /v1/admin/levels/dismiss</code>; <em>Undo</em> brings it back): it stays dismissed until its evidence changes, that is until it
+  points another way or <code>routing.benchmark.min_outcomes</code> more task starts are explored on the level it compares with,
+  and while it's dismissed nothing alerts on it or applies it. With <code>routing.benchmark.auto_apply</code>, the worker applies
+  those the learned router agrees with. A new recommendation raises an alert once.</li>
+<li><strong>Canaries</strong>: models newly cheapest or newly qualifying at a level, tried on a share of the level's task starts before
+  they take the rest, with their outcomes so far.</li>
+<li><strong>Spend per day</strong>, with the days the catalog or the scores changed marked (hover for what changed), and the latest of
+  those changes listed: models added or removed, scores that moved, a new cheapest model, a canary done, a level moved.
+  A change of catalog can move work between levels; the marks show where to look.</li>
+</ul>
+<p>Team leads see their team's numbers without the recommendations, which change the whole organization's routing.</p>
+<h3 id="the-requests-view-reports--requests">The Requests view (Reports → Requests)</h3>
+<p>The ledger a page at a time, newest first. Every filter runs on the gateway, so it covers every row, not only the page
+on screen. The filters, the sort, the page size and the page itself are in the URL (<code>#reports/requests?team=eng&amp;status=error</code>),
+so a view can be shared and survives a refresh. Typing in a filter waits for a pause before it asks again.</p>
+<ul>
+<li><strong>Pages</strong> of 25, 50, 100 or 200, with Previous and Next, and how many rows match: exact up to 10,000, past that
+  Postgres's estimate, shown as "about".</li>
+<li><strong>Sort</strong> by time (the default), cost, savings or latency, highest or lowest first. The ledger's key is time, so a page by
+  time costs the same on any range and at any depth. Nothing indexes cost, savings or latency, so those sort only within a
+  time range of 7 days or less; the console says so and offers them only then.</li>
+<li><strong>A row</strong> opens a drawer with its ledger fields: who sent it with which key and session, the model asked for and the
+  one that served it, the level (<code>task:level</code>) and the recorded reason for it, the routes that failed before it, the cost
+  (spent, the served model at API prices, without Merit Order, list price, tokens), savings by cause, its tags, status and
+  latency. The session links to the view filtered to that session. There's no content: the ledger never stores any.</li>
+<li><strong>Download CSV</strong> streams every row the filters match, in the view's order, with every ledger column and <code>savings_total</code>.</li>
+</ul>
+<p>Scoping is the reports' own (<a href="#who-sees-what">below</a>): a person sees their own requests, a team lead their team's, an admin
+everyone's, and finance none (aggregates only). The role is applied after the filters and AND-ed with them, so no filter,
+such as another person, team, key or session, can widen it: a person asking for someone else's key gets no rows.</p>
+<p><strong>The API.</strong> <code>GET /v1/reports/requests</code> (JSON) and <code>GET /v1/reports/requests.csv</code> take the same parameters, all optional
+and all AND-ed:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Matches</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>start</code>, <code>end</code></td>
+<td><code>ts</code> from <code>start</code> (inclusive) to <code>end</code> (exclusive): <code>YYYY-MM-DD</code> (midnight UTC) or an ISO 8601 time. Default: no bound</td>
+</tr>
+<tr>
+<td><code>user</code>, <code>team</code>, <code>key</code>, <code>session</code></td>
+<td><code>user_id</code>, <code>team</code>, <code>key_id</code>, <code>session_id</code>, exactly (clamped to the caller's role)</td>
+</tr>
+<tr>
+<td><code>requested_model</code>, <code>served_model</code>, <code>backend</code>, <code>format</code></td>
+<td>the model asked for (<code>auto</code>, a name, an alias), the one that served it, the backend, the client's API format (<code>client_format</code>)</td>
+</tr>
+<tr>
+<td><code>status</code></td>
+<td><code>success</code> (below 400), <code>error</code> (400 or more, as summaries count errors), a code (<code>429</code>) or a class (<code>5xx</code>)</td>
+</tr>
+<tr>
+<td><code>task</code>, <code>level</code></td>
+<td>the level's task type and number, from <code>floor</code> (<code>coding:3</code>); a request for a named model has neither</td>
+</tr>
+<tr>
+<td><code>reason</code></td>
+<td><code>route_reason</code> contains this, ignoring case</td>
+</tr>
+<tr>
+<td><code>tag</code></td>
+<td><code>name=value</code>, or <code>name</code> alone for any value; repeat it and all must match. The gateway's own tags work the same: <code>explore</code>, <code>explore_from</code>, <code>escalation</code>, <code>escalated_from</code>, <code>judged_label</code>, <code>compaction</code>, <code>compression</code>, <code>usage</code>, and <code>eval</code> where clients set it</td>
+</tr>
+<tr>
+<td><code>min_cost</code>, <code>max_cost</code></td>
+<td><code>actual_cost</code> in USD, inclusive</td>
+</tr>
+<tr>
+<td><code>min_savings</code>, <code>max_savings</code></td>
+<td><code>savings_total</code> (the causes added up) in USD, inclusive</td>
+</tr>
+<tr>
+<td><code>savings_cause</code></td>
+<td><code>routing</code>, <code>caching</code>, <code>self_hosting</code>, <code>batch</code>, <code>compression</code>, <code>compression_model</code> or <code>response_cache</code>: rows where that cause isn't zero</td>
+</tr>
+<tr>
+<td><code>min_latency</code>, <code>max_latency</code></td>
+<td><code>latency_ms</code>, inclusive; rows without one don't match</td>
+</tr>
+<tr>
+<td><code>stream</code>, <code>batch</code>, <code>cache_hit</code>, <code>failover</code></td>
+<td><code>true</code> or <code>false</code>: streamed; through a provider's batch API (<code>service_tier: batch</code>) or live; read the prompt cache (<code>cache_read_tokens</code> &gt; 0) or came from the response cache; another route was tried first and failed (<code>failed_over</code>, recorded from schema migration 19 on)</td>
+</tr>
+<tr>
+<td><code>sort</code>, <code>order</code></td>
+<td><code>time</code> (default), <code>cost</code>, <code>savings</code> or <code>latency</code>; <code>desc</code> (default) or <code>asc</code>. Other than time, <code>start</code> must be within 7 days of <code>end</code> (or of now)</td>
+</tr>
+<tr>
+<td><code>limit</code></td>
+<td>rows a page, 1 to 1,000 (default 50); JSON only</td>
+</tr>
+<tr>
+<td><code>cursor</code></td>
+<td><code>next</code> or <code>prev</code> from a page; JSON only</td>
+</tr>
+</tbody>
+</table></div>
+<p>The JSON is <code>{rows, next, prev, limit, sort, order, total, total_exact, user, team, start, end, sort_range_days, answered_by}</code>.
+<code>rows</code> are ledger rows with <code>savings_total</code>. <code>next</code> and <code>prev</code> are opaque cursors, <code>null</code> at either end. Paging is by keyset
+on (sort value, <code>ts</code>, <code>id</code>), never by offset: a page after a cursor is the rows strictly after that row, so rows written
+meanwhile (newer than any page you've seen) can't shift later pages, and no row shows twice or is skipped. Previous from
+the second page gives the first page as it is now, new rows included. A bad cursor, or one from another sort, is a 400.
+With no filters this is the list of recent requests it always was (<code>?limit=200</code>).</p>
+<p><strong>Indexes.</strong> A page by time reads the ledger's (<code>ts</code>, <code>id</code>) primary key, or with a team, person or served model the
+indexes on (<code>team</code>, <code>ts</code>), (<code>user_id</code>, <code>ts</code>) and (<code>served_model</code>, <code>ts</code>); a key or session the indexes on (<code>key_id</code>, <code>ts</code>)
+and (<code>session_id</code>, <code>ts</code>) (schema migration 19). Other filters are checked on the rows of the time range: give a range when
+you filter by a tag or a reason on a large ledger. Building migration 19's two indexes on a large ledger takes a while,
+and ledger writes wait meanwhile, so run <code>meritorder migrate</code> in a quiet hour. The view always reads Postgres (below).</p>
+<h2 id="who-sees-what">Who sees what</h2>
+<p>Roles come from Entra (or OIDC) group membership, or with Google from verified email addresses and
+domains, with exceptions pinned on the People page.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Role</th>
+<th>Can see</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>User</td>
+<td>Their own usage</td>
+</tr>
+<tr>
+<td>Team lead</td>
+<td>Their team's usage, per user</td>
+</tr>
+<tr>
+<td>Finance</td>
+<td>All spend and savings, no per-request detail</td>
+</tr>
+<tr>
+<td>Admin</td>
+<td>Everything</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="ways-to-get-reports">Ways to get reports</h2>
+<ul>
+<li><strong>Web console</strong> with the pages above.</li>
+<li><strong>Reports API.</strong> The console is built on it, so anyone can build their own views. Every report says which store answered
+  it, Postgres or ClickHouse: <code>answered_by</code> in the JSON and the <code>x-meritorder-answered-by</code> header (on CSV and JSON lines too).</li>
+<li><strong>CLI:</strong> <code>meritorder usage</code> for a quick look at your own spend; <code>meritorder usage --bills</code> for the ledger against
+  the bills (finance and admins); <code>meritorder router report</code> for the learned router's shadow report (admins, team
+  leads).</li>
+<li><strong>Exports:</strong> the ledger as JSONL, CSV, or Parquet, to a file or S3, for data warehouses and BI
+  tools (<a href="#exporting-the-ledger">below</a>).</li>
+<li><strong>Weekly digests</strong> per team, to a webhook (Slack, Teams, or anything that accepts JSON).</li>
+<li><strong>Alerts</strong> to the same webhook and the console: team, personal, org, and GPU budget thresholds,
+  <strong>spend spikes</strong> (a person suddenly at 5× normal usually means an agent stuck in a loop), GPU
+  state changes, every admin GPU action, provider outages and recoveries, changed live prices
+  or quality scores, a day's bill that differs from the ledger, a bill that can't be fetched, a model that becomes the
+  cheapest at a level, and a level recommendation from the outcome report.</li>
+<li><strong>Metrics:</strong> Prometheus <code>/metrics</code> and OpenTelemetry traces, with a ready-made Grafana dashboard
+  (below).</li>
+</ul>
+<h2 id="exporting-the-ledger">Exporting the ledger</h2>
+<p><code>meritorder export</code> downloads one row per request (metadata only) for a date range. Team leads get
+their team's rows; admins get everyone's. Finance sees aggregates only, so it uses <code>summary.csv</code>.</p>
+<p>In every CSV the gateway writes (<code>requests.csv</code>, <code>summary.csv</code>, <code>bills.csv</code>), a text cell that starts with <code>=</code>, <code>+</code>,
+<code>-</code>, <code>@</code>, a tab or a carriage return gets a leading <code>'</code>, so a spreadsheet doesn't run it as a formula. Session ids
+from headers keep to letters, digits and <code>._:/@+-</code> (others become <code>_</code>) before they reach the ledger.</p>
+<pre><code class="language-bash">meritorder export --out ledger.jsonl                                   # this month so far, JSON lines
+meritorder export --format csv --start 2026-10-01 --end 2026-11-01 --out october.csv
+meritorder export --format parquet --start 2026-10-01 --end 2026-11-01 --out s3://finance/meritorder/2026-10.parquet
+</code></pre>
+<p><code>--start</code> is inclusive and <code>--end</code> exclusive (default: the first of this month to tomorrow). An
+<code>s3://bucket/key</code> target is staged in the working directory and uploaded with the standard AWS
+credentials (environment, profile, or instance role; <code>MERITORDER_S3_ENDPOINT</code> for an S3-compatible
+store); a local file is written to <code>&lt;out&gt;.partial</code> beside it, which replaces the destination only
+when the export is whole.
+Rows are written as they arrive, so memory stays flat however long the range. An export that fails
+part way deletes its <code>.partial</code> file and leaves whatever was at the destination (last month's export,
+say) as it was.</p>
+<p><strong>Parquet</strong> needs the <code>parquet</code> extra (pyarrow): <code>uv sync --extra parquet</code> in the clone, or
+<code>pip install '.[parquet]'</code> (Merit Order isn't on PyPI). Without it, the command says so before downloading anything. Columns are
+typed as the ledger stores them:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Columns</th>
+<th>Parquet type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>id</code></td>
+<td>string (a UUID)</td>
+</tr>
+<tr>
+<td><code>ts</code></td>
+<td>timestamp, microseconds, UTC</td>
+</tr>
+<tr>
+<td><code>user_id</code>, <code>team</code>, <code>key_id</code>, <code>session_id</code>, <code>client_format</code>, <code>requested_model</code>, <code>floor</code>, <code>route_reason</code>, <code>served_model</code>, <code>upstream_model</code>, <code>backend</code>, <code>backend_kind</code>, <code>error</code>, <code>service_tier</code> (<code>batch</code> or empty), <code>batch_id</code>, <code>failed_over</code> (the routes tried first that failed, as <code>x-meritorder-failed-over</code> says; empty before schema migration 19)</td>
+<td>string</td>
+</tr>
+<tr>
+<td><code>tags</code></td>
+<td>map of string to string (a value that isn't text is written as JSON)</td>
+</tr>
+<tr>
+<td><code>status</code>, <code>latency_ms</code>, <code>ttft_ms</code></td>
+<td>int32</td>
+</tr>
+<tr>
+<td><code>input_tokens</code>, <code>cache_read_tokens</code>, <code>cache_write_tokens</code>, <code>output_tokens</code></td>
+<td>int64</td>
+</tr>
+<tr>
+<td><code>stream</code>, <code>upgraded</code>, <code>proxy_cache</code></td>
+<td>boolean</td>
+</tr>
+<tr>
+<td><code>actual_cost</code>, <code>served_api_cost</code>, <code>baseline_cost</code>, <code>list_cost</code>, <code>savings_*</code></td>
+<td>double, USD</td>
+</tr>
+</tbody>
+</table></div>
+<p>The file has a row group per 100,000 rows and is Snappy-compressed. An empty range still gives a
+valid file with every column. CSV writes <code>tags</code> as a JSON object in one column.</p>
+<h2 id="checking-costs-against-the-bills">Checking costs against the bills</h2>
+<p>Every ledger row has a computed cost: OpenRouter's is what OpenRouter billed with the response, and every other
+provider's comes from the live price list or the route's <code>price:</code>. A price list can be wrong, a provider can count
+tokens differently, and a discount, a 1-hour cache write or a long-context tier can cost something the price list
+doesn't say. So the worker fetches each provider's own cost data and compares it with the ledger, by provider, model
+and UTC day.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Source</th>
+<th>What it reads</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>anthropic</code></td>
+<td>The Usage and Cost Analytics API (<code>/v1/organizations/analytics/cost</code> and <code>/usage</code>): cost and tokens per day by model, token type, service tier, context window, speed and product</td>
+</tr>
+<tr>
+<td><code>openai</code></td>
+<td>The organization Costs API (<code>/v1/organization/costs</code>) per day and line item (<code>gpt-6.1-terra, input_tokens</code>), with token quantities</td>
+</tr>
+<tr>
+<td><code>aws</code></td>
+<td>Cost Explorer (<code>GetCostAndUsage</code>): Bedrock by model and inference type, credits and other record types by model, and costs tagged with a GPU deployment. For days before September 2026, when Cost Explorer has no model breakdown, by service and usage type</td>
+</tr>
+<tr>
+<td><code>aws_cur</code></td>
+<td>AWS Data Exports' CUR 2.0 files in S3 (gzipped CSV or Parquet), read by manifest: Bedrock line items by usage type (input, output, cache read and write), model and batch feature, hourly or daily; models sold through the Marketplace by product name; credits, refunds, taxes, Savings Plan negations and fees; GPU instances by tag</td>
+</tr>
+<tr>
+<td><code>gcp</code></td>
+<td>The Cloud Billing export to BigQuery (standard usage cost table): cost and credits per day, service and SKU, converted to US dollars; GPU instances by label</td>
+</tr>
+<tr>
+<td><code>azure</code></td>
+<td>The Cost Management Query API: actual cost per day, service and meter at a scope; GPU instances by tag</td>
+</tr>
+<tr>
+<td><code>azure_export</code></td>
+<td>Cost Management's scheduled exports in Blob Storage (FOCUS, or actual or amortized cost; CSV, gzipped or not, or Parquet): cost per day, meter and resource for Foundry resources (Azure OpenAI, and Claude with its model and kind of token from the record's tags), purchases, credits and refunds; GPU VMs by tag</td>
+</tr>
+</tbody>
+</table></div>
+<p><code>aws</code> and <code>aws_cur</code> read the same bill two ways, as do <code>azure</code> and <code>azure_export</code>, so use one of each pair for a
+given account. The config refuses two that would both count a day: both enabled for the same backends, or both
+fetching GPU costs while a SkyPilot deployment exists. Split them with <code>backends:</code> and <code>gpu_tag: null</code>, or by
+<code>accounts</code> (AWS) or <code>scope</code> (Azure) that don't overlap. To move from an API to its export, set <code>enabled: false</code> on the
+API source; its stored lines stay in the database but are no longer shown.</p>
+<p>Which to use:</p>
+<ul>
+<li><strong>Cost Explorer (<code>aws</code>)</strong> needs only an IAM permission, but charges $0.01 per request (about $5 a month at the
+  default schedule), gives a day's total per model and kind of token, and has no model breakdown before September</li>
+<li><strong>The CUR 2.0 export (<code>aws_cur</code>)</strong> needs a Data Export to an S3 bucket set up once, then costs only S3 requests
+  and, outside AWS, data transfer. It has every line item: hourly, per resource and tag, with each credit, refund and
+  Savings Plan row. History starts when the export is created; AWS backfills up to 14 months through a support case.
+  Use it when the account already exports CUR for finance, when there are many linked accounts or GPU instances to
+  follow, or when Cost Explorer's per-request price adds up. Neither has per-request detail: that's the ledger.</li>
+<li><strong>The Query API (<code>azure</code>)</strong> needs no storage, but is throttled and groups by two dimensions at a time. <strong>Exports
+  (<code>azure_export</code>)</strong> need a storage account and a scheduled export, and have every row with its meter, resource and
+  tags. Exports are the way to read Claude in Foundry by model, since its single Marketplace meter carries the model
+  and the kind of token only in each record's tags, and the way to avoid throttling on large scopes.</li>
+</ul>
+<h3 id="how-a-bill-is-compared">How a bill is compared</h3>
+<ul>
+<li><strong>Fetching.</strong> Every <code>refresh_hours</code> (6), the worker reads the last <code>lookback_days</code> (40) from each source and
+  replaces what it stored for those days (the <code>bill_lines</code> table), because providers restate recent days (Anthropic
+  until about the 7th of the next month). An export source reads only files that changed; see
+  <a href="#reading-the-export-files">Reading the export files</a>. Admins can also fetch now from Reports → Bills. A source's
+  lines are replaced under a lock, one fetch at a time, so a fetch from the console while the worker's runs (or two
+  workers') both land.</li>
+<li><strong>Partial days.</strong> Bills lag. A day is settled once it's <code>settle_days</code> old (Anthropic 1, OpenAI 1, AWS and its CUR
+  export 2, Google Cloud 2, Azure and its exports 3) and, for Anthropic, also covered by the API's
+  <code>data_refreshed_at</code>. For an export, the last day its files have usage for is partial too, so an export that stops
+  being delivered shows as partial days, never as gaps. Younger days are shown as partial and never alerted on, and
+  the totals at the top of the report count settled days only. Days before the first fetch count as partial too.</li>
+<li><strong>What's compared.</strong> For each day, provider and model: <em>recorded</em> is the ledger's cost for the model on the
+  source's backends; <em>billed</em> is the bill lines matched to the model. Batch-tier lines (Anthropic's <code>batch</code> service tier
+  and Message Batches product, OpenAI's batch line items, the clouds' batch SKUs and usage types) match like any other, and
+  the row also shows the batch tier's share of each side, so a batch price that's off can be told from a live one. The difference is billed minus recorded, and
+  the percent is of recorded. Where the bill has token counts (Anthropic, OpenAI, and the exports where a line's unit
+  is tokens), they're shown beside the ledger's, so a price that's off can be told apart from tokens counted
+  differently.</li>
+<li><strong>Every bill line goes one of three ways</strong>, and the report lists the last two with the reason:</li>
+</ul>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Line</th>
+<th>Counts in billed?</th>
+<th>Examples</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Matched to a model</td>
+<td>Yes, for that model</td>
+<td><code>claude-sonnet-5-5 · uncached_input_tokens</code>, <code>Claude Sonnet 5.5 · Input tokens</code>, <code>Vertex AI · Gemini 3.8 Flash Input Text Tokens</code></td>
+</tr>
+<tr>
+<td>Not matched</td>
+<td>Yes, for the provider, not for a model</td>
+<td>A model the gateway doesn't route through this source (other usage in the account), web search with no model on it, a name the matcher doesn't recognize</td>
+</tr>
+<tr>
+<td>Left out</td>
+<td>No</td>
+<td>Credits, refunds, taxes and other adjustments (shown as a total); lines in <code>ignore</code>; lines in a currency other than US dollars</td>
+</tr>
+</tbody>
+</table></div>
+<ul>
+<li><strong>Model names.</strong> A bill names models its own way (<code>anthropic.claude-sonnet-5-5</code>, <code>Claude Sonnet 5.5 (Amazon
+  Bedrock Edition)</code>, <code>gpt-6.1-terra-Inp-glbl</code>). Both sides are reduced to words, with dates, provider prefixes and
+  Bedrock's <code>:0</code> versions dropped. A line matches a model when one of the model's route ids (or its <code>price_key</code>,
+  <code>benchmark_name</code>, or an id the ledger saw) appears in it as a run of words that isn't followed by a version number
+  or a variant word: "Claude Sonnet 5" doesn't take "Claude Sonnet 5.5", and "Gemini 3.8 Flash" doesn't take "Gemini
+  3.8 Flash-Lite". The longest match wins. For a name it misses, map it: <code>models: {"*nova pro*": nova-pro}</code>.</li>
+<li><strong>Status of a row:</strong> <em>matched</em>; <em>partial</em> (not settled); <em>not on the bill</em> (recorded, but no line matched: a name
+  the matcher missed, or a bill that wasn't fetched); <em>not in the ledger</em> (billed, but nothing went through Merit
+  Order: someone else uses the account). A row past the alert threshold is marked.</li>
+<li><strong>Alerts.</strong> A settled day whose bill (matched plus not matched) and ledger differ by at least <code>alert_min_usd</code> ($1)
+  and <code>alert_pct</code> (5%) of the ledger raises one alert per source, naming the day, the model with the biggest gap,
+  and how much of the bill matched no model. Each day is alerted once. A source that can't be fetched alerts every 6
+  hours; its last bill stays. They go to the same webhook and console list as the other alerts.</li>
+<li><strong>GPUs.</strong> SkyPilot tags every instance it starts for a deployment with <code>meritorder-deployment: &lt;backend name&gt;</code> (an
+  AWS tag, a GCP label). The <code>aws</code>, <code>aws_cur</code>, <code>gcp</code>, <code>azure</code> and <code>azure_export</code> sources fetch costs carrying that tag
+  (usage only: a Savings Plan's negation or a credit on the instance is an adjustment), and the report compares
+  them per deployment and day with the GPU time the controller recorded at SkyPilot's catalog prices (<code>gpu_usage</code>).
+  A deployment that moved clouds is summed across them. Disks and egress count only where the cloud carries the tag
+  to them. Clouds without a billing API here (Lambda, RunPod, ...) and static servers aren't checked.</li>
+<li><strong>Not checked.</strong> The report lists ledger spend no source covers and why: OpenRouter (its cost is already what it
+  billed), backends no source names, self-hosted GPUs (compared above), mock backends.</li>
+</ul>
+<p>A bill only matches the ledger if what it covers is Merit Order's traffic. Give Merit Order its own Anthropic
+workspace, OpenAI project, AWS account, GCP project or Azure resource group where you can, and filter on it (below).
+Otherwise other usage of the same models shows up as gaps; the report marks sources that read the whole account.</p>
+<h3 id="reading-the-export-files">Reading the export files</h3>
+<p>Both providers rewrite a whole billing period on every refresh and list its files in a manifest, so the export
+sources work by manifest (<code>src/meritorder/billing/exports.py</code>):</p>
+<ol>
+<li><strong>Find the refreshes.</strong> For each month the lookback reaches into, <code>aws_cur</code> lists
+   <code>&lt;export&gt;/metadata/BILLING_PERIOD=YYYY-MM/</code> and takes the manifest there, which Data Exports keeps pointing at the
+   period's newest refresh, in both "overwrite" and "create new" mode. <code>azure_export</code> lists the export's folder and
+   finds every <code>manifest.json</code>, wherever the run folders are (the layout differs between API versions); each says
+   which days its run covers (<code>runInfo.startDate</code> to <code>endDate</code>) and when it ran. Each day comes from the newest run
+   that covers it: a month-to-date export's run of today replaces yesterday's, and the re-export of the previous month
+   in the first days of a month replaces its last daily run.</li>
+<li><strong>Read only what changed.</strong> A manifest whose name and ETag are the same as at the last fetch is skipped, and so are
+   its files. Otherwise every file it lists is read, and its lines replace what was stored for that run's days; days
+   from unchanged runs keep their lines. What was read (manifests, ETags, the days each run won) is kept in the
+   source's status, so a refresh with nothing new reads nothing but the listings.</li>
+<li><strong>Stream each file.</strong> A file downloads to a temporary file as it arrives (as stored: a <code>.csv.gz</code> stays gzipped),
+   then is read row by row in a thread, so a large export never has to fit in memory: CSV, gzipped or not, or
+   Parquet in batches of 50,000 rows (pyarrow, the <code>parquet</code> extra). Only rows in scope are kept, summed per UTC day
+   and line. The temporary file needs as much disk as the export's largest file (each is under 1 GB uncompressed for
+   Azure; AWS splits large exports into numbered chunks). An Azure manifest's row count is checked against the rows
+   read, so a run rewritten mid-read is read again next time.</li>
+</ol>
+<p>What each source keeps from the files:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th></th>
+<th><code>aws_cur</code> (CUR 2.0)</th>
+<th><code>azure_export</code> (FOCUS or actual cost)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Day</td>
+<td><code>line_item_usage_start_date</code> (UTC); hourly rows add up per day</td>
+<td><code>ChargePeriodStart</code> (FOCUS) or <code>date</code> (ISO or MM/DD/YYYY)</td>
+</tr>
+<tr>
+<td>Cost</td>
+<td><code>line_item_unblended_cost</code> (<code>cost_column: line_item_net_unblended_cost</code> for after discounts, where the account has them)</td>
+<td><code>x_BilledCostInUsd</code> (FOCUS) or <code>costInUsd</code> (MCA); EA accounts have only <code>CostInBillingCurrency</code>, so lines in another currency are left out (export FOCUS instead)</td>
+</tr>
+<tr>
+<td>Usage</td>
+<td>Line item types <code>Usage</code>, <code>DiscountedUsage</code> and <code>SavingsPlanCoveredUsage</code>: a Savings Plan's usage is billed at the On-Demand rate and offset by a <code>SavingsPlanNegation</code> row, which is an adjustment</td>
+<td><code>ChargeCategory</code> or <code>chargeType</code> <code>Usage</code></td>
+</tr>
+<tr>
+<td>Adjustments (left out, shown)</td>
+<td>Every other type: <code>Credit</code>, <code>Refund</code>, <code>Tax</code>, <code>Fee</code>, <code>RIFee</code>, <code>SavingsPlanNegation</code>, <code>SavingsPlan*Fee</code>, <code>Discount</code>, <code>BundledDiscount</code></td>
+<td><code>Purchase</code>, <code>Credit</code>, <code>Adjustment</code>, <code>Tax</code>, <code>Refund</code>, <code>UnusedReservation</code>, <code>UnusedSavingsPlan</code></td>
+</tr>
+<tr>
+<td>Which rows</td>
+<td>Product code, service code, product family or product name matching <code>services</code> (default <code>(?i)bedrock</code>: <code>AmazonBedrock</code>, <code>AmazonBedrockService</code>, and Marketplace models named "... (Amazon Bedrock Edition)"); <code>accounts</code> on <code>line_item_usage_account_id</code></td>
+<td>Resources of <code>resource_types</code> (from <code>x_ResourceType</code> or the resource id), under <code>scope</code> if set</td>
+</tr>
+<tr>
+<td>Line</td>
+<td><code>&lt;product name&gt; · &lt;usage type&gt;</code>, with <code>· batch</code> for the product map's <code>feature: Batch</code>; the model from the product map's <code>model</code></td>
+<td><code>&lt;meter category&gt; · &lt;meter name&gt;</code>; Claude in Foundry's single meter adds the <code>model</code> and <code>usage_type</code> tags</td>
+</tr>
+<tr>
+<td>GPUs</td>
+<td><code>resource_tags</code> key <code>user_meritorder_deployment</code> (CUR 2.0 normalizes tag keys), or the <code>tags</code> column's <code>resourceTags/meritorder-deployment</code></td>
+<td>The <code>Tags</code> JSON (or EA's form without braces)</td>
+</tr>
+</tbody>
+</table></div>
+<p>A month-long row in a daily or hourly export (a tax, a monthly charge) counts on its first day. An export whose usage
+rows all span a month has monthly granularity and is refused: create it daily (or hourly, for AWS).</p>
+<p>Versions followed (each provider's documentation as of November 2026): AWS Data Exports with the CUR 2.0 table
+(<code>COST_AND_USAGE_REPORT</code>); AWS shows no example manifest, so the file list is read from <code>dataFiles</code> or any data file
+path in it. Azure exports with manifest version 2024-04-01; FOCUS 1.0, 1.0r2 and 1.2-preview; actual and amortized
+cost at dataset versions 2023-12-01-preview and 2026-10-01, EA and MCA; the Blob service REST API at x-ms-version
+2026-04-06. Claude in Foundry's model and usage-type tags are from Microsoft's October 2026 billing change and were
+not in a schema page yet. The tests read fixture files in these column layouts (<code>tests/fixtures/bills</code>).</p>
+<h3 id="setting-it-up">Setting it up</h3>
+<p>List sources under <code>billing:</code> in the config file. Credentials come from the environment or a secret file, like the
+backends' (<code>auth: {value_env: ..., value_file: ...}</code>), and the cloud sources use the same credential chains as the
+Bedrock, Vertex and Azure backends, so they run keyless on workload identity. The fetch runs in the worker; Reports
+→ Bills → <em>Fetch bills now</em> runs it in the gateway, so both need the credentials.</p>
+<pre><code class="language-yaml">billing:
+  refresh_hours: 6
+  lookback_days: 40
+  alert_pct: 5                  # percent of what the ledger recorded
+  alert_min_usd: 1
+  sources:
+    anthropic: {type: anthropic, workspace_ids: [wrkspc_01...]}             # ANTHROPIC_ADMIN_KEY
+    openai: {type: openai, project_ids: [proj_...]}                          # OPENAI_ADMIN_KEY
+    aws: {type: aws, accounts: [&quot;123456789012&quot;], auth: {type: aws_sigv4, profile: billing}}
+    gcp: {type: gcp, table: billing-proj.billing_export.gcp_billing_export_v1_0123AB_456789_ABCDEF, location: US}
+    azure: {type: azure, scope: /subscriptions/&lt;id&gt;/resourceGroups/llm}
+</code></pre>
+<p>Or the exports, in place of <code>aws</code> and <code>azure</code> for the same accounts:</p>
+<pre><code class="language-yaml">    aws-cur: {type: aws_cur, export: s3://example-billing/cur/meritorder-cur, accounts: [&quot;123456789012&quot;],
+              auth: {type: aws_sigv4, profile: billing, region: us-east-1}}      # the bucket's region
+    azure-export: {type: azure_export, export: https://examplebilling.blob.core.windows.net/costs/exports/focus-daily,
+                   scope: /subscriptions/&lt;id&gt;/resourceGroups/llm}
+    # with a SAS token (read and list) instead of an Entra identity:
+    #   auth: {type: api_key, value_env: AZURE_EXPORT_SAS}
+</code></pre>
+<p>Creating the exports, once:</p>
+<ul>
+<li><strong>AWS:</strong> Billing and Cost Management → Data Exports → Create → Standard data export, table CUR 2.0. Turn on
+  "Include resource IDs", choose hourly or daily granularity, gzipped CSV (works in the default image) or Parquet
+  (needs the <code>parquet</code> extra), and "Overwrite existing data export file". The S3 path is <code>s3://&lt;bucket&gt;/&lt;prefix&gt;</code>
+  and the export's name; <code>export:</code> is <code>s3://&lt;bucket&gt;/&lt;prefix&gt;/&lt;name&gt;</code>. If you pick columns, keep
+  <code>line_item_usage_start_date</code>, <code>line_item_usage_end_date</code>, <code>line_item_line_item_type</code>, <code>line_item_product_code</code>,
+  <code>line_item_usage_type</code>, <code>line_item_usage_account_id</code>, <code>line_item_unblended_cost</code>, <code>line_item_usage_amount</code>,
+  <code>line_item_currency_code</code>, <code>pricing_unit</code>, <code>product</code>, <code>product_servicecode</code>, <code>product_product_family</code>,
+  <code>resource_tags</code> and <code>tags</code>. The first refresh arrives within a day.</li>
+<li><strong>Azure:</strong> Cost Management → Exports → Create, "Cost and usage details (FOCUS)" (or actual cost), daily,
+  month-to-date, CSV with gzip or Parquet, to a container and directory in a storage account, with "Overwrite data"
+  on. <code>export:</code> is <code>https://&lt;account&gt;.blob.core.windows.net/&lt;container&gt;/&lt;directory&gt;/&lt;export name&gt;</code>. A FOCUS export
+  has US-dollar costs on every account type; an EA account's actual-cost export has only its billing currency.</li>
+</ul>
+<p>Each source covers the backends of its type unless <code>backends:</code> names them: <code>anthropic</code> the ones at
+api.anthropic.com, <code>openai</code> api.openai.com, <code>aws</code> and <code>aws_cur</code> Bedrock, <code>gcp</code> Vertex AI and the Gemini API (which
+bills the key's Cloud project: list it in <code>project_ids</code> with the Vertex projects), <code>azure</code> and <code>azure_export</code> anything
+at <code>*.azure.com</code>.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Source</th>
+<th>Credentials</th>
+<th>Permissions</th>
+<th>Filter to Merit Order's usage</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>anthropic</code></td>
+<td>An Admin API key (<code>sk-ant-admin...</code>) in <code>ANTHROPIC_ADMIN_KEY</code></td>
+<td>An organization admin creates it in the Claude Console (Settings → Admin keys). Claude Console organizations only, not the claude.ai Team plan</td>
+<td><code>workspace_ids</code>, <code>api_key_ids</code> (<code>apikey_...</code>)</td>
+</tr>
+<tr>
+<td><code>openai</code></td>
+<td>An Admin key (<code>sk-admin...</code>) in <code>OPENAI_ADMIN_KEY</code></td>
+<td>An organization owner creates it (Settings → Organization → Admin keys); read access to usage is enough</td>
+<td><code>project_ids</code>, <code>api_key_ids</code></td>
+</tr>
+<tr>
+<td><code>aws</code></td>
+<td>The AWS credential chain: environment, <code>auth: {profile: ...}</code>, an instance role, or IRSA on EKS. Cost Explorer's endpoint is in us-east-1 (<code>region: cn-northwest-1</code> for China)</td>
+<td><code>ce:GetCostAndUsage</code> and <code>ce:GetDimensionValues</code>, from the management account or one Cost Explorer is enabled for. For GPUs, activate <code>meritorder-deployment</code> as a cost allocation tag (Billing → Cost allocation tags); it applies from activation on and shows up within a day</td>
+<td><code>accounts</code> (linked accounts)</td>
+</tr>
+<tr>
+<td><code>gcp</code></td>
+<td>Application Default Credentials (workload identity on GKE, or <code>GOOGLE_APPLICATION_CREDENTIALS</code>)</td>
+<td>Detailed billing export to BigQuery turned on for the billing account; <code>roles/bigquery.dataViewer</code> on the export dataset and <code>roles/bigquery.jobUser</code> on the project that runs the query (<code>query_project</code>, default the table's)</td>
+<td><code>project_ids</code> (default: the projects the Vertex backends call)</td>
+</tr>
+<tr>
+<td><code>azure</code></td>
+<td><code>DefaultAzureCredential</code>: workload or managed identity, or <code>az login</code> locally (needs the <code>azure</code> extra; the Docker image has it)</td>
+<td>Cost Management Reader (or Reader) on <code>scope</code></td>
+<td><code>scope</code> (a subscription or resource group), <code>resource_types</code></td>
+</tr>
+<tr>
+<td><code>aws_cur</code></td>
+<td>The AWS credential chain, as for <code>aws</code>, signing for S3 in <code>auth.region</code> (the bucket's; default us-east-1; a wrong one fails with the right one named). No extra for CSV; Parquet needs the <code>parquet</code> extra (pyarrow), which the Docker image doesn't have: build it with <code>--build-arg EXTRAS="--extra otel --extra gcp --extra azure --extra kv-events --extra parquet"</code>, or export CSV</td>
+<td><code>s3:ListBucket</code> on the bucket (it lists <code>&lt;prefix&gt;/&lt;name&gt;/metadata/</code>) and <code>s3:GetObject</code> on <code>&lt;prefix&gt;/&lt;name&gt;/*</code>, from any account the bucket policy lets in. For GPUs, the cost allocation tag as for <code>aws</code></td>
+<td><code>accounts</code> (usage accounts)</td>
+</tr>
+<tr>
+<td><code>azure_export</code></td>
+<td><code>DefaultAzureCredential</code> (the <code>azure</code> extra), with a token for <code>https://storage.azure.com/.default</code>; or a SAS token with read and list on the container, as <code>auth: {type: api_key, value_env: ...}</code> or <code>value_file</code> (no extra). Parquet needs the <code>parquet</code> extra, as above</td>
+<td>Storage Blob Data Reader on the container (or the storage account). A SAS must be a user-delegation SAS where the account disallows shared keys</td>
+<td><code>scope</code> (only rows under it), <code>resource_types</code></td>
+</tr>
+</tbody>
+</table></div>
+<p>What the calls cost: Cost Explorer charges $0.01 per request, about 4 per refresh, so roughly $5 a month at the
+default schedule; BigQuery bills the bytes the query scans (it filters on <code>_PARTITIONTIME</code>, so about the lookback
+window; set <code>partitioned: false</code> for a view); the export sources pay storage requests (a few listings per refresh,
+fractions of a cent) and, when the worker runs outside the cloud or region, data transfer for the files of each new
+refresh: about a refresh a day per month in the lookback; the others are free.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>refresh_hours</code>, <code>lookback_days</code></td>
+<td>How often the worker fetches, and how many days back each fetch reads</td>
+</tr>
+<tr>
+<td><code>alert_pct</code>, <code>alert_min_usd</code></td>
+<td>A settled day alerts when it differs by both this much of the ledger and this many dollars</td>
+</tr>
+<tr>
+<td><code>type</code></td>
+<td><code>anthropic</code>, <code>openai</code>, <code>aws</code>, <code>aws_cur</code>, <code>gcp</code>, <code>azure</code> or <code>azure_export</code></td>
+</tr>
+<tr>
+<td><code>export</code></td>
+<td><code>aws_cur</code>: <code>s3://&lt;bucket&gt;/&lt;prefix&gt;/&lt;export name&gt;</code>. <code>azure_export</code>: <code>https://&lt;account&gt;.blob.core.windows.net/&lt;container&gt;/&lt;directory&gt;/&lt;export name&gt;</code> (no SAS in the URL: put it in <code>auth</code>)</td>
+</tr>
+<tr>
+<td><code>backends</code></td>
+<td>The ledger backends the bill covers (default: every backend of the type)</td>
+</tr>
+<tr>
+<td><code>auth</code></td>
+<td>Credentials, as for backends (default: the type's, above)</td>
+</tr>
+<tr>
+<td><code>settle_days</code></td>
+<td>Days the provider takes to finish a day (defaults above)</td>
+</tr>
+<tr>
+<td><code>models</code></td>
+<td>Bill lines (glob on the line, case-insensitive) mapped to a model name, for names the matcher misses</td>
+</tr>
+<tr>
+<td><code>ignore</code></td>
+<td>Bill lines (globs) left out: other workloads in the same account</td>
+</tr>
+<tr>
+<td><code>workspace_ids</code>, <code>api_key_ids</code>, <code>project_ids</code>, <code>accounts</code></td>
+<td>Filters (see the table above)</td>
+</tr>
+<tr>
+<td><code>table</code>, <code>query_project</code>, <code>location</code>, <code>partitioned</code>, <code>services</code></td>
+<td><code>gcp</code>: the export table (<code>project.dataset.table</code>), the project that runs the query, the dataset's location, whether to filter on <code>_PARTITIONTIME</code>, and a regular expression on <code>service.description</code> (default: Vertex AI, Claude, Anthropic, Gemini, Generative Language). <code>aws_cur</code>: <code>services</code> is a regular expression on the product code, service code, product family and product name (default <code>(?i)bedrock</code>)</td>
+</tr>
+<tr>
+<td><code>scope</code>, <code>resource_types</code>, <code>cost_column</code></td>
+<td><code>azure</code>: where to query, which resource types (default: <code>microsoft.cognitiveservices/accounts</code>, Foundry and Azure OpenAI; <code>[]</code> for everything, for example Claude billed through the Marketplace), and the cost column (<code>Cost</code> is in the billing currency; use <code>CostUSD</code> where your account type has it). <code>azure_export</code>: the same, with <code>scope</code> optional (default: everything in the export) and <code>cost_column</code> defaulting to the US-dollar billed cost (<code>x_BilledCostInUsd</code> or <code>costInUsd</code>; <code>x_EffectiveCostInUsd</code> spreads commitments). <code>aws_cur</code>: <code>cost_column</code> is <code>line_item_unblended_cost</code> (default) or <code>line_item_net_unblended_cost</code></td>
+</tr>
+<tr>
+<td><code>gpu_tag</code></td>
+<td>The tag or label on GPU instances (default <code>meritorder-deployment</code>); <code>null</code> skips GPU costs</td>
+</tr>
+<tr>
+<td><code>base_url</code></td>
+<td><code>anthropic</code>, <code>openai</code>: the API's address, if not the public one</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="reading-it">Reading it</h3>
+<ul>
+<li><strong>Console:</strong> Reports → Bills (finance and admins), for the period selected at the top: totals over settled days;
+  each source with its type, when it was fetched, how far it's complete, any error, and notes (an export with no files
+  yet says so); recorded against billed by day or month, provider and model (hover a model for the bill by kind of
+  token, the token column for counts); the lines that matched no model and why; GPU time against the cloud bills;
+  spend no bill covers. CSV download.</li>
+<li><strong>API:</strong> <code>GET /v1/reports/bills?start=&amp;end=&amp;by=day|month</code> (finance and admins), <code>GET /v1/reports/bills.csv</code>,
+  <code>POST /v1/reports/bills/refresh</code> (admins).</li>
+<li><strong>CLI:</strong> <code>meritorder usage --bills [--start YYYY-MM-DD] [--end YYYY-MM-DD] [--by month]</code>: each source with its type
+  (<code>aws_cur</code>, <code>azure_export</code>, ...), state, notes and totals, then the rows.</li>
+</ul>
+<p>Things that commonly explain a gap: 1-hour cache writes from a platform that doesn't split writes by lifetime, in a
+request whose markers mix an hour and 5 minutes (the ledger prices those at the 5-minute <code>cache_write</code>; see
+<a href="caching-and-sessions.html#how-long-claude-keeps-a-cache">04</a>), so look at the <code>cache_write</code> line; a negotiated
+discount that isn't in the route's <code>price:</code>; long-context prices billed under their own lines; batch usage priced
+differently from the published discount (compare the batch shares shown on the row); priority or provisioned-throughput
+usage; usage a reservation covers, which costs $0 on the billed columns of CUR and of Azure's exports (the
+reservation's fee or purchase is an adjustment); and other users of the same account.</p>
+<h2 id="prometheus-and-grafana">Prometheus and Grafana</h2>
+<p><code>/metrics</code> (set <code>MERITORDER_METRICS_TOKEN</code> to require a bearer token):</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Type</th>
+<th>Labels</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>meritorder_requests_total</code></td>
+<td>counter</td>
+<td>model, backend, status</td>
+</tr>
+<tr>
+<td><code>meritorder_rejected_requests_total</code></td>
+<td>counter</td>
+<td>status, reason (refused before any backend: auth, budget, rate limit, routing)</td>
+</tr>
+<tr>
+<td><code>meritorder_failovers_total</code></td>
+<td>counter</td>
+<td>backend, status (attempts that failed on a backend and moved on to the next route)</td>
+</tr>
+<tr>
+<td><code>meritorder_tokens_total</code></td>
+<td>counter</td>
+<td>model, backend, kind (input, cache_read, cache_write, output)</td>
+</tr>
+<tr>
+<td><code>meritorder_cost_usd_total</code></td>
+<td>counter</td>
+<td>model, backend, kind: <code>api</code>; <code>gpu_share</code>, a request's share of a GPU the controller runs (already in <code>meritorder_gpu_usd_per_hour</code>); <code>gpu</code>, a self-hosted backend no controller runs</td>
+</tr>
+<tr>
+<td><code>meritorder_baseline_usd_total</code></td>
+<td>counter</td>
+<td>model, backend</td>
+</tr>
+<tr>
+<td><code>meritorder_savings_usd_total</code></td>
+<td>counter</td>
+<td>cause</td>
+</tr>
+<tr>
+<td><code>meritorder_request_duration_seconds</code>, <code>meritorder_time_to_first_token_seconds</code></td>
+<td>histogram</td>
+<td>model, backend</td>
+</tr>
+<tr>
+<td><code>meritorder_inflight_requests</code></td>
+<td>gauge</td>
+<td>backend (this process)</td>
+</tr>
+<tr>
+<td><code>meritorder_backend_available</code></td>
+<td>gauge</td>
+<td>backend</td>
+</tr>
+<tr>
+<td><code>meritorder_gpu_replicas</code>, <code>meritorder_gpu_usd_per_hour</code>, <code>meritorder_gpu_utilization</code>, <code>meritorder_gpu_waiting_requests</code></td>
+<td>gauge</td>
+<td>backend</td>
+</tr>
+<tr>
+<td><code>meritorder_token_ratio</code></td>
+<td>gauge</td>
+<td>model (prompt tokens its replies report per token the gateway estimated, this process)</td>
+</tr>
+<tr>
+<td><code>meritorder_token_calibration_samples_total</code></td>
+<td>counter</td>
+<td>model (replies, exact counts and "too long" sizes that corrected the estimate)</td>
+</tr>
+<tr>
+<td><code>meritorder_learned_router_total</code></td>
+<td>counter</td>
+<td>mode, outcome (used, agrees, shadow, unsure, stale, missing, failed; named: a request naming its model, recorded for training)</td>
+</tr>
+<tr>
+<td><code>meritorder_judged_labels_total</code></td>
+<td>counter</td>
+<td>outcome: what came of each request sampled for a judged label (judged, dropped, skipped, capped)</td>
+</tr>
+<tr>
+<td><code>meritorder_compression_model_results_total</code></td>
+<td>counter</td>
+<td>result: what model-based compression did with each tool result (compressed, kept, reused, old, late, failed, no_prose, store_error)</td>
+</tr>
+<tr>
+<td><code>meritorder_compressor_duration_seconds</code></td>
+<td>histogram</td>
+<td>none (how long the compressor service took to answer)</td>
+</tr>
+<tr>
+<td><code>meritorder_gpu_cache_turns_total</code></td>
+<td>counter</td>
+<td>backend, expected (warm, cold), result (hit: at least half the prompt read from the cache; miss)</td>
+</tr>
+<tr>
+<td><code>meritorder_gpu_replica_unreachable_total</code></td>
+<td>counter</td>
+<td>backend (a gateway couldn't reach a GPU replica directly and used the deployment's endpoint)</td>
+</tr>
+<tr>
+<td><code>meritorder_stored_responses_total</code></td>
+<td>counter</td>
+<td>event: Responses API turns in a team's stored mode (rebuilt, stored, provider_chain, failed)</td>
+</tr>
+</tbody>
+</table></div>
+<p>Counters are per gateway process: sum them across pods. GPU gauges come from the controller's
+published state, so every gateway reports the same value: use <code>max</code>.</p>
+<p>Batch requests are counted by whoever settles them into the ledger: the worker, on its own port
+(<code>MERITORDER_WORKER_METRICS_PORT</code>, 9464 in Compose and the Helm chart, behind the same token), or without Postgres the
+gateway. They're never in the counters above, so the two add up without counting a request twice; and each is counted by
+the one call that settled it, however many workers there are or how often a job is read again:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Type</th>
+<th>Labels</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>meritorder_batch_requests_total</code></td>
+<td>counter</td>
+<td>model, backend, api (the batch API that ran it, or <code>gpu</code>), status</td>
+</tr>
+<tr>
+<td><code>meritorder_batch_tokens_total</code></td>
+<td>counter</td>
+<td>model, backend, kind</td>
+</tr>
+<tr>
+<td><code>meritorder_batch_cost_usd_total</code></td>
+<td>counter</td>
+<td>model, backend, kind (as <code>meritorder_cost_usd_total</code>)</td>
+</tr>
+<tr>
+<td><code>meritorder_batch_baseline_usd_total</code></td>
+<td>counter</td>
+<td>model, backend</td>
+</tr>
+<tr>
+<td><code>meritorder_batch_savings_usd_total</code></td>
+<td>counter</td>
+<td>cause (batch, self_hosting, routing, ...)</td>
+</tr>
+<tr>
+<td><code>meritorder_batch_gpu_requests_total</code></td>
+<td>counter</td>
+<td>backend, result (ok, retry, handed_off)</td>
+</tr>
+<tr>
+<td><code>meritorder_batch_handoffs_total</code></td>
+<td>counter</td>
+<td>backend (the GPU), why (deadline, stopped, failed)</td>
+</tr>
+<tr>
+<td><code>meritorder_batch_poll_errors_total</code></td>
+<td>counter</td>
+<td>backend, status</td>
+</tr>
+</tbody>
+</table></div>
+<p>All spend per hour is the requests' cost without the GPU shares, plus what running GPUs cost:
+<code>sum(rate(meritorder_cost_usd_total{kind!="gpu_share"}[5m]) + rate(meritorder_batch_cost_usd_total{kind!="gpu_share"}[5m])) * 3600
++ sum(max by (backend) (meritorder_gpu_usd_per_hour))</code>. A share is already in the GPU's burn, so adding both would
+count it twice. The burn gauge leaves out the weights cache volumes, which the console's totals include.</p>
+<p>The <strong>Grafana dashboard</strong> (<code>charts/meritorder/dashboards/meritorder.json</code>, generated by
+<code>scripts/build_grafana_dashboard.py</code>) shows spend, what it would have cost, savings rate and causes,
+traffic, errors and refusals by reason (spend and the saving with GPUs at their burn, and the GPU time no request
+paid for as its own series under savings by cause), prompt-cache hit ratio, backend availability, latency and
+time to first token, GPU replicas, burn, utilization, and queue, and batches (spend, savings by cause, where they ran
+and what GPUs handed on). Import it by hand (Dashboards →
+New → Import), or with Helm set <code>metrics.grafanaDashboard.enabled: true</code> for Grafana's dashboard
+sidecar (kube-prometheus-stack picks up the <code>grafana_dashboard</code> label).</p>
+<h2 id="cost-allocation-tags">Cost allocation tags</h2>
+<p>Requests can carry tags, and API keys can have default tags:</p>
+<pre><code>X-MeritOrder-Tags: project=checkout-rewrite,ticket=PLAT-1234
+</code></pre>
+<p>Tags flow into the ledger and every report can group by them. A tag set on the key wins over the
+same tag in the header, so a client can add tags but can't move spend off a cost center an admin
+assigned.</p>
+<p>Eight tags are the gateway's own, and a client or key can't set them: <code>usage</code> (<code>estimated</code>, on a stream that broke off
+before the provider said what it used, <a href="#estimated-rows">above</a>), <code>compression</code> (<code>rules</code> or <code>model</code>, on requests whose
+tool results were compressed), <code>compaction</code> (<code>responses</code>, on the summary the gateway writes for
+<code>POST /v1/responses/compact</code>) and <code>judged_label</code> (<code>replay</code> or <code>judge</code>, on the replays and judging of
+<a href="routing.html#judged-labels">judged labels</a>). Breakdown → Tag → <code>judged_label</code> shows what judged labels cost; they're
+never counted as savings. <code>explore</code> (<code>down</code>, <code>up</code> or <code>canary</code>) and <code>explore_from</code> (<code>coding:3</code>) mark every request of a task
+that <a href="routing.html#exploration">exploration</a> routed off its level: Breakdown → Tag → <code>explore</code> shows what exploring cost.
+<code>escalation</code> (<code>1</code> or <code>2</code>) and <code>escalated_from</code> (the model it left) mark every request of a task that
+<a href="routing.html#escalation-inside-a-task">escalated</a> to a stronger model: Breakdown → Tag → <code>escalation</code> shows what
+escalating cost. The first request of an escalation takes the failed attempt's baseline cost off its baseline and its
+routing savings, so that row's routing savings can be negative: the attempt it replaces wouldn't have been made without
+Merit Order.</p>
+<h2 id="storage-and-scale">Storage and scale</h2>
+<ul>
+<li>The ledger is a Postgres table partitioned by month.</li>
+<li>The worker keeps an hourly summary table (<code>usage_hourly</code>, by user, team, model, and backend)
+  current. Report ranges longer than 7 days read it; shorter ranges and tag breakdowns read the
+  ledger.</li>
+<li>Postgres comfortably handles the millions of requests per month a $100k+/month organization
+  generates. For far more, ClickHouse can hold a copy of the ledger that the big reports read (below).</li>
+<li>We don't build a general-purpose BI tool. Ad-hoc analysis goes through the exports, or with ClickHouse set up, straight
+  against its tables.</li>
+</ul>
+<h3 id="clickhouse-for-very-large-deployments">ClickHouse for very large deployments</h3>
+<p>Optional and off by default. Postgres stays the record: the gateway writes every request there as it always does, budgets
+and spend caps read it, and so does the Requests view. With <code>reporting.clickhouse</code> set, the worker also copies
+the ledger to ClickHouse, and the reports that scan the most rows read the copy. Why it's built this way: decision 47 in
+<a href="decisions.html">09</a>.</p>
+<pre><code class="language-yaml">reporting:
+  clickhouse:
+    url: ${MERITORDER_CLICKHOUSE_URL:-}        # ClickHouse's HTTP interface; empty: off (the shipped config reads this)
+    database: meritorder                       # created if missing
+    user: default
+    auth: {value_env: MERITORDER_CLICKHOUSE_PASSWORD, value_file: /run/secrets/meritorder/MERITORDER_CLICKHOUSE_PASSWORD}
+    reads: large                               # large, all, or none (copy only)
+    # ttl_days: 400                            # drop ledger rows in ClickHouse after this many days (default: keep)
+    # rollup_ttl_days: 1825                    # the same for the hourly rollup
+</code></pre>
+<p><strong>The copy.</strong> Every <code>copy_seconds</code> (30), the worker compares the last 3 hours (and everything since the copy was last
+complete) on both sides, minute by minute: Postgres's row count against ClickHouse's rows and distinct ids. It sends what's
+missing in batches of <code>batch_rows</code> (50,000) per insert, in ClickHouse's binary row format (<code>RowBinary</code>, so every cost
+arrives as the exact number Postgres holds), and a row that lands late is copied on the next pass. An hour that
+holds a row twice (an insert that timed out but landed) or whose rollup disagrees with its rows is deleted in ClickHouse
+and copied again whole. An hour where ClickHouse has rows Postgres no longer has is left alone and reported. Each hour is
+copied under a Postgres lock on that hour, so two workers, or a worker and a backfill, never send the same rows. The
+progress (<code>from</code>, <code>through</code>, the last error) is kept in Postgres. If ClickHouse is down, nothing is lost: the rows are in
+Postgres, and the copy catches up a day at a time when it's back. A ClickHouse with no ledger table (a new server, another
+<code>database</code>, or one that lost its data) holds none of what the progress says was copied, so the worker starts the progress
+over there: reports read Postgres again until a backfill copies the older rows. After a cycle fails, the next one checks
+the tables again, so tables lost while the worker runs are made again without a restart.</p>
+<p><strong>Copying what's already there.</strong> The worker copies new rows from when it's set up. Existing rows are copied by hand,
+idempotently: run it again and only what's missing is copied.</p>
+<pre><code class="language-bash">meritorder clickhouse backfill                                   # from the ledger's first day to tomorrow
+meritorder clickhouse backfill --start 2026-01-01 --end 2026-07-01
+meritorder clickhouse status                                     # reachable? how far the copy has got, rows and size on disk
+</code></pre>
+<p><strong>Which store answers.</strong> With <code>reads: large</code>, a report reads ClickHouse when it covers a range over 7 days or breaks
+spend down by tag, and when ClickHouse holds that whole range and is caught up (its copy complete to within 5 minutes,
+or 3 copy intervals if that's longer). Otherwise Postgres answers, and so it does for 30 seconds after a ClickHouse query
+fails. The console shows which store answered each view, and the API says so in <code>answered_by</code>. ClickHouse holds the whole
+range when its copy starts at or before the range, or when Postgres has no row before the copy's start: after a backfill
+from the ledger's first day, on a ledger that had ClickHouse from the start, or once old partitions copied there were
+dropped from Postgres. Then <code>meritorder clickhouse status</code> says "every row in the ledger", and a report from any date
+reads ClickHouse.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Report</th>
+<th>Reads ClickHouse with <code>reads: large</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Summaries (<code>/v1/reports/summary</code>, <code>summary.csv</code>, <code>me</code>, console dashboards, alerts' monthly totals)</td>
+<td>Ranges over 7 days (from its hourly rollup) and tag breakdowns (from its rows)</td>
+</tr>
+<tr>
+<td>Ledger export (<code>export.jsonl</code>, <code>meritorder export</code>)</td>
+<td>Ranges over 7 days, a day at a time in time order</td>
+</tr>
+<tr>
+<td>GPU what-if and break-even (<code>/v1/reports/gpu/whatif</code>, <code>gpu/breakeven</code>)</td>
+<td>Windows over 7 days</td>
+</tr>
+<tr>
+<td>Bills (<code>/v1/reports/bills</code>): the ledger's side</td>
+<td>Ranges over 7 days</td>
+</tr>
+<tr>
+<td>The Requests view (<code>/v1/reports/requests</code>, <code>requests.csv</code>), budgets and spend caps, the controller's demand</td>
+<td>Never: Postgres has every row the moment it's written</td>
+</tr>
+<tr>
+<td>The learned router's shadow report (<code>/v1/reports/router</code>) and its training</td>
+<td>Never: its request features and models aren't ledger rows, and they stay in Postgres only</td>
+</tr>
+</tbody>
+</table></div>
+<p><code>reads: all</code> sends every report in the list above to ClickHouse whatever its range; <code>reads: none</code> keeps the copy going
+for your own tools while Postgres answers everything.</p>
+<p><strong>The same answers.</strong> Every query has a twin in Postgres and returns the same numbers for the same rows: a missing model is
+<code>NULL</code> on the rows and empty in the rollup, an empty tag value is a value, and summary rows and exports come back in the same
+order (by key as text; by time, then id). Sums are added in a different order, so a total can differ in its last binary
+digit, below the 6 decimals reports show. <code>tests/test_clickhouse_live.py</code> runs every report the API serves against both, on
+real Postgres and ClickHouse servers (CI runs them as services); <code>tests/test_clickhouse_engine.py</code> runs the ClickHouse side
+in-process with chdb (<code>uv run --with chdb python -m pytest tests/test_clickhouse_engine.py</code>).</p>
+<p><strong>Tables.</strong> Over ClickHouse's HTTP interface with httpx (no driver). Written for ClickHouse 24.8 or newer (the queries rely
+on its analyzer and lightweight deletes); CI runs 26.3 LTS, and chdb runs 26.9.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Table</th>
+<th>Engine and keys</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>requests</code></td>
+<td>MergeTree, a partition per month, ordered by day, team, user, model, backend and time; every ledger column typed as Postgres stores it (UUID, <code>DateTime64(6, 'UTC')</code>, nullable where Postgres is, names low-cardinality, <code>tags</code> as <code>Map(String, String)</code> with a value that isn't text as JSON, as in Parquet). A ledger column without a ClickHouse type fails the tests</td>
+</tr>
+<tr>
+<td><code>usage_hourly</code></td>
+<td>SummingMergeTree, a partition per month, ordered by hour, team, user, model and backend: the same rollup as Postgres's, kept by a materialized view on <code>requests</code></td>
+</tr>
+</tbody>
+</table></div>
+<p>The worker creates the tables, adds columns the ledger gained, replaces the view when the rollup changes, and sets or
+removes the TTLs. With <code>ttl_days</code>, ClickHouse drops a whole part once every row in it has expired, so rows can stay up to a
+month longer; reports that need rows past the TTL read Postgres. Postgres keeps everything either way: to keep it small,
+drop old monthly partitions yourself (<code>DROP TABLE requests_2025_01</code>) once <code>meritorder clickhouse status</code> shows ClickHouse
+holds them; reports for those months then need <code>reads: all</code>.</p>
+<p><strong>Turning it on.</strong> Docker Compose: <code>docker compose --profile clickhouse up -d</code> with <code>MERITORDER_CLICKHOUSE_URL=http://clickhouse:8123</code>
+in <code>.env</code>. Helm: <code>reporting.clickhouse.url</code> (no ClickHouse is bundled), the password as <code>MERITORDER_CLICKHOUSE_PASSWORD</code> in
+the env Secret (<a href="deployment.html">07</a>), never in the URL (a URL with one is refused: it shows on the console and in
+errors). The user needs to create tables in its database and to insert, select and delete
+there.</p>
+<p><strong>Measured at scale</strong> (2026-11-14, <code>scripts/bench_ledger.py</code>). A synthetic year of a large organization's ledger: 20
+million requests over 365 days (55,000 a day on average, weekdays and office hours busier, traffic growing over the year),
+2,000 people in 40 teams with a few heavy users, 11 model routes on 10 backends, two tags on two thirds of the rows, 2%
+errors and 2% batches. The machine: an Apple M4 Max laptop running Docker Desktop, whose VM (4 vCPUs, 7.75 GB) was also
+running about 30 other containers. Postgres 16.14 got 2 CPUs and 768 MB (<code>shared_buffers</code> 192 MB, <code>work_mem</code> 32 MB),
+ClickHouse 26.10.3 2 CPUs and 1 GB; neither could keep its tables in memory, so every long report read the disk. Treat the
+numbers as a floor: a server with the tables in RAM is faster on both sides.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th></th>
+<th>Postgres</th>
+<th>ClickHouse</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Ledger on disk, per million rows</td>
+<td>600 MB (370 table, 230 indexes)</td>
+<td>104 MB (2.5× compression; real costs and ids repeat more than these random ones)</td>
+</tr>
+<tr>
+<td>Hourly rollup</td>
+<td>14.1 million rows, 4.8 GB</td>
+<td>14.1 million rows, 0.87 GB</td>
+</tr>
+<tr>
+<td>Memory while copying</td>
+<td>230 MB</td>
+<td>910 MB at the peak (merges up to 464 MB; each insert under 16 MB)</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>The copy.</strong> <code>meritorder clickhouse backfill</code> copied the 20 million rows in 13 min 50 s: <strong>24,000 rows/s</strong> with the copier
+on the laptop, one insert per hour of ledger (8,760 inserts, 20 ms each on average). Run in a container in the same
+crowded VM, over 30 days (1.4 million rows), it managed 8,700 rows/s, and 10,600 after writing rows faster (below). Either
+way a year copies in under an hour on one worker, and a day of a 50-requests-a-second organization (4.3 million rows) in
+under ten minutes. In a Linux container the copier's memory stayed at 85 MB (on macOS its peak reached 830 MB: the
+allocator keeps what it freed; Python itself never held more than 40 MB). ClickHouse kept up: merges left 7 or 8 parts per
+month while it copied.</p>
+<p><strong>Report latency</strong>, in seconds, the median of three runs after a warm-up for ClickHouse and one run for Postgres (its
+long reports take minutes, and three would not change the picture):</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Report</th>
+<th>7 days: PG / CH</th>
+<th>30 days: PG / CH</th>
+<th>365 days: PG / CH</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Summary by team (Reports, dashboards)</td>
+<td>0.37 / 0.23</td>
+<td>4.3 / 1.2</td>
+<td>5.6 / 9.4</td>
+</tr>
+<tr>
+<td>Summary by model</td>
+<td>0.38 / 0.51</td>
+<td>3.1 / 1.1</td>
+<td>4.5 / 7.5</td>
+</tr>
+<tr>
+<td>Summary by person (2,000 rows)</td>
+<td>0.37 / 0.23</td>
+<td>3.9 / 0.48</td>
+<td>5.8 / 6.3</td>
+</tr>
+<tr>
+<td>Summary by day</td>
+<td>0.79 / 0.22</td>
+<td>3.1 / 0.70</td>
+<td>5.1 / 6.0</td>
+</tr>
+<tr>
+<td>A team lead's view (one team, by person)</td>
+<td>6.5 / 0.14</td>
+<td>11.6 / 0.48</td>
+<td>3.7 / 4.3</td>
+</tr>
+<tr>
+<td>Tag breakdown (<code>tag:project</code>)</td>
+<td>0.42 / 0.19</td>
+<td>2.3 / 0.94</td>
+<td>12.8 / 14.3</td>
+</tr>
+<tr>
+<td>Bills: the ledger's side</td>
+<td>0.75 / 0.12</td>
+<td>3.5 / 0.68</td>
+<td>29 / 5.4</td>
+</tr>
+<tr>
+<td>GPU what-if (demand by hour)</td>
+<td>0.71 / 0.29</td>
+<td>6.2 / 1.5</td>
+<td>44 / 16</td>
+</tr>
+<tr>
+<td>Export, one team (11,000 / 56,000 / 500,000 rows)</td>
+<td>4.9 / 0.38</td>
+<td>28 / 3.1</td>
+<td>250 / 45</td>
+</tr>
+</tbody>
+</table></div>
+<p>What it shows:</p>
+<ul>
+<li><strong>ClickHouse is 3 to 10 times faster up to a month, and on anything filtered or exported.</strong> A team lead's view and a team's
+  export find their rows by the table's order (day, then team); Postgres reads them one at a time through an index.</li>
+<li><strong>Over a year, the summaries are about even, both reading the disk.</strong> At this many people the hourly rollup barely
+  aggregates: 0.7 rows per request, because few people use the same model on the same backend in the same hour. So a
+  year's summary reads 14 million rollup rows on either side: about 1 GB from disk each time in ClickHouse, for 1.5 to 2 s
+  of CPU. Give ClickHouse the memory to keep its rollup cached (0.87 GB per 20 million requests here, beyond its own
+  needs). In Postgres a month's summaries from the rollup (3 to 4 s) took longer than a month's tag breakdown from the
+  ledger itself (2 s). A coarser rollup (by day, or without the person) would cut that by an order of magnitude; it isn't
+  built yet.</li>
+<li><strong>A small ClickHouse needs its caches capped.</strong> At 1 GB with the default cache sizes, its caches held about 600 MB at
+  rest, and a large <code>INSERT … SELECT</code> ran out of memory. The copier's own inserts (at most <code>batch_rows</code>, 50,000) never used
+  more than 16 MB.</li>
+<li><strong>The tag breakdown over a year</strong> reads every row's <code>tags</code> map (2.5 GB uncompressed for 20 million rows) and isn't
+  helped by the order. Postgres's parallel scan was as fast here.</li>
+<li><strong>Postgres's full rollup</strong> (<code>meritorder worker --backfill</code>, or the worker's first start after an upgrade with an empty
+  <code>usage_hourly</code>) used to be one statement over the whole ledger: on 20 million rows it was still running after 17 minutes,
+  spilling the aggregation to disk again and again. It now runs a month at a time: 4 min 45 s.</li>
+<li><strong>Writing rows</strong> for ClickHouse took half the copier's CPU, a value at a time. Token counts and costs are now packed a run
+  at a time, which makes it 1.8 times faster (the bytes are the same; a test compares them).</li>
+</ul>
+<p><strong>At 60 million rows</strong> (ClickHouse alone: the copied rows three times over, each with new ids and moved by up to half an
+hour, so the rollup grew to 41 million rows; caches capped for the 1 GB container): 5.4 GB on disk (97 MB per million rows),
+the rollup 2.3 GB. Seconds, median of three:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Report</th>
+<th>7 days</th>
+<th>30 days</th>
+<th>365 days</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Summary by team / model / person / day</td>
+<td>0.81 / 0.65 / 0.49 / 0.33</td>
+<td>3.0 / 0.76 / 0.83 / 0.75</td>
+<td>14 / 9.6 / 11 / 10</td>
+</tr>
+<tr>
+<td>A team lead's view</td>
+<td>0.17</td>
+<td>0.52</td>
+<td>9.5</td>
+</tr>
+<tr>
+<td>Tag breakdown</td>
+<td>0.68</td>
+<td>3.4</td>
+<td>28</td>
+</tr>
+<tr>
+<td>Bills: the ledger's side</td>
+<td>0.35</td>
+<td>1.4</td>
+<td>12</td>
+</tr>
+<tr>
+<td>GPU what-if</td>
+<td>0.49</td>
+<td>2.4</td>
+<td>32</td>
+</tr>
+<tr>
+<td>Export, one team (34,000 / 200,000 rows)</td>
+<td>1.5</td>
+<td>7.5</td>
+<td>not run (about 27,000 rows/s)</td>
+</tr>
+</tbody>
+</table></div>
+<p>Up to a month, three times the rows cost ClickHouse little: the day-and-team order finds them. Over a year it reads three
+times as much from disk, and the time grows with it.</p>
+<h2 id="whats-built-and-what-isnt-yet">What's built and what isn't yet</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Piece</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Ledger, hourly rollups (<code>meritorder worker</code>, <code>--backfill</code>)</td>
+<td>Built</td>
+</tr>
+<tr>
+<td>Savings by cause, baseline per team, negotiated prices (<code>price:</code> per route)</td>
+<td>Built</td>
+</tr>
+<tr>
+<td>Reports API under <code>/v1/reports/</code> (<code>summary</code>, <code>summary.csv</code>, <code>me</code>, <code>requests</code>, <code>requests.csv</code>, <code>levels</code>, <code>batches</code>, <code>bills</code>, <code>bills.csv</code>, <code>export.jsonl</code>, <code>gpu</code>, <code>gpu/whatif</code>, <code>gpu/breakeven</code>, <code>gpu/candidates</code>, <code>router</code>) with role scoping</td>
+<td>Built</td>
+</tr>
+<tr>
+<td>The learned router's shadow report: Reports → Learned router, <code>/v1/reports/router</code>, <code>meritorder router report</code> (<a href="routing.html#the-shadow-report">03</a>)</td>
+<td>Built; not yet run on real traffic</td>
+</tr>
+<tr>
+<td>Judged labels: their cost (ledger tag <code>judged_label</code>), verdicts and agreement in the router report (<a href="routing.html#judged-labels">03</a>)</td>
+<td>Built; tested only against mocks</td>
+</tr>
+<tr>
+<td>Console at <code>/ui/</code> (Mantine): Dispatch (live), Reports, GPUs (with controls and what-if), Controls, Backends, Models (with Evals and GPU break-even), Teams, People, Keys, Config, My usage</td>
+<td>Built</td>
+</tr>
+<tr>
+<td>GPU cost per hour (<code>gpu_usage</code>) from SkyPilot catalog prices or Kubernetes node type prices, GPU activity log (<code>gpu_events</code>)</td>
+<td>Built</td>
+</tr>
+<tr>
+<td>Measured model quality (<code>meritorder eval</code>), shown on Models</td>
+<td>Built</td>
+</tr>
+<tr>
+<td><code>meritorder usage</code></td>
+<td>Built</td>
+</tr>
+<tr>
+<td>Prometheus <code>/metrics</code> (requests, refusals, failovers, tokens, cost, baseline, savings by cause, latency and time-to-first-token histograms, in-flight requests, backend availability, GPU replicas, burn, utilization, and queue, token calibration per model, the learned router and judged labels, model-based compression, GPU cache turns and unreachable replicas, stored responses)</td>
+<td>Built</td>
+</tr>
+<tr>
+<td>OpenTelemetry traces: a span per LLM call in GenAI conventions plus cost, savings, backend; joins the client's <code>traceparent</code> (set <code>OTEL_EXPORTER_OTLP_ENDPOINT</code>)</td>
+<td>Built</td>
+</tr>
+<tr>
+<td>Alerts (team/person/org/GPU budgets at 80%/100%, spend spikes, GPU state changes and admin actions) and Monday digests to a webhook</td>
+<td>Built (<code>MERITORDER_ALERT_WEBHOOK_URL</code>)</td>
+</tr>
+<tr>
+<td>Ledger export: <code>/v1/reports/export.jsonl</code>, <code>meritorder export --out file.jsonl</code> (or <code>--format csv</code> or <code>parquet</code>; or <code>--out s3://bucket/key</code>)</td>
+<td>Built</td>
+</tr>
+<tr>
+<td>Batches through the providers' batch APIs and running GPUs: Reports → Batches, <code>/v1/reports/batches</code>, ledger rows with <code>service_tier</code> and <code>batch_id</code>, the batch discount as a cause, the worker's <code>meritorder_batch_*</code> metrics</td>
+<td>Built (<a href="request-flow.html#batches-work-that-can-wait">02</a>); not yet run against live accounts</td>
+</tr>
+<tr>
+<td>Ledger checked against bills: Anthropic and OpenAI admin APIs, AWS Cost Explorer, the GCP billing export in BigQuery, Azure Cost Management, and GPU instances by tag; partial days, alerts, Reports → Bills, <code>/v1/reports/bills</code>, <code>meritorder usage --bills</code></td>
+<td>Built (<code>billing.sources</code>); not yet run against live accounts</td>
+</tr>
+<tr>
+<td>AWS Data Exports' CUR 2.0 files in S3 and Azure Cost Management exports in Blob Storage as bill sources: read by manifest and ETag, streamed, CSV or Parquet; one source of each bill per account</td>
+<td>Built (<code>aws_cur</code>, <code>azure_export</code>); tested against fixture files in the documented layouts, not yet run against live exports</td>
+</tr>
+<tr>
+<td>Grafana dashboard (<code>charts/meritorder/dashboards/meritorder.json</code>; Helm <code>metrics.grafanaDashboard.enabled</code>)</td>
+<td>Built; its queries checked by hand against real Prometheus and Grafana</td>
+</tr>
+<tr>
+<td>ClickHouse copy of the ledger for very large deployments: the worker copies new rows and repairs what differs, long ranges and tag breakdowns read it, <code>meritorder clickhouse backfill</code> and <code>status</code>, TTLs, Config → Reporting, <code>answered_by</code> on every report</td>
+<td>Built (<code>reporting.clickhouse</code>); measured at 20 million rows on both stores and 60 million in ClickHouse on a small machine ("Measured at scale"), not yet at hundreds of millions or on ClickHouse Cloud</td>
+</tr>
+</tbody>
+</table></div>
+<p>The UI is a small React/TypeScript app (no charting library; hand-written SVG) built into the
+Python package and served by the gateway. It signs in with a Merit Order API key and shows what
+that key's role may see.</p></section>
+  </main>
+</div>
+
+<script>
+(function () {
+  // Only the all-in-one page: its rail links to sections of the page. One-doc pages mark their own link.
+  var links = Array.prototype.slice.call(document.querySelectorAll('.rail a')).filter(function (a) {
+    return a.getAttribute('href').charAt(0) === '#';
+  });
+  if (!links.length) {
+    var here = document.querySelector('.rail a.active');
+    if (here && here.scrollIntoView && window.matchMedia('(max-width: 860px)').matches) {
+      here.scrollIntoView({ block: 'nearest', inline: 'center' });
+      window.scrollTo(0, 0);
+    }
+    return;
+  }
+  var byId = {};
+  links.forEach(function (a) { byId[a.getAttribute('href').slice(1)] = a; });
+  function setActive(id) {
+    links.forEach(function (a) { a.classList.toggle('active', a === byId[id]); });
+    var a = byId[id];
+    if (a && a.scrollIntoView && window.matchMedia('(max-width: 860px)').matches) {
+      a.scrollIntoView({ block: 'nearest', inline: 'center' });
+    }
+  }
+  if ('IntersectionObserver' in window) {
+    var obs = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) { if (e.isIntersecting) setActive(e.target.id); });
+    }, { rootMargin: '-20% 0px -70% 0px' });
+    document.querySelectorAll('main section').forEach(function (s) { obs.observe(s); });
+  }
+  setActive((location.hash || '#overview').slice(1));
+})();
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js"></script>
+<script>
+(function () {
+  var t = document.documentElement.getAttribute('data-theme');
+  var dark = t ? t === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+  mermaid.initialize({ startOnLoad: true, theme: dark ? 'dark' : 'default', securityLevel: 'strict' });
+})();
+</script>
+</body>
+</html>
