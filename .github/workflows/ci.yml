@@ -6,6 +6,7 @@ permissions:
   contents: read
 
 jobs:
+  # The main suite, on the Python in .python-version (3.14), which the images use too.
   python:
     runs-on: ubuntu-latest
     # Every test that uses the gateway, store, or state fixtures runs twice: in memory, and against these.
@@ -44,6 +45,43 @@ jobs:
         run: uv run python scripts/routing_sim.py check
       - name: Audit Python dependencies
         run: uv export --frozen --no-dev --no-hashes --no-emit-project -o requirements.txt && uvx pip-audit==2.10.1 -r requirements.txt --strict
+
+  # The same tests on the oldest Python that requires-python allows, so ">=3.12" stays true. Not a required check.
+  python-min:
+    runs-on: ubuntu-latest
+    # Every test that uses the gateway, store, or state fixtures runs twice: in memory, and against these.
+    services:
+      postgres:
+        image: postgres:16
+        env: {POSTGRES_PASSWORD: ci, POSTGRES_DB: motest}
+        ports: ["5432:5432"]
+        options: --health-cmd "pg_isready -U postgres" --health-interval 2s --health-timeout 5s --health-retries 15
+      redis:
+        image: redis:7
+        ports: ["6379:6379"]
+        options: --health-cmd "redis-cli ping" --health-interval 2s --health-timeout 5s --health-retries 15
+      # The ledger's optional copy (tests/test_clickhouse_live.py): every report against both stores, the copy, the schema.
+      clickhouse:
+        image: clickhouse/clickhouse-server:26.3
+        env: {CLICKHOUSE_USER: ci, CLICKHOUSE_PASSWORD: ci}
+        ports: ["8123:8123"]
+        options: >-
+          --ulimit nofile=262144:262144 --health-cmd "wget -qO- http://localhost:8123/ping || exit 1"
+          --health-interval 2s --health-timeout 5s --health-retries 30
+    env:
+      MERITORDER_TEST_DATABASE_URL: postgresql://postgres:ci@localhost:5432/motest
+      MERITORDER_TEST_REDIS_URL: redis://localhost:6379/0
+      MERITORDER_TEST_CLICKHOUSE_URL: http://localhost:8123
+      MERITORDER_TEST_CLICKHOUSE_USER: ci
+      MERITORDER_TEST_CLICKHOUSE_PASSWORD: ci
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e  # v6
+        with: {version: "0.10.9", python-version: "3.12"}
+      - run: uv sync --frozen
+      - run: uv run python -c "import sys; assert sys.version_info[:2] == (3, 12), sys.version"
+      - name: Tests (memory and real Redis/Postgres)
+        run: uv run pytest -q
 
   ui:
     runs-on: ubuntu-latest

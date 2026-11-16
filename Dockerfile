@@ -6,7 +6,7 @@ RUN npm ci
 COPY ui/ ./
 RUN npm run build
 
-FROM python:3.12-slim AS build
+FROM python:3.14-slim AS build
 COPY --from=ghcr.io/astral-sh/uv:0.10.9 /uv /usr/local/bin/uv
 WORKDIR /app
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy UV_PYTHON_DOWNLOADS=never
@@ -37,16 +37,16 @@ RUN --mount=type=cache,target=/root/.cache/pip mkdir -p /opt/skypilot && if [ -n
       python -m venv /opt/skypilot && /opt/skypilot/bin/pip install --disable-pip-version-check \
         "skypilot[${SKYPILOT_EXTRAS}]==${SKYPILOT}"; fi
 
-FROM python:3.12-slim
+FROM python:3.14-slim
 # The release workflow sets the same labels (and the version and revision) through docker/metadata-action.
 LABEL org.opencontainers.image.title="meritorder" \
       org.opencontainers.image.source="https://github.com/Merit-Order/meritorder" \
       org.opencontainers.image.licenses="AGPL-3.0-only" \
       org.opencontainers.image.vendor="The Merit Order Authors"
-# The model cache and SkyPilot's state exist (owned by the user) so a volume mounted there, as Compose's compressor and
-# controller do, is writable.
+# The caches (the model cache, and the one the Vast SDK makes) and SkyPilot's state exist (owned by the user) so the
+# Vast SDK can write its cache and a volume mounted there, as Compose's compressor and controller do, is writable.
 RUN useradd --create-home --uid 10001 meritorder \
-    && install -d -o meritorder -g meritorder /home/meritorder/.cache/huggingface /home/meritorder/.sky
+    && install -d -o meritorder -g meritorder /home/meritorder/.cache /home/meritorder/.cache/huggingface /home/meritorder/.sky
 # With SkyPilot (the -gpu image): the ssh and rsync clients it sets its clusters up with, which the controller also opens
 # an SSH tunnel with to a replica whose port it can't reach (serve.ssh_tunnel).
 ARG SKYPILOT=""

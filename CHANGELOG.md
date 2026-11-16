@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- **Python 3.14.** The images (`python:3.14-slim`, including SkyPilot's environment in `-gpu` and torch and LLMLingua
+  in `-compressor`) and CI now run on Python 3.14. Python 3.12 and 3.13 still work (`requires-python = ">=3.12"`), and
+  a CI job runs the tests on 3.12.
+
 ## 0.0.1 (2026-11-15)
 
 The first public release. Merit Order is an LLM gateway: your tools send requests to it as they would to OpenAI or
