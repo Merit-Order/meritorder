@@ -41,8 +41,8 @@ def test_deploy_role_is_main_only_and_narrow():
     cond = trust[0]["Condition"]["StringEquals"]
     assert cond["token.actions.githubusercontent.com:aud"] == "sts.amazonaws.com"
     subjects = template()["Parameters"]["GitHubSubjects"]["Default"].split(",")
-    assert subjects == ["repo:therick@319326/meritorder@1451524709:ref:refs/heads/main",  # the immutable subject this repo sends
-                        "repo:therick/meritorder:ref:refs/heads/main", "repo:Merit-Order/meritorder:ref:refs/heads/main"]
+    assert subjects == ["repo:Merit-Order@355502678/meritorder@1459849005:ref:refs/heads/main",  # the immutable subject this repo sends
+                        "repo:Merit-Order/meritorder:ref:refs/heads/main"]
     actions = sorted(a for s in res["DeployRole"]["Properties"]["Policies"][0]["PolicyDocument"]["Statement"]
                      for a in (s["Action"] if isinstance(s["Action"], list) else [s["Action"]]))
     assert actions == ["cloudfront:CreateInvalidation", "s3:DeleteObject", "s3:ListBucket", "s3:PutObject"]
