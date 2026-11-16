@@ -16,12 +16,12 @@ Parameters:
       certificate is validated and the alias records are written there.
   GitHubSubjects:
     Type: CommaDelimitedList
-    Default: "repo:therick@319326/meritorder@1451524709:ref:refs/heads/main,repo:therick/meritorder:ref:refs/heads/main,repo:Merit-Order/meritorder:ref:refs/heads/main"
+    Default: "repo:Merit-Order@355502678/meritorder@1459849005:ref:refs/heads/main,repo:Merit-Order/meritorder:ref:refs/heads/main"
     Description: >-
       The GitHub OIDC subjects the deploy role trusts: pushes to main of these repositories only. Repositories that
       use GitHub's immutable subjects (the default for new ones; `gh api repos/<owner>/<repo>/actions/oidc/customization/sub`
       shows the prefix) send repo:<owner>@<owner id>/<repo>@<repo id>:ref:refs/heads/main, so list that form: the
-      first entry is therick/meritorder's. Add the public repository's once it exists. A job that names an environment
+      first entry is Merit-Order/meritorder's. A job that names an environment
       gets a different subject (repo:...:environment:<name>) and isn't trusted.
   CreateGitHubOidcProvider:
     Type: String

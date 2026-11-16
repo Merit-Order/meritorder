@@ -33,7 +33,7 @@ Parameters:
 |---|---|---|
 | `DomainName` | `dev.meritorder.dev` | The name the demo is served at. It must be in the zone. |
 | `HostedZoneId` | (required) | The Route 53 zone for `meritorder.dev`. |
-| `GitHubSubjects` | `repo:therick@319326/meritorder@1451524709:ref:refs/heads/main,repo:therick/meritorder:ref:refs/heads/main,repo:Merit-Order/meritorder:ref:refs/heads/main` | Who the deploy role trusts. Repos with GitHub's immutable subjects (`gh api repos/<owner>/<repo>/actions/oidc/customization/sub`) send `repo:<owner>@<id>/<repo>@<id>:...`; list that form. |
+| `GitHubSubjects` | `repo:Merit-Order@355502678/meritorder@1459849005:ref:refs/heads/main,repo:Merit-Order/meritorder:ref:refs/heads/main` | Who the deploy role trusts. Repos with GitHub's immutable subjects (`gh api repos/<owner>/<repo>/actions/oidc/customization/sub`) send `repo:<owner>@<id>/<repo>@<id>:...`; list that form. |
 | `CreateGitHubOidcProvider` | `true` | An account has one OIDC provider for `token.actions.githubusercontent.com`. `false` uses the existing one. |
 
 Outputs: `BucketName`, `DistributionId`, `DistributionDomainName`, `DeployRoleArn`, `Url`.
@@ -46,7 +46,7 @@ aws cloudformation describe-stacks --profile meritorder-admin --region us-east-1
 ## The deploy role
 
 - **Trust:** `sts:AssumeRoleWithWebIdentity` from GitHub's OIDC provider, when the token's audience is
-  `sts.amazonaws.com` and its subject is one of `GitHubSubjects`: a workflow on `main` of `therick/meritorder` or
+  `sts.amazonaws.com` and its subject is one of `GitHubSubjects`: a workflow on `main` of
   `Merit-Order/meritorder`. Branches, tags, pull requests and jobs that name an environment get other subjects and are
   refused.
 - **Permissions:** `s3:ListBucket` on the bucket, `s3:PutObject` and `s3:DeleteObject` on its objects, and
