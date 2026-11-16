@@ -427,8 +427,10 @@ async def test_settling_a_sample(tmp_path):
     assert gw.judged.settle(marked, "r4", small, 200, None) == ({"outcome": "capped"}, None)
     mark, run = gw.judged.settle(sample(), "r5", small, 200, None)
     assert mark["outcome"] == "pending" and run is not None
+    # Only the pending one keeps its prompt, while its run (which references it) is alive. Checked before closing the
+    # run: Python 3.14 frees a closed coroutine's arguments, which would free the sample from the weak set.
+    assert len(gw.judged.held) == 1
     run.close()
-    assert len(gw.judged.held) == 1  # only the pending one keeps its prompt
 
 
 async def test_what_the_judging_says_when_it_cant_finish(tmp_path, monkeypatch):

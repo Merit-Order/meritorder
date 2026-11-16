@@ -9,6 +9,8 @@ reverses one, say so in the pull request.
 ## Setup
 
 You need Python 3.12 or newer with [uv](https://docs.astral.sh/uv/), and Node.js 26 for the console (`ui/`).
+`.python-version` asks uv for 3.14, which the images and CI's `python` job use; CI's `python-min` job runs the tests on
+3.12 too, so code must stay 3.12-compatible (no syntax or standard-library APIs newer than 3.12).
 
 ```bash
 git clone https://github.com/Merit-Order/meritorder && cd meritorder

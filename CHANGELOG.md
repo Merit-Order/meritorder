@@ -127,6 +127,9 @@ Licensed under the GNU AGPL-3.0-only.
   SBOM and provenance, signed with cosign: `ghcr.io/merit-order/meritorder:0.0.1`, `-gpu` and `-compressor`.
 - The configuration lives in Postgres as versions, edited in the console and followed by every process; the YAML file
   is where it starts.
+- **Python 3.14.** The images (`python:3.14-slim`, including SkyPilot's environment in `-gpu` and torch and LLMLingua
+  in `-compressor`) and CI run on Python 3.14. Python 3.12 and 3.13 still work (`requires-python = ">=3.12"`), and a CI
+  job runs the tests on 3.12.
 
 ### Changes in the last days before release
 
