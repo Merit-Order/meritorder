@@ -149,7 +149,7 @@ API, written from the provider's docs. What has been checked live, and what hasn
 OpenAI, Claude Code sessions, the Docker Compose stack, GPUs on a local kind cluster and one SkyPilot
 replica on a Lambda GPU have been; the other providers, the rest of the GPU cycle on real clouds, Entra and
 Google sign-in, batch APIs and bills have not. Version 0.1.0 comes
-once the checks in the right-hand column pass (<a href="https://github.com/Merit-Order/meritorder/blob/main/ROADMAP.md">ROADMAP.md</a>).</p>
+once the checks in the right-hand column pass (<a href="https://github.com/therick/meritorder/blob/main/ROADMAP.md">ROADMAP.md</a>).</p>
 </blockquote>
 <p>The name comes from power grids. Operators dispatch generators in <strong>merit order</strong>: the cheapest marginal
 cost first, with expensive "peaker" plants switched on only when demand needs them. Merit Order does the
@@ -240,8 +240,8 @@ to stop it.</p>
 </tr>
 </tbody>
 </table></div>
-<p>Outside docs/: <a href="https://github.com/Merit-Order/meritorder/blob/main/README.md">README.md</a> (quickstart), <a href="https://github.com/Merit-Order/meritorder/blob/main/ROADMAP.md">ROADMAP.md</a>,
-<a href="https://github.com/Merit-Order/meritorder/blob/main/CONTRIBUTING.md">CONTRIBUTING.md</a>, <a href="https://github.com/Merit-Order/meritorder/blob/main/SECURITY.md">SECURITY.md</a> and <a href="https://github.com/Merit-Order/meritorder/blob/main/CHANGELOG.md">CHANGELOG.md</a>.</p>
+<p>Outside docs/: <a href="https://github.com/therick/meritorder/blob/main/README.md">README.md</a> (quickstart), <a href="https://github.com/therick/meritorder/blob/main/ROADMAP.md">ROADMAP.md</a>,
+<a href="https://github.com/therick/meritorder/blob/main/CONTRIBUTING.md">CONTRIBUTING.md</a>, <a href="https://github.com/therick/meritorder/blob/main/SECURITY.md">SECURITY.md</a> and <a href="https://github.com/therick/meritorder/blob/main/CHANGELOG.md">CHANGELOG.md</a>.</p>
 <p>Every doc is also a web page in <a href="index.html"><code>html/</code></a>: one page per doc (<code>html/routing.html</code>, ...; this file is
 <code>html/overview.html</code>), all of them on one page (<code>html/index.html</code>), and the start-here explainer with
 diagrams (<code>html/how-it-all-works.html</code>, written by hand). <code>scripts/build_docs_html.py</code> rebuilds the generated
@@ -369,7 +369,7 @@ pages from these files. It needs the <code>markdown</code> package:
 </table></div>
 <h4 id="overview-whats-verified-and-what-still-needs-live-accounts">What's verified, and what still needs live accounts</h4>
 <p>The left column is checked in CI on every change, or by hand where noted. The right column is what 0.1.0
-waits for (<a href="https://github.com/Merit-Order/meritorder/blob/main/ROADMAP.md#010-the-live-checks">ROADMAP.md</a>).</p>
+waits for (<a href="https://github.com/therick/meritorder/blob/main/ROADMAP.md#010-the-live-checks">ROADMAP.md</a>).</p>
 <div class="table-wrap"><table>
 <thead>
 <tr>
@@ -6818,8 +6818,9 @@ gcp:
 </code></pre>
 <p>Don't set <code>NO_UPLOAD</code> or <code>SERVICE_ACCOUNT</code> for Azure, Lambda, RunPod, Nebius, Vast, Fluidstack, Paperspace,
 DigitalOcean, Mithril or Seeweb if you launch there: their machines need the key to delete themselves.</p>
-<p><strong>Image size.</strong> All the extras above make SkyPilot's environment in the <code>-gpu</code> image about 2.0 GB, up from about
-0.8 GB with only <code>aws,gcp,kubernetes,lambda</code> (installed for Linux x86-64 and Python 3.12, measured in November 2026).
+<p><strong>Image size.</strong> All the extras above make SkyPilot's environment in the <code>-gpu</code> image about 2 GB, up from about
+0.8 GB with only <code>aws,gcp,kubernetes,lambda</code> (measured in November 2026: 2.0 and 0.8 GB for Linux x86-64 and Python
+3.12, 2.2 and 0.8 GB for Linux arm64 and Python 3.14).
 Azure's CLI and SDKs are about 1 GB of it. <code>--build-arg SKYPILOT_EXTRAS=aws,gcp,kubernetes,lambda</code> (or any list)
 builds a smaller one. OCI's SDK would add about 0.5 GB for a cloud Merit Order can't use, so it isn't in the default.</p>
 <p>Sources (SkyPilot 0.14.2, paths under <code>sky/</code>):
@@ -8320,7 +8321,7 @@ repo (<code>meritorder:dev</code>, <code>meritorder:gpu</code> and <code>meritor
 <p><strong>No images are published yet.</strong> The release workflow (<code>.github/workflows/release.yml</code>) runs only when a <code>v*</code> tag is
 pushed, and no tag exists yet. Until the first tag, build the images yourself (Compose does it for you; for
 Kubernetes, build and push them to your own registry). From then on, tag <code>v0.0.1</code> publishes
-<code>ghcr.io/merit-order/meritorder:0.0.1</code>, <code>:0.0.1-gpu</code> and <code>:0.0.1-compressor</code>, and moves <code>:latest</code>, <code>:latest-gpu</code> and
+<code>ghcr.io/therick/meritorder:0.0.1</code>, <code>:0.0.1-gpu</code> and <code>:0.0.1-compressor</code>, and moves <code>:latest</code>, <code>:latest-gpu</code> and
 <code>:latest-compressor</code> to them (<a href="#deployment-supply-chain-security">Supply-chain security</a>). The chart's default image tag is its
 <code>appVersion</code>, <code>0.0.1</code>, so a default Helm install pulls what that tag publishes.</p>
 <div class="table-wrap"><table>
@@ -8435,7 +8436,7 @@ Outside Docker, in the clone (Merit Order isn't on PyPI): <code>uv sync --extra 
 <p><code>docker compose up -d</code> starts postgres, redis, migrate (once), gateway and worker. The profiles add the rest. A dashed
 line is used only with its profile on (and, for the compressor and ClickHouse, their URL set in <code>.env</code>).</p>
 <h3 id="deployment-quickstart">Quickstart</h3>
-<pre><code class="language-bash">git clone https://github.com/Merit-Order/meritorder &amp;&amp; cd meritorder
+<pre><code class="language-bash">git clone https://github.com/therick/meritorder &amp;&amp; cd meritorder
 cp .env.example .env          # set MERITORDER_DEV_KEY; provider keys are optional (mock backends without them)
 docker compose up -d          # gateway + worker + Postgres + Redis on :8080, UI at /ui/
 docker compose exec gateway meritorder keys create --user you@example.com --role admin
@@ -9381,7 +9382,7 @@ Compose reads it into every Merit Order container (not Postgres, Redis, ClickHou
 <tbody>
 <tr>
 <td><code>image.repository</code>, <code>image.tag</code></td>
-<td><code>ghcr.io/merit-order/meritorder</code>; <code>""</code> (the chart's <code>appVersion</code>)</td>
+<td><code>ghcr.io/therick/meritorder</code>; <code>""</code> (the chart's <code>appVersion</code>)</td>
 <td>The default tag, <code>0.0.1</code>, is what release tag <code>v0.0.1</code> publishes; a chart from a later release defaults to that release's images. Until the tag is pushed, build and push the images yourself and point these at them</td>
 </tr>
 <tr>
@@ -9593,10 +9594,10 @@ CloudFormation stack (<code>meritorder-demo-site</code>, us-east-1) with everyth
   AAAA alias records</strong> to the distribution.</li>
 <li><strong>A deploy role for GitHub Actions</strong>, through GitHub's OIDC provider (the stack creates it; pass
   <code>CreateGitHubOidcProvider=false</code> if the account already has one). It trusts only pushes to <code>main</code> of the
-  repositories in the stack's <code>GitHubSubjects</code> parameter (<code>Merit-Order/meritorder</code>). It may only list, write and
+  repositories in the stack's <code>GitHubSubjects</code> parameter (<code>therick/meritorder</code>). It may only list, write and
   delete objects in the bucket and invalidate the distribution.</li>
 </ul>
-<p>To create or change the stack, see <a href="https://github.com/Merit-Order/meritorder/blob/main/deploy/aws/README.md">deploy/aws/README.md</a>.</p>
+<p>To create or change the stack, see <a href="https://github.com/therick/meritorder/blob/main/deploy/aws/README.md">deploy/aws/README.md</a>.</p>
 <p><strong>The pipeline.</strong> <code>.github/workflows/demo.yml</code> runs on pushes to <code>main</code> that touch <code>ui/</code>, <code>src/</code>, <code>config/</code> or
 <code>scripts/build_demo_data.py</code>, on the 1st of every month (so "this month" in the demo is the current month), by hand
 (Run workflow), and on every PR. Each run makes the sample data again, dated that day. Then it builds the demo, runs
@@ -9627,7 +9628,7 @@ On GitHub Pages as a project page (<code>&lt;owner&gt;.github.io/meritorder/</co
   run a changed version. The footer also links to the third-party notices of the packages the console bundles
   and fonts (<code>/ui/third-party-notices.txt</code>, written by the build; the fonts are under the SIL Open Font License 1.1).</li>
 <li>The <code>-compressor</code> image includes NVIDIA's CUDA libraries, which PyTorch's Linux wheels bring as Python packages
-  (<code>nvidia-*</code>). They're under NVIDIA's own license, not the AGPL (<a href="https://github.com/Merit-Order/meritorder/blob/main/NOTICE">NOTICE</a>). The other images don't have them.</li>
+  (<code>nvidia-*</code>). They're under NVIDIA's own license, not the AGPL (<a href="https://github.com/therick/meritorder/blob/main/NOTICE">NOTICE</a>). The other images don't have them.</li>
 <li>Version 0.0.1 is pre-production. Most of it is tested only against mocks; docs/README.md's "What's verified" table
   lists what has run against live accounts and what hasn't.</li>
 <li>Multi-arch images (amd64 and arm64) on GHCR, from the release workflow. None are published until the first <code>v*</code> tag
@@ -9665,11 +9666,11 @@ These are the rules the repo follows:</p>
 </tr>
 <tr>
 <td><strong>Our releases</strong></td>
-<td><code>.github/workflows/release.yml</code> runs on a pushed <code>v*</code> tag. It builds three images for linux/amd64 and linux/arm64 with Docker Buildx and pushes them to <code>ghcr.io/merit-order/meritorder</code>, tagged with the version without the <code>v</code>: <code>&lt;version&gt;</code> (the gateway, worker and migrate image), <code>&lt;version&gt;-gpu</code> (adds SkyPilot 0.14.2) and <code>&lt;version&gt;-compressor</code> (adds llmlingua and torch, no SkyPilot). Each also moves its own <code>latest</code>: <code>latest</code>, <code>latest-gpu</code> and <code>latest-compressor</code> (the variants' <code>flavor</code> sets <code>onlatest=true</code>, so the suffix applies to <code>latest</code> too and a variant never overwrites the main image's). Each push carries an SBOM and build provenance (<code>provenance: mode=max</code>) as attestations, and each image digest is signed with cosign, keyless, through GitHub's OIDC token (Sigstore). Every action is pinned to a commit hash. No tag exists yet, so nothing is published. The workflow doesn't publish the Helm chart or a PyPI package: install the chart from <code>charts/meritorder</code> in the repo.</td>
+<td><code>.github/workflows/release.yml</code> runs on a pushed <code>v*</code> tag. It builds three images for linux/amd64 and linux/arm64 with Docker Buildx and pushes them to <code>ghcr.io/therick/meritorder</code>, tagged with the version without the <code>v</code>: <code>&lt;version&gt;</code> (the gateway, worker and migrate image), <code>&lt;version&gt;-gpu</code> (adds SkyPilot 0.14.2) and <code>&lt;version&gt;-compressor</code> (adds llmlingua and torch, no SkyPilot). Each also moves its own <code>latest</code>: <code>latest</code>, <code>latest-gpu</code> and <code>latest-compressor</code> (the variants' <code>flavor</code> sets <code>onlatest=true</code>, so the suffix applies to <code>latest</code> too and a variant never overwrites the main image's). Each push carries an SBOM and build provenance (<code>provenance: mode=max</code>) as attestations, and each image digest is signed with cosign, keyless, through GitHub's OIDC token (Sigstore). Every action is pinned to a commit hash. No tag exists yet, so nothing is published. The workflow doesn't publish the Helm chart or a PyPI package: install the chart from <code>charts/meritorder</code> in the repo.</td>
 </tr>
 <tr>
 <td><strong>Images</strong></td>
-<td>Slim base image (<code>python:3.12-slim</code>), non-root user (uid 10001). The Helm chart runs it with a read-only root filesystem and all capabilities dropped.</td>
+<td>Slim base image (<code>python:3.14-slim</code>; the package itself supports Python 3.12 and newer), non-root user (uid 10001). The Helm chart runs it with a read-only root filesystem and all capabilities dropped.</td>
 </tr>
 <tr>
 <td><strong>Reporting issues</strong></td>
@@ -11506,7 +11507,7 @@ that key's role may see.</p></section><section id="decisions"><header class="sec
 <tr>
 <td>55</td>
 <td>AGPL-3.0-only license: the reasoning</td>
-<td>Accepted</td>
+<td>Accepted; contributions under a CLA since 68</td>
 </tr>
 <tr>
 <td>56</td>
@@ -11567,6 +11568,11 @@ that key's role may see.</p></section><section id="decisions"><header class="sec
 <td>67</td>
 <td>A failure costs what the request puts at stake: the person's cost scaled by level and size; the tie band and move margin on money</td>
 <td>Accepted; amends 62</td>
+</tr>
+<tr>
+<td>68</td>
+<td>Contributions under a CLA: a license grant to Espeto LLC, not an assignment; signed on the pull request through an in-repo workflow</td>
+<td>Accepted; replaces the DCO in 55</td>
 </tr>
 </tbody>
 </table></div>
@@ -12677,16 +12683,17 @@ Merit Order automatically; moving to one would be a decision of its own. The con
 the source (<code>console.source_url</code>), so an operator running a changed version can meet section 13 by pointing it at theirs.
 The console's bundled packages keep their own (mostly MIT) licenses, and the build writes their notices beside it.</p>
 <p>The copyright holders can still offer Merit Order under other licenses as well, for example a commercial
-one to a company that can't take the AGPL. That only covers code the holder owns. Contributions come in under the
-Developer Certificate of Origin (CONTRIBUTING.md), which licenses them under the AGPL and nothing else; offering
-outside contributions under other terms too would need a Contributor License Agreement from their authors, signed
-before (or for) those contributions. There's none today.</p>
+one to a company that can't take the AGPL. That only covers code the holder owns, so outside contributions come in
+under a Contributor License Agreement (<code>CLA.md</code>, decision 68) that grants Espeto LLC the right to license them under
+other terms too. Until decision 68 they came in under the Developer Certificate of Origin, which licenses them under
+the AGPL and nothing else.</p>
 <p><strong>Not chosen:</strong> a permissive license (MIT, BSD and similar): a company could run a changed gateway as a
 service and keep the changes. AGPL-3.0-or-later: it hands the choice of future terms to someone else. The Server Side
 Public License or the Business Source License: not open source by the OSI's definition, and they restrict use rather
-than ask for changes back. A CLA from the start: a barrier to the first contributors for a choice nobody has made yet.</p>
-<p><strong>Revisit if:</strong> companies that would contribute can't use AGPL software at all (then dual licensing, which needs a CLA
-for outside code), or a later AGPL version fixes something that matters here.</p>
+than ask for changes back. A CLA from the start: a barrier to the first contributors for a choice nobody had made
+yet (decision 68 made it).</p>
+<p><strong>Revisit if:</strong> a later AGPL version fixes something that matters here. (Dual licensing, the other reason given here,
+was prepared for by decision 68.)</p>
 <h3 id="decisions-56-skypilot-as-plain-clusters-one-per-replica-each-behind-a-keyed-gate-with-a-dead-man-lease-no-skyserve">56. SkyPilot as plain clusters, one per replica, each behind a keyed gate with a dead-man lease; no SkyServe</h3>
 <p><strong>Why:</strong> SkyServe's controller is a VM of its own. It can't run where Merit Order's controller runs, it stays up while
 any service does, and it was priced in neither the ledger nor the budgets; on Lambda, which has only GPU machines, it
@@ -13277,7 +13284,43 @@ is the rules' levels, not the kind of work.</p>
 <p><strong>Revisit if:</strong> the fitted layer routes in most organizations (its calibration says how wrong the prior is at low levels;
 then the level factor may move towards a half), Reports → Learned router shows failed analyses or general level-3 work
 costing more than the models they'd have needed, the rules learn to tell analysis from writing (then decision 62's gain
-there comes back without chat's cost), or a measured time to notice and redo a failure per level replaces the third.</p></section><section id="how-it-decides"><header class="sec-head"><span class="n">10</span><h2>How it decides</h2></header><p>Every decision Merit Order makes, in the order it makes them, with the exact rules and defaults.
+there comes back without chat's cost), or a measured time to notice and redo a failure per level replaces the third.</p>
+<h3 id="decisions-68-contributions-under-a-cla-a-license-grant-to-espeto-llc-not-an-assignment-signed-on-the-pull-request-through-an-in-repo-workflow">68. Contributions under a CLA: a license grant to Espeto LLC, not an assignment; signed on the pull request through an in-repo workflow</h3>
+<p><strong>Why:</strong> Decision 55 keeps the option of offering Merit Order under other licenses as well as the AGPL, for example a
+commercial license for a company that can't use AGPL software. Under the DCO, outside contributions were licensed
+under the AGPL only, so every merged one narrowed that option. Asking for the right now, before there are many
+contributors, costs less than asking each past contributor later.</p>
+<p><strong>How:</strong> <code>CLA.md</code> is an Individual Contributor License Agreement, version 1, structured like the Apache Software
+Foundation's ICLA but in its own words (the ASF doesn't state terms for reusing its text). Contributors keep their
+copyright and grant Espeto LLC a perpetual, irrevocable, non-exclusive copyright license, including the right to
+license their contributions under any terms, proprietary and commercial ones included, and a patent license that ends
+for anyone who sues over the contribution. They confirm the work is theirs to give, with their employer's permission or
+a Corporate CLA where the employer has rights. A plain summary at the top says what signing means.</p>
+<p><code>.github/workflows/cla.yml</code> runs a short script in the repository (<code>.github/scripts/cla.cjs</code>) on GitHub's own
+<code>actions/github-script</code> (v9.0.0, pinned by commit), with no third-party action. On a pull request it lists the author
+and the commit authors; anyone not on the allowlist (the maintainer and the dependency bots) who hasn't signed is named
+in one comment, which later runs edit rather than repeat, and the check fails until they reply with the sign phrase.
+Signatures go in <code>signatures/version1/cla.json</code> on the <code>cla-signatures</code> branch, matched by GitHub user id, written with
+the workflow's own <code>GITHUB_TOKEN</code> through the contents API with the file's sha, so two people signing at once can't
+overwrite each other (the loser gets a 409 and retries). The main ruleset covers only the default branch, so the
+workflow can commit there. The result is a commit status named <code>CLA</code> on the pull request's head commit rather than
+the job's outcome, because a sign comment runs on the default branch and a status is what both events can set on the
+same commit. The workflow runs on <code>pull_request_target</code> and <code>issue_comment</code>, and checks out only <code>.github/scripts</code>
+from the default branch, never the pull request's code. Its permissions are contents, pull requests and statuses,
+nothing else. <code>node --test</code> runs the script's tests in CI against a fake of the API. A new version of the agreement
+gets a new signatures file (<code>version2/</code>), and everyone signs again for later contributions. The website repository
+uses the same agreement and workflow.</p>
+<p><strong>Not chosen:</strong> A copyright assignment: contributors lose rights in their own work, some employers forbid it, and a
+broad license already allows dual licensing. Keeping the DCO alongside: two sign-offs for one purpose; <code>git commit -s</code>
+is still welcome. The hosted CLA Assistant service (cla-assistant.io): signatures live in a third party's database, and
+it needs an OAuth app with access to the organization. CLA Assistant Lite (<code>contributor-assistant/github-action</code>), the usual
+GitHub Action for this: its repository was archived in March 2026 and runs on Node 20, and any action here holds a
+write token on a workflow that runs for every outside pull request. About 100 lines of our own, on an action GitHub
+maintains, are easier to read in full and to keep current than a third party's bundle. A signing service such as DocuSign or a form: a step outside
+GitHub, and records kept somewhere else. A PAT so signatures can live in a separate repository: one more secret to
+rotate, for no gain while the signatures branch is open.</p>
+<p><strong>Revisit if:</strong> a company wants to contribute (then write the Corporate CLA), Espeto LLC's role changes (a foundation
+or a new company would need the agreements carried over or re-signed), or GitHub offers CLA signing itself.</p></section><section id="how-it-decides"><header class="sec-head"><span class="n">10</span><h2>How it decides</h2></header><p>Every decision Merit Order makes, in the order it makes them, with the exact rules and defaults.
 Each rule names the setting that controls it. The code is the source of truth:
 <code>proxy.py</code> (request pipeline), <code>router.py</code> (model and backend choice), <code>classifier.py</code> (levels), <code>learned.py</code> and
 <code>learned_jobs.py</code> (the opt-in learned router), <code>success.py</code> (expected total cost: the success predictor and the cascade),
@@ -14882,7 +14925,7 @@ really full. Meanwhile the controller sees the demand and adds replicas (after
 </tr>
 <tr>
 <td>Where the console's "Source" link and <code>GET /about</code> point (the AGPL's offer of the source to people using the gateway)</td>
-<td><code>https://github.com/Merit-Order/meritorder</code></td>
+<td><code>https://github.com/therick/meritorder</code></td>
 <td><code>console.source_url</code> (<code>MERITORDER_SOURCE_URL</code> in the shipped config)</td>
 </tr>
 </tbody>
@@ -16117,7 +16160,7 @@ ClickHouse reports at 20 million rows.</p>
 Token counts are estimates corrected per model by its replies. Sessions that switched backends and the rebuild cost
 they paid aren't reported yet, and neither is what lower reasoning effort saved.</p>
 <p>The full list is in <a href="#overview-whats-verified-and-what-still-needs-live-accounts">what's verified</a>. What 0.1.0 waits
-for is in <a href="https://github.com/Merit-Order/meritorder/blob/main/ROADMAP.md">ROADMAP.md</a>.</p></section>
+for is in <a href="https://github.com/therick/meritorder/blob/main/ROADMAP.md">ROADMAP.md</a>.</p></section>
   </main>
 </div>
 

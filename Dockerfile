@@ -40,7 +40,7 @@ RUN --mount=type=cache,target=/root/.cache/pip mkdir -p /opt/skypilot && if [ -n
 FROM python:3.14-slim
 # The release workflow sets the same labels (and the version and revision) through docker/metadata-action.
 LABEL org.opencontainers.image.title="meritorder" \
-      org.opencontainers.image.source="https://github.com/Merit-Order/meritorder" \
+      org.opencontainers.image.source="https://github.com/therick/meritorder" \
       org.opencontainers.image.licenses="AGPL-3.0-only" \
       org.opencontainers.image.vendor="The Merit Order Authors"
 # The caches (the model cache, and the one the Vast SDK makes) and SkyPilot's state exist (owned by the user) so the

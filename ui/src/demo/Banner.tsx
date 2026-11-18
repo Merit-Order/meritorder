@@ -11,7 +11,7 @@ export function DemoBanner() {
       <Text size="xs" fw={600}>Demo: sample data</Text>
       <Text size="xs" c="dimmed">An invented organization. Changes last until you reload; nothing is saved or sent.</Text>
       <Anchor size="xs" href="https://meritorder.dev" target="_blank" rel="noreferrer">meritorder.dev</Anchor>
-      <Anchor size="xs" href="https://github.com/Merit-Order/meritorder" target="_blank" rel="noreferrer">GitHub</Anchor>
+      <Anchor size="xs" href="https://github.com/therick/meritorder" target="_blank" rel="noreferrer">GitHub</Anchor>
     </Group>
   );
 }

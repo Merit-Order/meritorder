@@ -27,9 +27,9 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/Merit-Order/meritorder"
-Source = "https://github.com/Merit-Order/meritorder"
-Issues = "https://github.com/Merit-Order/meritorder/issues"
+Homepage = "https://github.com/therick/meritorder"
+Source = "https://github.com/therick/meritorder"
+Issues = "https://github.com/therick/meritorder/issues"
 
 [project.optional-dependencies]
 gcp = ["google-auth>=2.30", "requests>=2.32"]

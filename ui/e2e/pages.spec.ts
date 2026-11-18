@@ -18,7 +18,7 @@ const ADMIN_PAGES: [string, string, RegExp | string][] = [
 test("the source and the third-party notices are a click away, signed in or not", async ({ page }) => {
   await page.goto("/ui/");
   const source = page.getByRole("link", { name: "Source" });
-  await expect(source).toHaveAttribute("href", "https://github.com/Merit-Order/meritorder"); // console.source_url
+  await expect(source).toHaveAttribute("href", "https://github.com/therick/meritorder"); // console.source_url
   await expect(page.getByText(/Merit Order \d+\.\d+\.\d+ · AGPL-3\.0-only/)).toBeVisible(); // from GET /about
   await expect(page.getByRole("link", { name: "Third-party notices" })).toHaveAttribute("href", "/ui/third-party-notices.txt");
   const notices = await page.request.get("/ui/third-party-notices.txt");
@@ -27,7 +27,7 @@ test("the source and the third-party notices are a click away, signed in or not"
   await page.getByLabel("API key").fill(KEYS.admin); // a hash change wouldn't reload the page for signInAs
   await page.getByRole("button", { name: "Sign in" }).click();
   await expect(page.getByRole("button", { name: "root" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Source" })).toHaveAttribute("href", "https://github.com/Merit-Order/meritorder");
+  await expect(page.getByRole("link", { name: "Source" })).toHaveAttribute("href", "https://github.com/therick/meritorder");
 });
 
 test("sign in with a key, see who you are, sign out", async ({ page, problems }) => {

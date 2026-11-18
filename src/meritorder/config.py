@@ -1423,7 +1423,7 @@ def batch_api(b: BackendConfig) -> tuple[str | None, str]:
     return api, ""
 
 
-SOURCE_URL = "https://github.com/Merit-Order/meritorder"
+SOURCE_URL = "https://github.com/therick/meritorder"
 
 
 class ConsoleConfig(BaseModel):
