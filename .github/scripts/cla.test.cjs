@@ -1,7 +1,7 @@
-// Tests for cla.js against an in-memory fake of the GitHub API. Run with: node --test .github/scripts/
+// Tests for cla.cjs against an in-memory fake of the GitHub API. Run with: node --test .github/scripts/cla.test.cjs
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const {run, sign, missingSigners, commentBody, PHRASE, MARKER} = require('./cla.js');
+const {run, sign, missingSigners, commentBody, PHRASE, MARKER} = require('./cla.cjs');
 
 const repo = {owner: 'Merit-Order', repo: 'meritorder'};
 const alice = {login: 'alice', id: 11};

@@ -1987,7 +1987,7 @@ license their contributions under any terms, proprietary and commercial ones inc
 for anyone who sues over the contribution. They confirm the work is theirs to give, with their employer's permission or
 a Corporate CLA where the employer has rights. A plain summary at the top says what signing means.
 
-`.github/workflows/cla.yml` runs a short script in the repository (`.github/scripts/cla.js`) on GitHub's own
+`.github/workflows/cla.yml` runs a short script in the repository (`.github/scripts/cla.cjs`) on GitHub's own
 `actions/github-script` (v9.0.0, pinned by commit), with no third-party action. On a pull request it lists the author
 and the commit authors; anyone not on the allowlist (the maintainer and the dependency bots) who hasn't signed is named
 in one comment, which later runs edit rather than repeat, and the check fails until they reply with the sign phrase.

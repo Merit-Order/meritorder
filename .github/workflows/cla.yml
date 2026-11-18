@@ -1,5 +1,5 @@
 # Asks each contributor to sign the Contributor License Agreement (CLA.md) once, by commenting on their pull request.
-# The logic is in .github/scripts/cla.js (tested by cla.test.js); this file only decides when it runs and with what.
+# The logic is in .github/scripts/cla.cjs (tested by cla.test.cjs); this file only decides when it runs and with what.
 #
 # The result is a commit status named "CLA" on the pull request's head commit, not this job's outcome: a sign comment
 # runs on the default branch, and a status is the one thing both events can set on the same commit. The job itself
@@ -43,5 +43,5 @@ jobs:
       - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3  # v9.0.0
         with:
           script: |
-            const {run} = require('./.github/scripts/cla.js');
+            const {run} = require('./.github/scripts/cla.cjs');
             await run({github, context});
