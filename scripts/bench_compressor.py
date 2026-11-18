@@ -123,7 +123,7 @@ def web_search(paths: list[str]) -> str:
             anchor = re.sub(r"[^\w\- ]", "", title.lower()).replace(" ", "-")
             snippet = " ".join(line.strip() for line in m.group(2).splitlines() if line.strip())[:280]
             n += 1
-            out.append(f"{n}. {title} - Merit Order docs\n   https://github.com/Merit-Order/meritorder/blob/main/docs/{doc}#{anchor}\n"
+            out.append(f"{n}. {title} - Merit Order docs\n   https://github.com/therick/meritorder/blob/main/docs/{doc}#{anchor}\n"
                        f"   {snippet}...\n")
     return "\n".join(out)
 

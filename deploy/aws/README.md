@@ -33,7 +33,7 @@ Parameters:
 |---|---|---|
 | `DomainName` | `dev.meritorder.dev` | The name the demo is served at. It must be in the zone. |
 | `HostedZoneId` | (required) | The Route 53 zone for `meritorder.dev`. |
-| `GitHubSubjects` | `repo:Merit-Order@355502678/meritorder@1459849005:ref:refs/heads/main,repo:Merit-Order/meritorder:ref:refs/heads/main` | Who the deploy role trusts. Repos with GitHub's immutable subjects (`gh api repos/<owner>/<repo>/actions/oidc/customization/sub`) send `repo:<owner>@<id>/<repo>@<id>:...`; list that form. |
+| `GitHubSubjects` | `repo:therick@319326/meritorder@1459849005:ref:refs/heads/main,repo:therick/meritorder:ref:refs/heads/main` | Who the deploy role trusts. Repos with GitHub's immutable subjects (`gh api repos/<owner>/<repo>/actions/oidc/customization/sub`) send `repo:<owner>@<id>/<repo>@<id>:...`; list that form. |
 | `CreateGitHubOidcProvider` | `true` | An account has one OIDC provider for `token.actions.githubusercontent.com`. `false` uses the existing one. |
 
 Outputs: `BucketName`, `DistributionId`, `DistributionDomainName`, `DeployRoleArn`, `Url`.
@@ -47,7 +47,7 @@ aws cloudformation describe-stacks --profile meritorder-admin --region us-east-1
 
 - **Trust:** `sts:AssumeRoleWithWebIdentity` from GitHub's OIDC provider, when the token's audience is
   `sts.amazonaws.com` and its subject is one of `GitHubSubjects`: a workflow on `main` of
-  `Merit-Order/meritorder`. Branches, tags, pull requests and jobs that name an environment get other subjects and are
+  `therick/meritorder`. Branches, tags, pull requests and jobs that name an environment get other subjects and are
   refused.
 - **Permissions:** `s3:ListBucket` on the bucket, `s3:PutObject` and `s3:DeleteObject` on its objects, and
   `cloudfront:CreateInvalidation` on the distribution. Nothing else.
@@ -57,13 +57,13 @@ aws cloudformation describe-stacks --profile meritorder-admin --region us-east-1
 The pipeline (`.github/workflows/demo.yml`) reads three repository variables. They aren't secrets.
 
 ```bash
-gh variable set DEMO_DEPLOY_ROLE_ARN --repo Merit-Order/meritorder --body <DeployRoleArn>
-gh variable set DEMO_BUCKET          --repo Merit-Order/meritorder --body <BucketName>
-gh variable set DEMO_DISTRIBUTION_ID --repo Merit-Order/meritorder --body <DistributionId>
+gh variable set DEMO_DEPLOY_ROLE_ARN --repo therick/meritorder --body <DeployRoleArn>
+gh variable set DEMO_BUCKET          --repo therick/meritorder --body <BucketName>
+gh variable set DEMO_DISTRIBUTION_ID --repo therick/meritorder --body <DistributionId>
 ```
 
-The role already trusts pushes to `main` of `Merit-Order/meritorder` by name. Once the repository exists, add its
-immutable subject (`repo:Merit-Order@<owner id>/meritorder@<repo id>:ref:refs/heads/main`) to `GitHubSubjects` if it
+The role already trusts pushes to `main` of `therick/meritorder` by name. Once the repository exists, add its
+immutable subject (`repo:therick@<owner id>/meritorder@<repo id>:ref:refs/heads/main`) to `GitHubSubjects` if it
 sends that form.
 
 ## Deploying by hand

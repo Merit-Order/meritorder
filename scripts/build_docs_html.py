@@ -23,7 +23,7 @@ import markdown
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DOCS = sys.argv[1] if len(sys.argv) > 1 else os.path.join(ROOT, "docs")
 OUT = sys.argv[2] if len(sys.argv) > 2 else os.path.join(DOCS, "html")
-REPO = "https://github.com/Merit-Order/meritorder/blob/main/"
+REPO = "https://github.com/therick/meritorder/blob/main/"
 HANDMADE = {"00-how-it-all-works.md": "how-it-all-works.html"}  # written by hand, kept in sync with the doc
 
 files = sorted(glob.glob(os.path.join(DOCS, "*.md")))

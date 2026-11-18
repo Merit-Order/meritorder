@@ -46,7 +46,7 @@ test("signed in as the demo's admin, with the banner's links", async ({ page }) 
   await expect(page.getByRole("button", { name: "alex.morgan@example.com" })).toBeVisible();
   const banner = page.getByRole("note", { name: "Demo" });
   await expect(banner.getByRole("link", { name: "meritorder.dev" })).toHaveAttribute("href", "https://meritorder.dev");
-  await expect(banner.getByRole("link", { name: "GitHub" })).toHaveAttribute("href", "https://github.com/Merit-Order/meritorder");
+  await expect(banner.getByRole("link", { name: "GitHub" })).toHaveAttribute("href", "https://github.com/therick/meritorder");
   await expect(page.getByText(/Merit Order .*\(demo\) · AGPL-3\.0-only/)).toBeVisible();
   const notices = await page.request.get(await page.getByRole("link", { name: "Third-party notices" }).getAttribute("href") ?? "");
   expect(await notices.text()).toContain("Name: react");

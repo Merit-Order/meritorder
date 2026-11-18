@@ -6,7 +6,7 @@ export type About = { name: string; version: string; license: string; source_url
 
 // The shipped config's console.source_url; shown until /about answers, or if it can't.
 const FALLBACK: About = {
-  name: "Merit Order", version: "", license: "AGPL-3.0-only", source_url: "https://github.com/Merit-Order/meritorder",
+  name: "Merit Order", version: "", license: "AGPL-3.0-only", source_url: "https://github.com/therick/meritorder",
   third_party_notices: "/ui/third-party-notices.txt",
 };
 

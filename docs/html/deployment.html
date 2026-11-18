@@ -218,7 +218,7 @@ repo (<code>meritorder:dev</code>, <code>meritorder:gpu</code> and <code>meritor
 <p><strong>No images are published yet.</strong> The release workflow (<code>.github/workflows/release.yml</code>) runs only when a <code>v*</code> tag is
 pushed, and no tag exists yet. Until the first tag, build the images yourself (Compose does it for you; for
 Kubernetes, build and push them to your own registry). From then on, tag <code>v0.0.1</code> publishes
-<code>ghcr.io/merit-order/meritorder:0.0.1</code>, <code>:0.0.1-gpu</code> and <code>:0.0.1-compressor</code>, and moves <code>:latest</code>, <code>:latest-gpu</code> and
+<code>ghcr.io/therick/meritorder:0.0.1</code>, <code>:0.0.1-gpu</code> and <code>:0.0.1-compressor</code>, and moves <code>:latest</code>, <code>:latest-gpu</code> and
 <code>:latest-compressor</code> to them (<a href="#supply-chain-security">Supply-chain security</a>). The chart's default image tag is its
 <code>appVersion</code>, <code>0.0.1</code>, so a default Helm install pulls what that tag publishes.</p>
 <div class="table-wrap"><table>
@@ -333,7 +333,7 @@ Outside Docker, in the clone (Merit Order isn't on PyPI): <code>uv sync --extra 
 <p><code>docker compose up -d</code> starts postgres, redis, migrate (once), gateway and worker. The profiles add the rest. A dashed
 line is used only with its profile on (and, for the compressor and ClickHouse, their URL set in <code>.env</code>).</p>
 <h2 id="quickstart">Quickstart</h2>
-<pre><code class="language-bash">git clone https://github.com/Merit-Order/meritorder &amp;&amp; cd meritorder
+<pre><code class="language-bash">git clone https://github.com/therick/meritorder &amp;&amp; cd meritorder
 cp .env.example .env          # set MERITORDER_DEV_KEY; provider keys are optional (mock backends without them)
 docker compose up -d          # gateway + worker + Postgres + Redis on :8080, UI at /ui/
 docker compose exec gateway meritorder keys create --user you@example.com --role admin
@@ -1279,7 +1279,7 @@ Compose reads it into every Merit Order container (not Postgres, Redis, ClickHou
 <tbody>
 <tr>
 <td><code>image.repository</code>, <code>image.tag</code></td>
-<td><code>ghcr.io/merit-order/meritorder</code>; <code>""</code> (the chart's <code>appVersion</code>)</td>
+<td><code>ghcr.io/therick/meritorder</code>; <code>""</code> (the chart's <code>appVersion</code>)</td>
 <td>The default tag, <code>0.0.1</code>, is what release tag <code>v0.0.1</code> publishes; a chart from a later release defaults to that release's images. Until the tag is pushed, build and push the images yourself and point these at them</td>
 </tr>
 <tr>
@@ -1491,10 +1491,10 @@ CloudFormation stack (<code>meritorder-demo-site</code>, us-east-1) with everyth
   AAAA alias records</strong> to the distribution.</li>
 <li><strong>A deploy role for GitHub Actions</strong>, through GitHub's OIDC provider (the stack creates it; pass
   <code>CreateGitHubOidcProvider=false</code> if the account already has one). It trusts only pushes to <code>main</code> of the
-  repositories in the stack's <code>GitHubSubjects</code> parameter (<code>Merit-Order/meritorder</code>). It may only list, write and
+  repositories in the stack's <code>GitHubSubjects</code> parameter (<code>therick/meritorder</code>). It may only list, write and
   delete objects in the bucket and invalidate the distribution.</li>
 </ul>
-<p>To create or change the stack, see <a href="https://github.com/Merit-Order/meritorder/blob/main/deploy/aws/README.md">deploy/aws/README.md</a>.</p>
+<p>To create or change the stack, see <a href="https://github.com/therick/meritorder/blob/main/deploy/aws/README.md">deploy/aws/README.md</a>.</p>
 <p><strong>The pipeline.</strong> <code>.github/workflows/demo.yml</code> runs on pushes to <code>main</code> that touch <code>ui/</code>, <code>src/</code>, <code>config/</code> or
 <code>scripts/build_demo_data.py</code>, on the 1st of every month (so "this month" in the demo is the current month), by hand
 (Run workflow), and on every PR. Each run makes the sample data again, dated that day. Then it builds the demo, runs
@@ -1525,7 +1525,7 @@ On GitHub Pages as a project page (<code>&lt;owner&gt;.github.io/meritorder/</co
   run a changed version. The footer also links to the third-party notices of the packages the console bundles
   and fonts (<code>/ui/third-party-notices.txt</code>, written by the build; the fonts are under the SIL Open Font License 1.1).</li>
 <li>The <code>-compressor</code> image includes NVIDIA's CUDA libraries, which PyTorch's Linux wheels bring as Python packages
-  (<code>nvidia-*</code>). They're under NVIDIA's own license, not the AGPL (<a href="https://github.com/Merit-Order/meritorder/blob/main/NOTICE">NOTICE</a>). The other images don't have them.</li>
+  (<code>nvidia-*</code>). They're under NVIDIA's own license, not the AGPL (<a href="https://github.com/therick/meritorder/blob/main/NOTICE">NOTICE</a>). The other images don't have them.</li>
 <li>Version 0.0.1 is pre-production. Most of it is tested only against mocks; docs/README.md's "What's verified" table
   lists what has run against live accounts and what hasn't.</li>
 <li>Multi-arch images (amd64 and arm64) on GHCR, from the release workflow. None are published until the first <code>v*</code> tag
@@ -1563,11 +1563,11 @@ These are the rules the repo follows:</p>
 </tr>
 <tr>
 <td><strong>Our releases</strong></td>
-<td><code>.github/workflows/release.yml</code> runs on a pushed <code>v*</code> tag. It builds three images for linux/amd64 and linux/arm64 with Docker Buildx and pushes them to <code>ghcr.io/merit-order/meritorder</code>, tagged with the version without the <code>v</code>: <code>&lt;version&gt;</code> (the gateway, worker and migrate image), <code>&lt;version&gt;-gpu</code> (adds SkyPilot 0.14.2) and <code>&lt;version&gt;-compressor</code> (adds llmlingua and torch, no SkyPilot). Each also moves its own <code>latest</code>: <code>latest</code>, <code>latest-gpu</code> and <code>latest-compressor</code> (the variants' <code>flavor</code> sets <code>onlatest=true</code>, so the suffix applies to <code>latest</code> too and a variant never overwrites the main image's). Each push carries an SBOM and build provenance (<code>provenance: mode=max</code>) as attestations, and each image digest is signed with cosign, keyless, through GitHub's OIDC token (Sigstore). Every action is pinned to a commit hash. No tag exists yet, so nothing is published. The workflow doesn't publish the Helm chart or a PyPI package: install the chart from <code>charts/meritorder</code> in the repo.</td>
+<td><code>.github/workflows/release.yml</code> runs on a pushed <code>v*</code> tag. It builds three images for linux/amd64 and linux/arm64 with Docker Buildx and pushes them to <code>ghcr.io/therick/meritorder</code>, tagged with the version without the <code>v</code>: <code>&lt;version&gt;</code> (the gateway, worker and migrate image), <code>&lt;version&gt;-gpu</code> (adds SkyPilot 0.14.2) and <code>&lt;version&gt;-compressor</code> (adds llmlingua and torch, no SkyPilot). Each also moves its own <code>latest</code>: <code>latest</code>, <code>latest-gpu</code> and <code>latest-compressor</code> (the variants' <code>flavor</code> sets <code>onlatest=true</code>, so the suffix applies to <code>latest</code> too and a variant never overwrites the main image's). Each push carries an SBOM and build provenance (<code>provenance: mode=max</code>) as attestations, and each image digest is signed with cosign, keyless, through GitHub's OIDC token (Sigstore). Every action is pinned to a commit hash. No tag exists yet, so nothing is published. The workflow doesn't publish the Helm chart or a PyPI package: install the chart from <code>charts/meritorder</code> in the repo.</td>
 </tr>
 <tr>
 <td><strong>Images</strong></td>
-<td>Slim base image (<code>python:3.12-slim</code>), non-root user (uid 10001). The Helm chart runs it with a read-only root filesystem and all capabilities dropped.</td>
+<td>Slim base image (<code>python:3.14-slim</code>; the package itself supports Python 3.12 and newer), non-root user (uid 10001). The Helm chart runs it with a read-only root filesystem and all capabilities dropped.</td>
 </tr>
 <tr>
 <td><strong>Reporting issues</strong></td>
