@@ -93,6 +93,8 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: npm audit --omit=dev --audit-level=high
+      - name: The CLA check's script (.github/workflows/cla.yml)
+        run: node --test ../.github/scripts/cla.test.cjs
 
   helm:
     runs-on: ubuntu-latest
