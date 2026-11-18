@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Contributions now need a signed CLA (CLA.md); DCO sign-off is no longer required.
+
 ## 0.0.1 (2026-11-15)
 
 The first public release. Merit Order is an LLM gateway: your tools send requests to it as they would to OpenAI or

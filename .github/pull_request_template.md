@@ -11,4 +11,4 @@
 - [ ] Tests pass locally (`uv run pytest -q --cov --cov-fail-under=95`)
 - [ ] Console changes: `npx tsc --noEmit && npx tsc --noEmit -p e2e` pass, and `ui/e2e/` is updated
 - [ ] The docs for this area (`docs/*.md`) describe the code as it now is
-- [ ] Every commit is signed off (`git commit -s`), see CONTRIBUTING.md
+- [ ] I've signed the [Contributor License Agreement](https://github.com/Merit-Order/meritorder/blob/main/CLA.md) (the `CLA` check asks on your first pull request)
