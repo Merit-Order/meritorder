@@ -71,7 +71,7 @@ What we decided, why, and what would make us revisit it. Newest decisions go at 
 | 65 | A person's record lowers a key's role, never raises it; a saved configuration reads only allowed secrets | Accepted |
 | 66 | An unknown price is refused, not served free; spend counters checked against the ledger, Redis without persistence | Accepted |
 | 67 | A failure costs what the request puts at stake: the person's cost scaled by level and size; the tie band and move margin on money | Accepted; amends 62 |
-| 68 | Contributions under a CLA: a license grant to Espeto LLC, not an assignment; signed on the pull request by an in-repo action | Accepted; replaces the DCO in 55 |
+| 68 | Contributions under a CLA: a license grant to Espeto LLC, not an assignment; signed on the pull request through an in-repo workflow | Accepted; replaces the DCO in 55 |
 
 **Still open:** an embedding feature source for the learned router (decision 44). Judged labels are built (decision 52),
 opt-in per team, and tested only against mocks.
@@ -1973,7 +1973,7 @@ then the level factor may move towards a half), Reports → Learned router shows
 costing more than the models they'd have needed, the rules learn to tell analysis from writing (then decision 62's gain
 there comes back without chat's cost), or a measured time to notice and redo a failure per level replaces the third.
 
-## 68. Contributions under a CLA: a license grant to Espeto LLC, not an assignment; signed on the pull request by an in-repo action
+## 68. Contributions under a CLA: a license grant to Espeto LLC, not an assignment; signed on the pull request through an in-repo workflow
 
 **Why:** Decision 55 keeps the option of offering Merit Order under other licenses as well as the AGPL, for example a
 commercial license for a company that can't use AGPL software. Under the DCO, outside contributions were licensed
@@ -1987,22 +1987,30 @@ license their contributions under any terms, proprietary and commercial ones inc
 for anyone who sues over the contribution. They confirm the work is theirs to give, with their employer's permission or
 a Corporate CLA where the employer has rights. A plain summary at the top says what signing means.
 
-`.github/workflows/cla.yml` runs CLA Assistant Lite (`contributor-assistant/github-action` v2.6.1, pinned by commit). On
-a pull request it lists the commit authors; anyone who hasn't signed gets a comment, and the `CLA` check fails until
-they reply with the sign phrase. Signatures go in `signatures/version1/cla.json` on the `cla-signatures` branch,
-written with the workflow's own `GITHUB_TOKEN`; the main ruleset covers only the default branch, so the action can
-commit there. The maintainer and the dependency bots are on the allowlist. The workflow runs on `pull_request_target`,
-so it never checks out the pull request's code. A new version of the agreement gets a new signatures file
-(`version2/`), and everyone signs again for later contributions. The website repository uses the same agreement and
-workflow.
+`.github/workflows/cla.yml` runs a short script in the repository (`.github/scripts/cla.js`) on GitHub's own
+`actions/github-script` (v9.0.0, pinned by commit), with no third-party action. On a pull request it lists the author
+and the commit authors; anyone not on the allowlist (the maintainer and the dependency bots) who hasn't signed is named
+in one comment, which later runs edit rather than repeat, and the check fails until they reply with the sign phrase.
+Signatures go in `signatures/version1/cla.json` on the `cla-signatures` branch, matched by GitHub user id, written with
+the workflow's own `GITHUB_TOKEN` through the contents API with the file's sha, so two people signing at once can't
+overwrite each other (the loser gets a 409 and retries). The main ruleset covers only the default branch, so the
+workflow can commit there. The result is a commit status named `CLA` on the pull request's head commit rather than
+the job's outcome, because a sign comment runs on the default branch and a status is what both events can set on the
+same commit. The workflow runs on `pull_request_target` and `issue_comment`, and checks out only `.github/scripts`
+from the default branch, never the pull request's code. Its permissions are contents, pull requests and statuses,
+nothing else. `node --test` runs the script's tests in CI against a fake of the API. A new version of the agreement
+gets a new signatures file (`version2/`), and everyone signs again for later contributions. The website repository
+uses the same agreement and workflow.
 
 **Not chosen:** A copyright assignment: contributors lose rights in their own work, some employers forbid it, and a
 broad license already allows dual licensing. Keeping the DCO alongside: two sign-offs for one purpose; `git commit -s`
 is still welcome. The hosted CLA Assistant service (cla-assistant.io): signatures live in a third party's database, and
-it needs an OAuth app with access to the organization. A signing service such as DocuSign or a form: a step outside
+it needs an OAuth app with access to the organization. CLA Assistant Lite (`contributor-assistant/github-action`), the usual
+GitHub Action for this: its repository was archived in March 2026 and runs on Node 20, and any action here holds a
+write token on a workflow that runs for every outside pull request. About 100 lines of our own, on an action GitHub
+maintains, are easier to read in full and to keep current than a third party's bundle. A signing service such as DocuSign or a form: a step outside
 GitHub, and records kept somewhere else. A PAT so signatures can live in a separate repository: one more secret to
 rotate, for no gain while the signatures branch is open.
 
-**Revisit if:** the action stops working (its repository was archived in March 2026 and runs on Node 20; a maintained
-fork or a small in-repo replacement would do the same job), a company wants to contribute (then write the Corporate
-CLA), or Espeto LLC's role changes (a foundation or a new company would need the agreements carried over or re-signed).
+**Revisit if:** a company wants to contribute (then write the Corporate CLA), Espeto LLC's role changes (a foundation
+or a new company would need the agreements carried over or re-signed), or GitHub offers CLA signing itself.
