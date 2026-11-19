@@ -1,4 +1,4 @@
-import { allow, expect, expectLoaded, KEYS, open, signInAs, test } from "./fixtures";
+import { allow, expect, expectLoaded, KEYS, open, signInAs, signInWithKey, test } from "./fixtures";
 
 // Every page an admin can open renders its heading, loads its data, and logs no errors.
 const ADMIN_PAGES: [string, string, RegExp | string][] = [
@@ -24,27 +24,70 @@ test("the source and the third-party notices are a click away, signed in or not"
   const notices = await page.request.get("/ui/third-party-notices.txt");
   expect(notices.ok()).toBeTruthy();
   expect(await notices.text()).toContain("Name: react");
-  await page.getByLabel("API key").fill(KEYS.admin); // a hash change wouldn't reload the page for signInAs
-  await page.getByRole("button", { name: "Sign in" }).click();
+  await signInWithKey(page, KEYS.admin);
   await expect(page.getByRole("button", { name: "root" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Source" })).toHaveAttribute("href", "https://github.com/therick/meritorder");
 });
 
 test("sign in with a key, see who you are, sign out", async ({ page, problems }) => {
   await page.goto("/ui/");
-  await page.getByLabel("API key").fill("mo-not-a-real-key");
-  await page.getByRole("button", { name: "Sign in" }).click();
+  await expect(page.getByLabel("Email address")).toBeVisible(); // people sign in with an account; keys are one click away
+  await signInWithKey(page, "mo-not-a-real-key");
   await expect(page.getByText(/invalid API key/i)).toBeVisible();
-  allow(problems, /status of 401 .*\/v1\/reports\/me/); // the browser logs the refused request
+  allow(problems, /status of 401 .*\/auth\/login/); // the browser logs the refused request
 
   await page.getByLabel("API key").fill(KEYS.admin);
-  await page.getByRole("button", { name: "Sign in" }).click();
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(page.getByRole("button", { name: "root" })).toBeVisible();
-  await page.reload(); // the key is remembered
+  expect(await page.evaluate(() => JSON.stringify(localStorage))).not.toContain(KEYS.admin); // the browser keeps no key
+  const cookie = (await page.context().cookies()).find((c) => c.name === "mo_session");
+  expect(cookie?.httpOnly && cookie.sameSite === "Strict").toBeTruthy();
+  await page.reload(); // the session is remembered
   await page.getByRole("button", { name: "root" }).click();
   await expect(page.getByText("default · admin")).toBeVisible();
   await page.getByRole("menuitem", { name: "Sign out" }).click();
-  await expect(page.getByLabel("API key")).toBeVisible();
+  await expect(page.getByLabel("Email address")).toBeVisible();
+  await page.reload(); // and ended on the gateway, not only in this tab
+  await expect(page.getByLabel("Email address")).toBeVisible();
+});
+
+test("a console that kept a key before sessions trades it for one and forgets it", async ({ page }) => {
+  await page.addInitScript((key) => {
+    if (!sessionStorage.getItem("seeded")) { localStorage.setItem("meritorder.key", key); sessionStorage.setItem("seeded", "1"); }
+  }, KEYS.admin);
+  await page.goto("/ui/");
+  await expect(page.getByRole("button", { name: "root" })).toBeVisible();
+  expect(await page.evaluate(() => localStorage.getItem("meritorder.key"))).toBeNull();
+});
+
+test("an invite link: set a password, sign out, sign in with it", async ({ page, browser }) => {
+  await signInAs(page, "admin");
+  await open(page, "people");
+  const invite = page.locator("form").filter({ hasText: "Make invite link" });
+  await invite.getByLabel("Email address").fill("newhire@example.com");
+  await invite.getByRole("button", { name: "Make invite link" }).click();
+  const dialog = page.getByRole("dialog", { name: /Invite link for newhire@example.com/ });
+  const link = (await dialog.locator("code").innerText()).trim();
+  expect(link).toMatch(/\/ui\/#invite=/);
+  await dialog.getByRole("button", { name: "Done" }).click();
+  await expect(page.getByRole("cell", { name: "newhire@example.com" }).first()).toBeVisible();
+
+  const other = await (await browser.newContext()).newPage(); // the new person, in their own browser
+  await other.goto(link);
+  await expect(other.getByText("newhire@example.com")).toBeVisible();
+  await other.getByLabel("Your name").fill("New Hire");
+  await other.getByLabel(/^Password/).fill("a long enough passphrase");
+  await other.getByLabel("Again").fill("a long enough passphrase");
+  await other.getByRole("button", { name: "Create account and sign in" }).click();
+  await expect(other.getByRole("button", { name: "newhire@example.com" })).toBeVisible();
+  expect(other.url()).not.toContain("invite="); // the used link leaves the address bar
+  await other.getByRole("button", { name: "newhire@example.com" }).click();
+  await other.getByRole("menuitem", { name: "Sign out" }).click();
+  await other.getByLabel("Email address").fill("newhire@example.com");
+  await other.locator("input[autocomplete=current-password]").fill("a long enough passphrase");
+  await other.getByRole("button", { name: "Sign in", exact: true }).click();
+  await expect(other.getByRole("button", { name: "newhire@example.com" })).toBeVisible();
+  await other.context().close();
 });
 
 test.describe("as an admin", () => {
@@ -126,8 +169,7 @@ test.describe("as an admin", () => {
     await expect(panel.getByText("lee", { exact: true }).first()).toBeVisible();
 
     // Paging: one row a page is too few to pick in the console, so ask the API what the console asks.
-    const key = await page.evaluate(() => localStorage.getItem("meritorder.key"));
-    const headers = { authorization: `Bearer ${key}` };
+    const headers = { authorization: `Bearer ${KEYS.admin}` };
     const first = await (await page.request.get("/v1/reports/requests?limit=2", { headers })).json();
     expect(first.rows).toHaveLength(2);
     const second = await (await page.request.get(`/v1/reports/requests?limit=2&cursor=${first.next}`, { headers })).json();

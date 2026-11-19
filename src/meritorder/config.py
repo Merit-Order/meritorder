@@ -873,9 +873,22 @@ class OIDCConfig(BaseModel):
         return self
 
 
+class LocalAccountsConfig(BaseModel):
+    """People who sign in to the console with an email address and a password Merit Order keeps (as a scrypt hash), for
+    teams without an identity provider. Invited by an admin or team lead with a one-time link (decision 69)."""
+
+    enabled: bool = True
+    min_password_length: int = Field(default=12, ge=8, le=128)
+    invite_hours: int = Field(default=72, ge=1, le=24 * 30)
+
+
 class AuthConfig(BaseModel):
     static_keys: list[StaticKey] = []
     oidc: OIDCConfig | None = None
+    local: LocalAccountsConfig = LocalAccountsConfig()
+    # How long a console sign-in lasts before the person signs in again. Signing out, being disabled or (for a session
+    # opened with a key) the key's revocation ends it sooner.
+    session_hours: int = Field(default=12, ge=1, le=24 * 30)
 
 
 # Wording that gives a request its level (LevelRules). Python regular expressions, matched ignoring case.

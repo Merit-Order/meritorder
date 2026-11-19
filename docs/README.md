@@ -40,7 +40,7 @@ to stop it.
 | [03 Routing](03-routing.md) | How a model and backend are picked: levels, scores, marginal cost and switching cost, the learned router |
 | [04 Caching and sessions](04-caching-and-sessions.md) | Who owns what state, why caches don't move between backends, the Responses API's stored mode |
 | [05 GPU autoscaling](05-gpu-autoscaling.md) | When GPUs come up and down, and overflow to APIs |
-| [06 Auth and spend](06-auth-and-spend.md) | Sign-in, virtual keys, roles, budgets and safeguards |
+| [06 Auth and spend](06-auth-and-spend.md) | Console sign-in (accounts and SSO), virtual keys, roles, budgets and safeguards |
 | [07 Deployment](07-deployment.md) | Docker Compose or Kubernetes, configuration, secrets, scaling, supply-chain security |
 | [08 Reporting](08-reporting.md) | Spend and savings by user, team, project and time; bills; exports; ClickHouse |
 | [09 Decisions](09-decisions.md) | What was decided, why, and what's still open |
@@ -122,7 +122,7 @@ waits for ([ROADMAP.md](../ROADMAP.md#010-the-live-checks)).
 | The learned router on synthetic traffic: training recovers a known rule, shadow mode never changes a decision, every fallback; judged labels with a canned judge, learning a rule outcome signals alone can't | How often each outcome signal occurs on real traffic, and how often it really means a bad answer; real coding outcome signal rates on real agents, and exploration's recommendations on real traffic; how well real judges agree with people, and what samples really cost |
 | Model-based compression on the published LLMLingua-2 models, by hand on a laptop's CPU and GPU: rates per kind of tool output, latency, memory; every identifier, path, number, quote and error line intact; cache stability across turns and two gateways | Whether agents still succeed on compressed results; compressor latency on an NVIDIA GPU and an x86 CPU |
 | ClickHouse: every report gives the same numbers from ClickHouse and Postgres, against a real ClickHouse server in CI; copy speed, size on disk and report times measured at 20M rows in both stores and 60M in ClickHouse, on a small machine ([08](08-reporting.md)) | At hundreds of millions of rows; ClickHouse Cloud and replicated clusters |
-| Console in a browser: every page and role, keys, budgets, config (Playwright) | A real coding session through pi |
+| Console in a browser: every page and role, keys, budgets, config, sign-in with a password or a key, invite links (Playwright) | A real coding session through pi |
 | Claude Code sessions through the gateway on Claude Sonnet 5.5, GPT-5.6 Terra, and Kimi K3.1: tools, streaming, cache reads (by hand) | A real Codex CLI session over the Responses API's WebSocket transport; a real Codex `apply_patch` session on Claude or Kimi |
 | The Responses API over WebSocket, `compact` and `input_tokens`: against mocks and the official openai SDK's WebSocket client on localhost | OpenAI's own WebSocket behaviour |
 | Codex CLI's tools against mocks: Codex-shaped requests, `apply_patch` round trips on Claude, a Chat Completions backend and a Responses backend, streamed and not; two WebSocket turns sending the same bytes upstream | Claude's web search live (and an org that hasn't enabled it); OpenAI taking `namespace` and `tool_search` tools from the gateway |

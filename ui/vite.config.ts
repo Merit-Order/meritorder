@@ -77,6 +77,6 @@ export default defineConfig(({ mode }) => {
     ],
     build: { outDir, emptyOutDir: true },
     preview: { port: 4174, strictPort: true, headers: demo ? { "Content-Security-Policy": DEMO_CSP } : undefined },
-    server: { proxy: demo ? undefined : { "/v1": gateway, "/about": gateway } },
+    server: { proxy: demo ? undefined : { "/v1": gateway, "/auth": gateway, "/about": gateway } },
   };
 });

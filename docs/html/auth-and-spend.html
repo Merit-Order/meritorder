@@ -140,7 +140,7 @@ figure { margin: 1.4em 0 1.8em; }
 <header class="hero">
   <div class="eyebrow">Merit Order docs · 06</div>
   <h1>Auth &amp; spend</h1>
-  <div class="lede"><p class="also"><a href="index.html">All docs on one page</a> · <a href="how-it-all-works.html">How it all works</a></p><details class="contents"><summary>On this page</summary><ol><li><a href="#getting-a-key-into-pi-and-claude-code">Getting a key into pi and Claude Code</a></li><li><a href="#people-and-teams">People and teams</a></li><li><a href="#signing-in-with-google">Signing in with Google</a></li><li><a href="#stored-responses-who-holds-them-and-who-can-read-them">Stored responses: who holds them and who can read them</a></li><li><a href="#secrets-in-a-saved-configuration">Secrets in a saved configuration</a></li><li><a href="#where-budgets-and-limits-are-set">Where budgets and limits are set</a></li><li><a href="#budgets">Budgets</a></li><li><a href="#limits-that-stop-runaway-spend">Limits that stop runaway spend</a></li><li><a href="#organization-wide-safeguards">Organization-wide safeguards</a></li><li><a href="#what-gets-charged">What gets charged</a></li><li><a href="#the-savings-ledger">The savings ledger</a></li></ol></details></div>
+  <div class="lede"><p class="also"><a href="index.html">All docs on one page</a> · <a href="how-it-all-works.html">How it all works</a></p><details class="contents"><summary>On this page</summary><ol><li><a href="#getting-a-key-into-pi-and-claude-code">Getting a key into pi and Claude Code</a></li><li><a href="#signing-in-to-the-console">Signing in to the console</a></li><li><a href="#people-and-teams">People and teams</a></li><li><a href="#signing-in-with-google">Signing in with Google</a></li><li><a href="#stored-responses-who-holds-them-and-who-can-read-them">Stored responses: who holds them and who can read them</a></li><li><a href="#secrets-in-a-saved-configuration">Secrets in a saved configuration</a></li><li><a href="#where-budgets-and-limits-are-set">Where budgets and limits are set</a></li><li><a href="#budgets">Budgets</a></li><li><a href="#limits-that-stop-runaway-spend">Limits that stop runaway spend</a></li><li><a href="#organization-wide-safeguards">Organization-wide safeguards</a></li><li><a href="#what-gets-charged">What gets charged</a></li><li><a href="#the-savings-ledger">The savings ledger</a></li></ol></details></div>
 </header>
 
 <div class="layout">
@@ -248,6 +248,10 @@ and role, which drive budgets, policy, and reports. Unknown, revoked, or expired
 </thead>
 <tbody>
 <tr>
+<td>People in the console</td>
+<td>Their account: a password kept here, or SSO (<a href="#signing-in-to-the-console">below</a>)</td>
+</tr>
+<tr>
 <td>People with harnesses</td>
 <td><code>meritorder login</code> → virtual key (above)</td>
 </tr>
@@ -257,7 +261,7 @@ and role, which drive budgets, policy, and reports. Unknown, revoked, or expired
 </tr>
 <tr>
 <td>Local dev / quickstart</td>
-<td><code>MERITORDER_DEV_KEY</code> (static admin key from the environment)</td>
+<td><code>MERITORDER_DEV_KEY</code> (static admin key from the environment), until the first admin account exists</td>
 </tr>
 </tbody>
 </table></div>
@@ -265,6 +269,109 @@ and role, which drive budgets, policy, and reports. Unknown, revoked, or expired
 map group IDs to teams and roles in <code>auth.oidc</code> in the config; SCIM provisioning (below) disables
 people when they leave. Google needs a little more: see <a href="#signing-in-with-google">Signing in with Google</a>,
 and <a href="#google-groups">Google Groups</a> to map Google groups the same way.</p>
+<h2 id="signing-in-to-the-console">Signing in to the console</h2>
+<p>People sign in to the console as themselves and get a session; keys are for harnesses, CI and services
+(<a href="decisions.html#69-people-sign-in-to-the-console-with-an-account-a-password-here-or-sso-not-a-pasted-key-keys-are-for-harnesses-and-services">decision 69</a>).</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th></th>
+<th>Small team, no identity provider</th>
+<th>Organization with Entra or Google</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>How people sign in</td>
+<td>Email address and a password Merit Order keeps</td>
+<td><code>meritorder login</code> today; the console's SSO button is next</td>
+</tr>
+<tr>
+<td>How they join</td>
+<td>An invite link from an admin or team lead (People → Invite someone)</td>
+<td>The first time they sign in (or SCIM provisions them)</td>
+</tr>
+<tr>
+<td>Forgotten password</td>
+<td>An admin's or lead's reset link (People → Password link)</td>
+<td>Their identity provider</td>
+</tr>
+<tr>
+<td>Leaving</td>
+<td>Disable them on the People page</td>
+<td>Disable or remove them in the identity provider (with SCIM, at once)</td>
+</tr>
+<tr>
+<td>Turning passwords off</td>
+<td></td>
+<td><code>auth.local.enabled: false</code></td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>The first admin.</strong> On a new install, either sign in once with the setup key (<code>MERITORDER_DEV_KEY</code> in <code>.env</code>:
+"Sign in with an API key instead") and invite yourself and others from the People page, or create the account
+directly:</p>
+<pre><code class="language-bash">docker compose exec gateway meritorder accounts create you@example.com --role admin   # asks for a password
+docker compose exec gateway meritorder accounts create pat@example.com --link --url http://localhost:8080   # prints an invite link
+docker compose exec gateway meritorder accounts reset pat@example.com --url http://localhost:8080          # prints a reset link
+</code></pre>
+<p>Once an admin with a password exists (or SSO is set up), the console warns admins while a static admin key from
+the environment or the config file still works. Take it out and restart the gateway: anyone who has it can do
+anything.</p>
+<p><strong>Sessions.</strong> A session is a random token in an <code>HttpOnly</code>, <code>SameSite=Strict</code> cookie (<code>Secure</code> when the console is
+reached over HTTPS, directly or through a proxy that sets <code>X-Forwarded-Proto</code>). The gateway keeps only its hash.
+It lasts <code>auth.session_hours</code> (12 by default). Like a key, it acts as the person's record as it is now, at most a
+minute old, so moving, demoting or disabling someone applies to their console sessions too. Signing out ends the
+session on the gateway, not only in that browser. Changing your password (account menu → Change password) ends your
+other sessions; a reset link ends all of them.</p>
+<p><strong>Invite and reset links</strong> work once, for <code>auth.local.invite_hours</code> (72 by default). Each person has at most one open
+link; making a new one withdraws the old. Merit Order doesn't send email: the person who makes the link sends it.
+Who may make one follows the rule for keys: an admin for anyone, a team lead for new people and people on their own
+team with the user role. Open links are listed on the People page, where they can be withdrawn.</p>
+<p><strong>Passwords</strong> need at least 12 characters (<code>auth.local.min_password_length</code>) and no particular mix of characters:
+length is what makes a password hard to guess. They're kept as scrypt hashes. After 10 failed sign-ins for one
+address in 15 minutes, or 30 from one client in a minute, the gateway answers 429 for a while, and a wrong address
+gets the same answer as a wrong password.</p>
+<p><strong>Keys in the console.</strong> "Sign in with an API key instead" still works: the gateway checks the key and opens a
+session tied to it, so the browser never stores the key, and revoking the key ends the session. A console that kept
+a key from an earlier version trades it for a session the next time it opens, and forgets it.</p>
+<p><strong>Requests the cookie can make.</strong> A browser sends the cookie on its own, so a request made with it that changes
+something (anything but <code>GET</code>) must also carry the console's <code>x-meritorder-console</code> header and, when the browser
+says where it came from (<code>Origin</code>), come from the gateway's own address. Other sites can't send that header, and
+<code>SameSite=Strict</code> already keeps the cookie off requests other sites start. Behind a proxy that changes the host
+name, have it send <code>X-Forwarded-Host</code>. Requests with a key in the <code>Authorization</code> header don't need either, and
+the proxy's own APIs (<code>/v1/chat/completions</code>, <code>/v1/messages</code>, …) never accept the cookie.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Default</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>auth.local.enabled</code></td>
+<td><code>true</code></td>
+<td>Password sign-in and invite links. Off: SSO and keys only</td>
+</tr>
+<tr>
+<td><code>auth.local.min_password_length</code></td>
+<td><code>12</code></td>
+<td>8 to 128</td>
+</tr>
+<tr>
+<td><code>auth.local.invite_hours</code></td>
+<td><code>72</code></td>
+<td>How long an invite or reset link works</td>
+</tr>
+<tr>
+<td><code>auth.session_hours</code></td>
+<td><code>12</code></td>
+<td>How long a console sign-in lasts</td>
+</tr>
+</tbody>
+</table></div>
 <h2 id="people-and-teams">People and teams</h2>
 <div class="table-wrap"><table>
 <thead>

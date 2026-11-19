@@ -508,8 +508,10 @@ decision. How it does on real traffic is what the shadow report is for.</p>
 <ul>
 <li><strong>Self-hosted.</strong> Docker Compose or a Helm chart. Your keys, your network, your Postgres and Redis. The release workflow
   publishes signed multi-arch images when a version is tagged.</li>
-<li><strong>Keys, SSO and SCIM.</strong> Virtual API keys; Entra ID, Google Workspace or any OIDC provider, with group-to-team and
-  role mapping; SCIM provisioning; roles for users, team leads, finance and admins.</li>
+<li><strong>Accounts, keys, SSO and SCIM.</strong> People sign in to the console as themselves: with a password Merit Order keeps
+  (invited by link, for teams without an identity provider) or with SSO. Virtual API keys for harnesses and services;
+  Entra ID, Google Workspace or any OIDC provider, with group-to-team and role mapping; SCIM provisioning; roles for
+  users, team leads, finance and admins.</li>
 <li><strong>Content isn't stored by default.</strong> The ledger and the session table hold metadata: hashes, timestamps, token
   counts, costs. The exceptions are opt-in or explicit: the response cache, the Responses API's stored mode (per team,
   sealed, with a retention the team chooses), and batch files, held sealed until a provider or GPU takes them.</li>

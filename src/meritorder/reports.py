@@ -25,6 +25,7 @@ from typing import Literal
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import JSONResponse, Response, StreamingResponse
 
+from .accounts import sign_in_status
 from . import sky_clouds, spend
 from .auth import AuthError, Principal
 from .classifier import LEVEL_MEANINGS, label
@@ -233,7 +234,7 @@ def build_router(gateway) -> APIRouter:
 
     async def principal(request: Request) -> Principal:
         try:
-            return await gateway.authn.authenticate({k.lower(): v for k, v in request.headers.items()})
+            return await gateway.authn.authenticate_console(request)
         except AuthError as e:
             raise HTTPException(e.status, e.message)
 
@@ -301,6 +302,7 @@ def build_router(gateway) -> APIRouter:
             "requests": totals["requests"],
             "by_model": rows,
             "answered_by": answered_by(),
+            "sign_in": await sign_in_status(gateway, p),
         }
 
     @router.get("/export.jsonl")

@@ -148,7 +148,7 @@ def build_router(gateway) -> APIRouter:
 
     async def principal(request: Request, minimum: str = "team_lead") -> Principal:
         try:
-            p = await gateway.authn.authenticate({k.lower(): v for k, v in request.headers.items()})
+            p = await gateway.authn.authenticate_console(request)
         except AuthError as e:
             raise HTTPException(e.status, e.message)
         if not p.at_least(minimum) or (minimum == "team_lead" and p.role == "finance"):

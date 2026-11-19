@@ -336,11 +336,13 @@ line is used only with its profile on (and, for the compressor and ClickHouse, t
 <pre><code class="language-bash">git clone https://github.com/therick/meritorder &amp;&amp; cd meritorder
 cp .env.example .env          # set MERITORDER_DEV_KEY; provider keys are optional (mock backends without them)
 docker compose up -d          # gateway + worker + Postgres + Redis on :8080, UI at /ui/
-docker compose exec gateway meritorder keys create --user you@example.com --role admin
+docker compose exec gateway meritorder accounts create you@example.com --role admin   # your console sign-in
+docker compose exec gateway meritorder keys create --user you@example.com --role admin       # a key for harnesses
 curl localhost:8080/v1/chat/completions -H &quot;authorization: Bearer &lt;that key&gt;&quot; -H &quot;content-type: application/json&quot; \
   -d '{&quot;model&quot;: &quot;auto&quot;, &quot;messages&quot;: [{&quot;role&quot;: &quot;user&quot;, &quot;content&quot;: &quot;hello&quot;}]}'
 </code></pre>
-<p>Sign in to the console at http://localhost:8080/ui/ with that key (or <code>MERITORDER_DEV_KEY</code>). For the harnesses, install
+<p>Sign in to the console at http://localhost:8080/ui/ with your email address and password, and invite others from the
+People page (<a href="auth-and-spend.html#signing-in-to-the-console">06</a>). For the harnesses, install
 the CLI on your laptop (<code>uv tool install .</code> in the clone), then <code>meritorder use-key &lt;key&gt; --gateway http://localhost:8080</code>
 and <code>meritorder setup pi</code> or <code>setup claude-code</code>.</p>
 <p>Several copies on one machine (two checkouts, say) each need their own <code>COMPOSE_PROJECT_NAME</code>, <code>MERITORDER_IMAGE</code> (the

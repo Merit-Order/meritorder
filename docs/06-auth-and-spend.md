@@ -79,14 +79,77 @@ and role, which drive budgets, policy, and reports. Unknown, revoked, or expired
 
 | Client | Auth |
 |---|---|
+| People in the console | Their account: a password kept here, or SSO ([below](#signing-in-to-the-console)) |
 | People with harnesses | `meritorder login` → virtual key (above) |
 | Services / apps | An Entra token directly as the bearer token, or a key from `meritorder keys create` |
-| Local dev / quickstart | `MERITORDER_DEV_KEY` (static admin key from the environment) |
+| Local dev / quickstart | `MERITORDER_DEV_KEY` (static admin key from the environment), until the first admin account exists |
 
 Sign-in switches on when `MERITORDER_OIDC_ISSUER` and `MERITORDER_OIDC_CLIENT_ID` are set. With Entra,
 map group IDs to teams and roles in `auth.oidc` in the config; SCIM provisioning (below) disables
 people when they leave. Google needs a little more: see [Signing in with Google](#signing-in-with-google),
 and [Google Groups](#google-groups) to map Google groups the same way.
+
+## Signing in to the console
+
+People sign in to the console as themselves and get a session; keys are for harnesses, CI and services
+([decision 69](09-decisions.md#69-people-sign-in-to-the-console-with-an-account-a-password-here-or-sso-not-a-pasted-key-keys-are-for-harnesses-and-services)).
+
+| | Small team, no identity provider | Organization with Entra or Google |
+|---|---|---|
+| How people sign in | Email address and a password Merit Order keeps | `meritorder login` today; the console's SSO button is next |
+| How they join | An invite link from an admin or team lead (People → Invite someone) | The first time they sign in (or SCIM provisions them) |
+| Forgotten password | An admin's or lead's reset link (People → Password link) | Their identity provider |
+| Leaving | Disable them on the People page | Disable or remove them in the identity provider (with SCIM, at once) |
+| Turning passwords off | | `auth.local.enabled: false` |
+
+**The first admin.** On a new install, either sign in once with the setup key (`MERITORDER_DEV_KEY` in `.env`:
+"Sign in with an API key instead") and invite yourself and others from the People page, or create the account
+directly:
+
+```bash
+docker compose exec gateway meritorder accounts create you@example.com --role admin   # asks for a password
+docker compose exec gateway meritorder accounts create pat@example.com --link --url http://localhost:8080   # prints an invite link
+docker compose exec gateway meritorder accounts reset pat@example.com --url http://localhost:8080          # prints a reset link
+```
+
+Once an admin with a password exists (or SSO is set up), the console warns admins while a static admin key from
+the environment or the config file still works. Take it out and restart the gateway: anyone who has it can do
+anything.
+
+**Sessions.** A session is a random token in an `HttpOnly`, `SameSite=Strict` cookie (`Secure` when the console is
+reached over HTTPS, directly or through a proxy that sets `X-Forwarded-Proto`). The gateway keeps only its hash.
+It lasts `auth.session_hours` (12 by default). Like a key, it acts as the person's record as it is now, at most a
+minute old, so moving, demoting or disabling someone applies to their console sessions too. Signing out ends the
+session on the gateway, not only in that browser. Changing your password (account menu → Change password) ends your
+other sessions; a reset link ends all of them.
+
+**Invite and reset links** work once, for `auth.local.invite_hours` (72 by default). Each person has at most one open
+link; making a new one withdraws the old. Merit Order doesn't send email: the person who makes the link sends it.
+Who may make one follows the rule for keys: an admin for anyone, a team lead for new people and people on their own
+team with the user role. Open links are listed on the People page, where they can be withdrawn.
+
+**Passwords** need at least 12 characters (`auth.local.min_password_length`) and no particular mix of characters:
+length is what makes a password hard to guess. They're kept as scrypt hashes. After 10 failed sign-ins for one
+address in 15 minutes, or 30 from one client in a minute, the gateway answers 429 for a while, and a wrong address
+gets the same answer as a wrong password.
+
+**Keys in the console.** "Sign in with an API key instead" still works: the gateway checks the key and opens a
+session tied to it, so the browser never stores the key, and revoking the key ends the session. A console that kept
+a key from an earlier version trades it for a session the next time it opens, and forgets it.
+
+**Requests the cookie can make.** A browser sends the cookie on its own, so a request made with it that changes
+something (anything but `GET`) must also carry the console's `x-meritorder-console` header and, when the browser
+says where it came from (`Origin`), come from the gateway's own address. Other sites can't send that header, and
+`SameSite=Strict` already keeps the cookie off requests other sites start. Behind a proxy that changes the host
+name, have it send `X-Forwarded-Host`. Requests with a key in the `Authorization` header don't need either, and
+the proxy's own APIs (`/v1/chat/completions`, `/v1/messages`, …) never accept the cookie.
+
+| Setting | Default | |
+|---|---|---|
+| `auth.local.enabled` | `true` | Password sign-in and invite links. Off: SSO and keys only |
+| `auth.local.min_password_length` | `12` | 8 to 128 |
+| `auth.local.invite_hours` | `72` | How long an invite or reset link works |
+| `auth.session_hours` | `12` | How long a console sign-in lasts |
 
 ## People and teams
 

@@ -6,6 +6,7 @@ import argparse
 import asyncio
 import copy
 import csv
+import io
 import json
 import os
 import re
@@ -705,3 +706,35 @@ def test_eval_runs_a_suite_and_saves_scores(live, tmp_path, monkeypatch, capsys)
     assert saved["suite"] == "tiny" and set(saved["models"]) == {"big", "small"}
     stored = asyncio.run(live.gw.store.get_setting("evals"))
     assert set(stored["models"]) == {"big", "small"}  # the console shows the latest run
+
+
+def test_accounts_create_and_links(pg_store, capsys, monkeypatch):
+    """The first admin of a new install: a password asked for (never on the command line), or a link to set one."""
+    from meritorder import accounts
+
+    monkeypatch.setattr(accounts, "SCRYPT_N", 2**10)
+    with pytest.raises(SystemExit, match="isn't an email address"):
+        cli.main(["accounts", "create", "not-an-address"])
+    monkeypatch.setattr("sys.stdin", io.StringIO("short\n"))
+    with pytest.raises(SystemExit, match="at least 12"):
+        cli.main(["accounts", "create", "Ada@Example.com", "--role", "admin", "--password-stdin"])
+    answers = iter(["a long enough passphrase", "a different passphrase"])
+    monkeypatch.setattr("getpass.getpass", lambda prompt="": next(answers))
+    with pytest.raises(SystemExit, match="didn't match"):
+        cli.main(["accounts", "create", "ada@example.com", "--role", "admin"])
+    answers = iter(["a long enough passphrase"] * 2)
+    cli.main(["accounts", "create", "ada@example.com", "--role", "admin"])
+    assert "can sign in to the console now (admin, team default)" in capsys.readouterr().out
+    assert pg_store.users["ada@example.com"]["role"] == "admin" and pg_store.users["ada@example.com"]["managed"] == "local"
+    assert accounts.verify_password_sync("a long enough passphrase", pg_store.passwords["ada@example.com"])
+
+    cli.main(["accounts", "create", "ada@example.com", "--team", "eng", "--role", "admin", "--link", "--url", "https://llm.example.com/"])
+    out = capsys.readouterr().out
+    assert "now on team eng" in out and "Invite link for ada@example.com" in out
+    assert re.search(r"https://llm\.example\.com/ui/#invite=\S+", out)
+    cli.main(["accounts", "reset", "ada@example.com"])
+    out = capsys.readouterr().out
+    assert "Password reset link" in out and "<your gateway>/ui/#invite=" in out
+    assert len([i for i in pg_store.invites.values() if not i["revoked_at"]]) == 1  # the newer link replaces the older
+    with pytest.raises(SystemExit, match="no one called"):
+        cli.main(["accounts", "reset", "nobody@example.com"])

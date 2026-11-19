@@ -40,7 +40,7 @@ def build_router(gateway) -> APIRouter:
 
     async def principal(request: Request) -> Principal:
         try:
-            p = await gateway.authn.authenticate({k.lower(): v for k, v in request.headers.items()})
+            p = await gateway.authn.authenticate_console(request)
         except AuthError as e:
             raise HTTPException(e.status, e.message)
         if not p.at_least("team_lead"):

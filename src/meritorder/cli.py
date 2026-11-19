@@ -228,6 +228,62 @@ def cmd_compressor(args) -> None:
     serve(args.host, args.port, args.model, args.device, args.revision, args.batch_size, args.log_level, args.threads)
 
 
+def cmd_accounts(args) -> None:
+    """Console accounts (decision 69): the first admin of a new install, and links for people who can't use the console's
+    own Invite button. Runs against the database, like `keys create` (e.g. `docker compose exec gateway meritorder ...`)."""
+    import getpass
+
+    from .accounts import EMAIL, hash_password_sync, password_problem
+    from .config import LocalAccountsConfig
+
+    email = args.email.strip().lower()
+    if not EMAIL.match(email):
+        raise SystemExit(f"{args.email!r} isn't an email address")
+    minimum = LocalAccountsConfig().min_password_length
+
+    async def run():
+        store = _store()
+        await store.init()
+        try:
+            user = await store.get_user(email)
+            if args.accounts_cmd == "create":
+                if user is None:
+                    await store.upsert_user(email, args.team, args.role, email=email, source="ensure")
+                    await store.update_user(email, team=args.team, role=args.role)
+                elif (user["team"], user["role"]) != (args.team, args.role):
+                    await store.update_user(email, team=args.team, role=args.role)
+                    print(f"{email} already existed; now on team {args.team} with role {args.role}")
+                if args.link:
+                    return await link(store, "invite")
+                if args.password_stdin:
+                    password = sys.stdin.readline().rstrip("\n")
+                else:
+                    password = getpass.getpass(f"Password for {email} (at least {minimum} characters): ")
+                    if getpass.getpass("Again: ") != password:
+                        raise SystemExit("the passwords didn't match; nothing was changed")
+                if why := password_problem(password, email, minimum):
+                    raise SystemExit(f"password not accepted: {why}")
+                await store.set_password(email, hash_password_sync(password))
+                await store.revoke_user_sessions(email)
+                print(f"{email} can sign in to the console now ({args.role}, team {args.team}).")
+            elif args.accounts_cmd == "reset":
+                if user is None:
+                    raise SystemExit(f"no one called {email}; create them with `meritorder accounts create`")
+                await link(store, "reset" if await store.get_password(email) else "invite")
+        finally:
+            await store.close()
+
+    async def link(store, kind: str):
+        await store.revoke_user_invites(email)
+        expires = datetime.now(UTC) + timedelta(hours=args.hours)
+        _, token = await store.create_invite(email, kind, expires, created_by="cli")
+        base = (args.url or "").rstrip("/")
+        print(f"{'Invite' if kind == 'invite' else 'Password reset'} link for {email}, valid once until {expires:%Y-%m-%d %H:%M} UTC:")
+        print(f"{base}/ui/#invite={token}" if base else f"<your gateway>/ui/#invite={token}")
+
+    asyncio.run(run())
+
+
 def cmd_keys(args) -> None:
     async def run():
         store = _store()
@@ -1032,6 +1088,21 @@ def main(argv: list[str] | None = None) -> None:
     kr = ksub.add_parser("revoke")
     kr.add_argument("key_id")
     k.set_defaults(func=cmd_keys)
+
+    ac = sub.add_parser("accounts", help="console sign-in accounts: create one (the first admin), or print an invite or reset link")
+    acsub = ac.add_subparsers(dest="accounts_cmd", required=True)
+    acc = acsub.add_parser("create", help="create a person who signs in with a password (asked for, never on the command line)")
+    acc.add_argument("email")
+    acc.add_argument("--team", default="default")
+    acc.add_argument("--role", default="user", choices=["user", "team_lead", "finance", "admin"])
+    acc.add_argument("--password-stdin", action="store_true", help="read the password from standard input (for scripts)")
+    acc.add_argument("--link", action="store_true", help="print a one-time link for them to set their own password instead")
+    acr = acsub.add_parser("reset", help="print a one-time link that sets a new password")
+    acr.add_argument("email")
+    for a in (acc, acr):
+        a.add_argument("--url", help="the gateway's address, to print the whole link (e.g. https://llm.example.com)")
+        a.add_argument("--hours", type=int, default=72, help="how long the link works (default 72)")
+    ac.set_defaults(func=cmd_accounts)
 
     u = sub.add_parser("usage", help="show your spend and savings this month, or (--bills) the ledger against providers' bills")
     u.add_argument("--gateway")

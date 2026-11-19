@@ -21,6 +21,7 @@ from .configstore import load_active
 from .proxy import Gateway
 from .responses_compact import ResponsesTools
 from .responses_ws import ResponsesSocket
+from .accounts import build_router as build_accounts_router
 from .admin import build_router as build_admin_router
 from .batches.api import build_router as build_batches_router
 from .console import build_router as build_console_router
@@ -239,13 +240,15 @@ def create_app(cfg: Config | None = None, gateway: Gateway | None = None) -> Fas
 
     @app.get("/auth/config")
     async def auth_config():
+        """How people sign in here, for `meritorder login` and the console's sign-in page (no key needed)."""
         o = gw.cfg.auth.oidc
+        local = {"enabled": gw.cfg.auth.local.enabled}
         if not o:
-            return {"oidc": None}
+            return {"oidc": None, "local": local}
         out = {"issuer": o.issuer, "client_id": o.client_id, "scopes": o.scopes}
         if o.public_client_secret:  # Google's device login sends it; it's public for that kind of client
             out["client_secret"] = o.public_client_secret
-        return {"oidc": out}
+        return {"oidc": out, "local": local}
 
     @app.post("/auth/exchange")
     async def auth_exchange(request: Request):
@@ -263,6 +266,7 @@ def create_app(cfg: Config | None = None, gateway: Gateway | None = None) -> Fas
     app.include_router(build_batches_router(gw))
     app.include_router(build_stored_router(gw))
     app.include_router(build_reports_router(gw))
+    app.include_router(build_accounts_router(gw))
     app.include_router(build_admin_router(gw))
     app.include_router(build_console_router(gw))
     app.include_router(build_scim_router(gw))

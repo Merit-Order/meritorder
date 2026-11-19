@@ -72,6 +72,7 @@ What we decided, why, and what would make us revisit it. Newest decisions go at 
 | 66 | An unknown price is refused, not served free; spend counters checked against the ledger, Redis without persistence | Accepted |
 | 67 | A failure costs what the request puts at stake: the person's cost scaled by level and size; the tie band and move margin on money | Accepted; amends 62 |
 | 68 | Contributions under a CLA: a license grant to Espeto LLC, not an assignment; signed on the pull request through an in-repo workflow | Accepted; replaces the DCO in 55 |
+| 69 | People sign in to the console with an account (a password here, or SSO), not a pasted key; keys are for harnesses and services | Accepted; browser SSO follows |
 
 **Still open:** an embedding feature source for the learned router (decision 44). Judged labels are built (decision 52),
 opt-in per team, and tested only against mocks.
@@ -2014,3 +2015,61 @@ rotate, for no gain while the signatures branch is open.
 
 **Revisit if:** a company wants to contribute (then write the Corporate CLA), Espeto LLC's role changes (a foundation
 or a new company would need the agreements carried over or re-signed), or GitHub offers CLA signing itself.
+
+## 69. People sign in to the console with an account (a password here, or SSO), not a pasted key; keys are for harnesses and services
+
+**Why:** Until now the console's only sign-in was an API key pasted into a box, which the browser then kept in
+`localStorage`. That fits a first setup, not a team. A key in `localStorage` is readable by any script that runs on the
+page and works everywhere the key does, not only in the console. Signing out only forgot it in one browser. And a
+small team with no identity provider had no way for people to sign in as themselves: an admin had to mint and hand
+out keys. Merit Order has to work for both ends: a few people running it on one machine, and an organization with
+Entra or Google and SCIM (decision 8).
+
+**How:** Two kinds of credential, each for what it's good at.
+
+- **People sign in to the console** and get a session: a random token in an `HttpOnly`, `SameSite=Strict` cookie
+  (`Secure` over HTTPS), stored on the gateway only as its SHA-256 hash (`console_sessions`). It lasts
+  `auth.session_hours` (12 by default). Each request reads the person's record as it is now (at most a minute old,
+  like keys), so moving, demoting or disabling someone applies to their sessions too. Signing out ends the session on
+  the gateway.
+- **Local accounts**, for teams without an identity provider: an email address and a password, kept as a scrypt hash
+  (N=2^17, r=8, p=1, OWASP's setting; `hashlib`, so no new dependency) in `local_credentials`. People join by a
+  one-time invite link an admin or team lead makes on the People page (or `meritorder accounts create --link`); the
+  same rule as for keys decides who may invite whom. An admin's reset link replaces a forgotten password and ends the
+  person's sessions; changing your own password ends your other sessions. Passwords need 12 characters
+  (`auth.local.min_password_length`) and no composition rules, as NIST SP 800-63B advises. Failed sign-ins are limited
+  per address (10 in 15 minutes) and per client (30 a minute), a wrong address answers exactly like a wrong password,
+  and at most four hashes run at once so a burst can't take the gateway's memory. `auth.local.enabled: false` turns
+  passwords off where everyone must use SSO.
+- **Keys are for machines**: harnesses, CI, services and Blackstart. The console still takes one ("Sign in with an
+  API key instead"), but the gateway trades it for a session tied to the key (`key_hash` on the session), so the
+  browser never stores it and revoking the key ends the session. A console that kept a key in `localStorage` from
+  before trades it for a session once and deletes it.
+- **The first admin** of a new install: `meritorder accounts create you@example.com --role admin` asks for a password,
+  or the setup key (`MERITORDER_DEV_KEY`, `MERITORDER_BOOTSTRAP_ADMIN_KEY`) signs in once to invite people. Once an
+  admin with a password exists (or SSO is set up), the console warns admins while a static admin key from the
+  environment or the config file still works.
+- **Cross-site requests:** the cookie is sent by the browser on its own, so a request made with it that changes
+  something must carry the console's `x-meritorder-console` header and, when the browser names an `Origin`, come from
+  the gateway's own host. No other site can send that header (the gateway allows no cross-origin requests), and
+  `SameSite=Strict` already keeps the cookie off requests started from other sites. `/auth/login` and the other
+  `/auth` changes need the header too. Requests with a key in the `Authorization` header are unaffected: harnesses
+  never see the cookie, and the proxy's APIs (`/v1/chat/completions`, `/v1/messages` and the rest) don't accept it.
+- `GET /auth/session` answers 200 whether or not the browser is signed in, so a signed-out console logs no error.
+
+SSO in the browser comes next, on the same sessions: a "Sign in with Microsoft / Google / your organization" button
+using OIDC's authorization-code flow with PKCE, for any OIDC provider; `meritorder login` opening the browser the same
+way; and a setting that requires SSO and turns passwords off.
+
+**Not chosen:** Keep the key in `localStorage` and add password sign-in beside it: two ways in, and the weaker one
+stays. A JWT in the cookie instead of a server-side session: it can't be ended at sign-out or when someone is
+disabled without a lookup anyway, and a lookup is what a session is. argon2id: the better hash on paper, but a native
+dependency for every install; scrypt at OWASP's setting is the stated alternative and ships with Python.
+Composition rules (a digit, a symbol): NIST advises against them; length and a rate limit do more. Email for invites
+and resets: Merit Order would need an SMTP setting and a sender reputation; the person who makes a link sends it.
+Two-factor for local accounts in this change: an organization that needs it has SSO, where its identity provider
+already enforces MFA; TOTP or passkeys for local accounts can follow. SAML: most identity providers speak OIDC, which
+the gateway already verifies; SAML can come if someone needs it.
+
+**Revisit if:** people want two-factor on local accounts (TOTP or passkeys), someone needs SAML, sessions should be
+listed and ended per device, or invites should send email.

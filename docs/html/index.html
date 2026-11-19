@@ -212,7 +212,7 @@ to stop it.</p>
 </tr>
 <tr>
 <td><a href="#auth-and-spend">06 Auth and spend</a></td>
-<td>Sign-in, virtual keys, roles, budgets and safeguards</td>
+<td>Console sign-in (accounts and SSO), virtual keys, roles, budgets and safeguards</td>
 </tr>
 <tr>
 <td><a href="#deployment">07 Deployment</a></td>
@@ -427,7 +427,7 @@ waits for (<a href="https://github.com/therick/meritorder/blob/main/ROADMAP.md#0
 <td>At hundreds of millions of rows; ClickHouse Cloud and replicated clusters</td>
 </tr>
 <tr>
-<td>Console in a browser: every page and role, keys, budgets, config (Playwright)</td>
+<td>Console in a browser: every page and role, keys, budgets, config, sign-in with a password or a key, invite links (Playwright)</td>
 <td>A real coding session through pi</td>
 </tr>
 <tr>
@@ -7512,6 +7512,10 @@ and role, which drive budgets, policy, and reports. Unknown, revoked, or expired
 </thead>
 <tbody>
 <tr>
+<td>People in the console</td>
+<td>Their account: a password kept here, or SSO (<a href="#auth-and-spend-signing-in-to-the-console">below</a>)</td>
+</tr>
+<tr>
 <td>People with harnesses</td>
 <td><code>meritorder login</code> → virtual key (above)</td>
 </tr>
@@ -7521,7 +7525,7 @@ and role, which drive budgets, policy, and reports. Unknown, revoked, or expired
 </tr>
 <tr>
 <td>Local dev / quickstart</td>
-<td><code>MERITORDER_DEV_KEY</code> (static admin key from the environment)</td>
+<td><code>MERITORDER_DEV_KEY</code> (static admin key from the environment), until the first admin account exists</td>
 </tr>
 </tbody>
 </table></div>
@@ -7529,6 +7533,109 @@ and role, which drive budgets, policy, and reports. Unknown, revoked, or expired
 map group IDs to teams and roles in <code>auth.oidc</code> in the config; SCIM provisioning (below) disables
 people when they leave. Google needs a little more: see <a href="#auth-and-spend-signing-in-with-google">Signing in with Google</a>,
 and <a href="#auth-and-spend-google-groups">Google Groups</a> to map Google groups the same way.</p>
+<h3 id="auth-and-spend-signing-in-to-the-console">Signing in to the console</h3>
+<p>People sign in to the console as themselves and get a session; keys are for harnesses, CI and services
+(<a href="#decisions-69-people-sign-in-to-the-console-with-an-account-a-password-here-or-sso-not-a-pasted-key-keys-are-for-harnesses-and-services">decision 69</a>).</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th></th>
+<th>Small team, no identity provider</th>
+<th>Organization with Entra or Google</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>How people sign in</td>
+<td>Email address and a password Merit Order keeps</td>
+<td><code>meritorder login</code> today; the console's SSO button is next</td>
+</tr>
+<tr>
+<td>How they join</td>
+<td>An invite link from an admin or team lead (People → Invite someone)</td>
+<td>The first time they sign in (or SCIM provisions them)</td>
+</tr>
+<tr>
+<td>Forgotten password</td>
+<td>An admin's or lead's reset link (People → Password link)</td>
+<td>Their identity provider</td>
+</tr>
+<tr>
+<td>Leaving</td>
+<td>Disable them on the People page</td>
+<td>Disable or remove them in the identity provider (with SCIM, at once)</td>
+</tr>
+<tr>
+<td>Turning passwords off</td>
+<td></td>
+<td><code>auth.local.enabled: false</code></td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>The first admin.</strong> On a new install, either sign in once with the setup key (<code>MERITORDER_DEV_KEY</code> in <code>.env</code>:
+"Sign in with an API key instead") and invite yourself and others from the People page, or create the account
+directly:</p>
+<pre><code class="language-bash">docker compose exec gateway meritorder accounts create you@example.com --role admin   # asks for a password
+docker compose exec gateway meritorder accounts create pat@example.com --link --url http://localhost:8080   # prints an invite link
+docker compose exec gateway meritorder accounts reset pat@example.com --url http://localhost:8080          # prints a reset link
+</code></pre>
+<p>Once an admin with a password exists (or SSO is set up), the console warns admins while a static admin key from
+the environment or the config file still works. Take it out and restart the gateway: anyone who has it can do
+anything.</p>
+<p><strong>Sessions.</strong> A session is a random token in an <code>HttpOnly</code>, <code>SameSite=Strict</code> cookie (<code>Secure</code> when the console is
+reached over HTTPS, directly or through a proxy that sets <code>X-Forwarded-Proto</code>). The gateway keeps only its hash.
+It lasts <code>auth.session_hours</code> (12 by default). Like a key, it acts as the person's record as it is now, at most a
+minute old, so moving, demoting or disabling someone applies to their console sessions too. Signing out ends the
+session on the gateway, not only in that browser. Changing your password (account menu → Change password) ends your
+other sessions; a reset link ends all of them.</p>
+<p><strong>Invite and reset links</strong> work once, for <code>auth.local.invite_hours</code> (72 by default). Each person has at most one open
+link; making a new one withdraws the old. Merit Order doesn't send email: the person who makes the link sends it.
+Who may make one follows the rule for keys: an admin for anyone, a team lead for new people and people on their own
+team with the user role. Open links are listed on the People page, where they can be withdrawn.</p>
+<p><strong>Passwords</strong> need at least 12 characters (<code>auth.local.min_password_length</code>) and no particular mix of characters:
+length is what makes a password hard to guess. They're kept as scrypt hashes. After 10 failed sign-ins for one
+address in 15 minutes, or 30 from one client in a minute, the gateway answers 429 for a while, and a wrong address
+gets the same answer as a wrong password.</p>
+<p><strong>Keys in the console.</strong> "Sign in with an API key instead" still works: the gateway checks the key and opens a
+session tied to it, so the browser never stores the key, and revoking the key ends the session. A console that kept
+a key from an earlier version trades it for a session the next time it opens, and forgets it.</p>
+<p><strong>Requests the cookie can make.</strong> A browser sends the cookie on its own, so a request made with it that changes
+something (anything but <code>GET</code>) must also carry the console's <code>x-meritorder-console</code> header and, when the browser
+says where it came from (<code>Origin</code>), come from the gateway's own address. Other sites can't send that header, and
+<code>SameSite=Strict</code> already keeps the cookie off requests other sites start. Behind a proxy that changes the host
+name, have it send <code>X-Forwarded-Host</code>. Requests with a key in the <code>Authorization</code> header don't need either, and
+the proxy's own APIs (<code>/v1/chat/completions</code>, <code>/v1/messages</code>, …) never accept the cookie.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Default</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>auth.local.enabled</code></td>
+<td><code>true</code></td>
+<td>Password sign-in and invite links. Off: SSO and keys only</td>
+</tr>
+<tr>
+<td><code>auth.local.min_password_length</code></td>
+<td><code>12</code></td>
+<td>8 to 128</td>
+</tr>
+<tr>
+<td><code>auth.local.invite_hours</code></td>
+<td><code>72</code></td>
+<td>How long an invite or reset link works</td>
+</tr>
+<tr>
+<td><code>auth.session_hours</code></td>
+<td><code>12</code></td>
+<td>How long a console sign-in lasts</td>
+</tr>
+</tbody>
+</table></div>
 <h3 id="auth-and-spend-people-and-teams">People and teams</h3>
 <div class="table-wrap"><table>
 <thead>
@@ -8439,11 +8546,13 @@ line is used only with its profile on (and, for the compressor and ClickHouse, t
 <pre><code class="language-bash">git clone https://github.com/therick/meritorder &amp;&amp; cd meritorder
 cp .env.example .env          # set MERITORDER_DEV_KEY; provider keys are optional (mock backends without them)
 docker compose up -d          # gateway + worker + Postgres + Redis on :8080, UI at /ui/
-docker compose exec gateway meritorder keys create --user you@example.com --role admin
+docker compose exec gateway meritorder accounts create you@example.com --role admin   # your console sign-in
+docker compose exec gateway meritorder keys create --user you@example.com --role admin       # a key for harnesses
 curl localhost:8080/v1/chat/completions -H &quot;authorization: Bearer &lt;that key&gt;&quot; -H &quot;content-type: application/json&quot; \
   -d '{&quot;model&quot;: &quot;auto&quot;, &quot;messages&quot;: [{&quot;role&quot;: &quot;user&quot;, &quot;content&quot;: &quot;hello&quot;}]}'
 </code></pre>
-<p>Sign in to the console at http://localhost:8080/ui/ with that key (or <code>MERITORDER_DEV_KEY</code>). For the harnesses, install
+<p>Sign in to the console at http://localhost:8080/ui/ with your email address and password, and invite others from the
+People page (<a href="#auth-and-spend-signing-in-to-the-console">06</a>). For the harnesses, install
 the CLI on your laptop (<code>uv tool install .</code> in the clone), then <code>meritorder use-key &lt;key&gt; --gateway http://localhost:8080</code>
 and <code>meritorder setup pi</code> or <code>setup claude-code</code>.</p>
 <p>Several copies on one machine (two checkouts, say) each need their own <code>COMPOSE_PROJECT_NAME</code>, <code>MERITORDER_IMAGE</code> (the
@@ -11574,6 +11683,11 @@ that key's role may see.</p></section><section id="decisions"><header class="sec
 <td>Contributions under a CLA: a license grant to Espeto LLC, not an assignment; signed on the pull request through an in-repo workflow</td>
 <td>Accepted; replaces the DCO in 55</td>
 </tr>
+<tr>
+<td>69</td>
+<td>People sign in to the console with an account (a password here, or SSO), not a pasted key; keys are for harnesses and services</td>
+<td>Accepted; browser SSO follows</td>
+</tr>
 </tbody>
 </table></div>
 <p><strong>Still open:</strong> an embedding feature source for the learned router (decision 44). Judged labels are built (decision 52),
@@ -13320,7 +13434,60 @@ maintains, are easier to read in full and to keep current than a third party's b
 GitHub, and records kept somewhere else. A PAT so signatures can live in a separate repository: one more secret to
 rotate, for no gain while the signatures branch is open.</p>
 <p><strong>Revisit if:</strong> a company wants to contribute (then write the Corporate CLA), Espeto LLC's role changes (a foundation
-or a new company would need the agreements carried over or re-signed), or GitHub offers CLA signing itself.</p></section><section id="how-it-decides"><header class="sec-head"><span class="n">10</span><h2>How it decides</h2></header><p>Every decision Merit Order makes, in the order it makes them, with the exact rules and defaults.
+or a new company would need the agreements carried over or re-signed), or GitHub offers CLA signing itself.</p>
+<h3 id="decisions-69-people-sign-in-to-the-console-with-an-account-a-password-here-or-sso-not-a-pasted-key-keys-are-for-harnesses-and-services">69. People sign in to the console with an account (a password here, or SSO), not a pasted key; keys are for harnesses and services</h3>
+<p><strong>Why:</strong> Until now the console's only sign-in was an API key pasted into a box, which the browser then kept in
+<code>localStorage</code>. That fits a first setup, not a team. A key in <code>localStorage</code> is readable by any script that runs on the
+page and works everywhere the key does, not only in the console. Signing out only forgot it in one browser. And a
+small team with no identity provider had no way for people to sign in as themselves: an admin had to mint and hand
+out keys. Merit Order has to work for both ends: a few people running it on one machine, and an organization with
+Entra or Google and SCIM (decision 8).</p>
+<p><strong>How:</strong> Two kinds of credential, each for what it's good at.</p>
+<ul>
+<li><strong>People sign in to the console</strong> and get a session: a random token in an <code>HttpOnly</code>, <code>SameSite=Strict</code> cookie
+  (<code>Secure</code> over HTTPS), stored on the gateway only as its SHA-256 hash (<code>console_sessions</code>). It lasts
+  <code>auth.session_hours</code> (12 by default). Each request reads the person's record as it is now (at most a minute old,
+  like keys), so moving, demoting or disabling someone applies to their sessions too. Signing out ends the session on
+  the gateway.</li>
+<li><strong>Local accounts</strong>, for teams without an identity provider: an email address and a password, kept as a scrypt hash
+  (N=2^17, r=8, p=1, OWASP's setting; <code>hashlib</code>, so no new dependency) in <code>local_credentials</code>. People join by a
+  one-time invite link an admin or team lead makes on the People page (or <code>meritorder accounts create --link</code>); the
+  same rule as for keys decides who may invite whom. An admin's reset link replaces a forgotten password and ends the
+  person's sessions; changing your own password ends your other sessions. Passwords need 12 characters
+  (<code>auth.local.min_password_length</code>) and no composition rules, as NIST SP 800-63B advises. Failed sign-ins are limited
+  per address (10 in 15 minutes) and per client (30 a minute), a wrong address answers exactly like a wrong password,
+  and at most four hashes run at once so a burst can't take the gateway's memory. <code>auth.local.enabled: false</code> turns
+  passwords off where everyone must use SSO.</li>
+<li><strong>Keys are for machines</strong>: harnesses, CI, services and Blackstart. The console still takes one ("Sign in with an
+  API key instead"), but the gateway trades it for a session tied to the key (<code>key_hash</code> on the session), so the
+  browser never stores it and revoking the key ends the session. A console that kept a key in <code>localStorage</code> from
+  before trades it for a session once and deletes it.</li>
+<li><strong>The first admin</strong> of a new install: <code>meritorder accounts create you@example.com --role admin</code> asks for a password,
+  or the setup key (<code>MERITORDER_DEV_KEY</code>, <code>MERITORDER_BOOTSTRAP_ADMIN_KEY</code>) signs in once to invite people. Once an
+  admin with a password exists (or SSO is set up), the console warns admins while a static admin key from the
+  environment or the config file still works.</li>
+<li><strong>Cross-site requests:</strong> the cookie is sent by the browser on its own, so a request made with it that changes
+  something must carry the console's <code>x-meritorder-console</code> header and, when the browser names an <code>Origin</code>, come from
+  the gateway's own host. No other site can send that header (the gateway allows no cross-origin requests), and
+  <code>SameSite=Strict</code> already keeps the cookie off requests started from other sites. <code>/auth/login</code> and the other
+  <code>/auth</code> changes need the header too. Requests with a key in the <code>Authorization</code> header are unaffected: harnesses
+  never see the cookie, and the proxy's APIs (<code>/v1/chat/completions</code>, <code>/v1/messages</code> and the rest) don't accept it.</li>
+<li><code>GET /auth/session</code> answers 200 whether or not the browser is signed in, so a signed-out console logs no error.</li>
+</ul>
+<p>SSO in the browser comes next, on the same sessions: a "Sign in with Microsoft / Google / your organization" button
+using OIDC's authorization-code flow with PKCE, for any OIDC provider; <code>meritorder login</code> opening the browser the same
+way; and a setting that requires SSO and turns passwords off.</p>
+<p><strong>Not chosen:</strong> Keep the key in <code>localStorage</code> and add password sign-in beside it: two ways in, and the weaker one
+stays. A JWT in the cookie instead of a server-side session: it can't be ended at sign-out or when someone is
+disabled without a lookup anyway, and a lookup is what a session is. argon2id: the better hash on paper, but a native
+dependency for every install; scrypt at OWASP's setting is the stated alternative and ships with Python.
+Composition rules (a digit, a symbol): NIST advises against them; length and a rate limit do more. Email for invites
+and resets: Merit Order would need an SMTP setting and a sender reputation; the person who makes a link sends it.
+Two-factor for local accounts in this change: an organization that needs it has SSO, where its identity provider
+already enforces MFA; TOTP or passkeys for local accounts can follow. SAML: most identity providers speak OIDC, which
+the gateway already verifies; SAML can come if someone needs it.</p>
+<p><strong>Revisit if:</strong> people want two-factor on local accounts (TOTP or passkeys), someone needs SAML, sessions should be
+listed and ended per device, or invites should send email.</p></section><section id="how-it-decides"><header class="sec-head"><span class="n">10</span><h2>How it decides</h2></header><p>Every decision Merit Order makes, in the order it makes them, with the exact rules and defaults.
 Each rule names the setting that controls it. The code is the source of truth:
 <code>proxy.py</code> (request pipeline), <code>router.py</code> (model and backend choice), <code>classifier.py</code> (levels), <code>learned.py</code> and
 <code>learned_jobs.py</code> (the opt-in learned router), <code>success.py</code> (expected total cost: the success predictor and the cascade),
@@ -15897,8 +16064,10 @@ decision. How it does on real traffic is what the shadow report is for.</p>
 <ul>
 <li><strong>Self-hosted.</strong> Docker Compose or a Helm chart. Your keys, your network, your Postgres and Redis. The release workflow
   publishes signed multi-arch images when a version is tagged.</li>
-<li><strong>Keys, SSO and SCIM.</strong> Virtual API keys; Entra ID, Google Workspace or any OIDC provider, with group-to-team and
-  role mapping; SCIM provisioning; roles for users, team leads, finance and admins.</li>
+<li><strong>Accounts, keys, SSO and SCIM.</strong> People sign in to the console as themselves: with a password Merit Order keeps
+  (invited by link, for teams without an identity provider) or with SSO. Virtual API keys for harnesses and services;
+  Entra ID, Google Workspace or any OIDC provider, with group-to-team and role mapping; SCIM provisioning; roles for
+  users, team leads, finance and admins.</li>
 <li><strong>Content isn't stored by default.</strong> The ledger and the session table hold metadata: hashes, timestamps, token
   counts, costs. The exceptions are opt-in or explicit: the response cache, the Responses API's stored mode (per team,
   sealed, with a retention the team chooses), and batch files, held sealed until a provider or GPU takes them.</li>

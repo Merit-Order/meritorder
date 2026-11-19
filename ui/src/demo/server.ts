@@ -52,6 +52,15 @@ const source: Json = get("GET /v1/admin/config/source");
 const versions: Json = get("GET /v1/admin/config/versions");
 const keys: Json[] = get("GET /v1/admin/keys").keys;
 const users: Json = get("GET /v1/admin/users");
+const invites: Json[] = [];
+function newLink(user: string, kind: string, team: string, role: string): Json {
+  for (let i = invites.length - 1; i >= 0; i--) if (invites[i].user === user) invites.splice(i, 1);
+  const token = uid() + uid();
+  const inv = { id: `inv_${uid()}`, user, kind, team, role, created_by: "demo-admin", created_at: nowIso(),
+    expires_at: new Date(Date.now() + 72 * 3600e3).toISOString() };
+  invites.push(inv);
+  return { ...inv, token, path: `/ui/#invite=${token}`, note: "Shown once." };
+}
 const gpu: Json = get("GET /v1/reports/gpu");
 const controls: Json = get("GET /v1/admin/controls");
 const gpuEvents: Json[] = get("GET /v1/admin/gpu/events?limit=50").events;
@@ -302,6 +311,23 @@ const routes: Route[] = [
     keys.unshift({ id, user_id: body.user, team, role: body.role, name: body.name ?? null, tags: {}, created_at: nowIso(), expires_at: expires,
       revoked_at: null, status: "active" });
     return ok({ id, api_key: `mo-demo-${uid()}${uid()}`, user: body.user, team, role: body.role, expires_at: expires });
+  }],
+  // Invite and reset links (decision 69): kept for the session; the demo has no one to send them to.
+  ["GET", /^\/v1\/admin\/invites$/, () => ok({ invites })],
+  ["POST", /^\/v1\/admin\/invites$/, (_m, _q, body) => {
+    const email = String(body.email ?? "").trim().toLowerCase();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return err(422, "that isn't an email address");
+    return { status: 201, body: newLink(email, "invite", body.team ?? "platform", body.role ?? "user") };
+  }],
+  ["DELETE", /^\/v1\/admin\/invites\/([^/]+)$/, (m) => {
+    const i = invites.findIndex((x) => x.id === m[1]);
+    if (i < 0) return err(404, "no such open link");
+    invites.splice(i, 1);
+    return ok({ withdrawn: true });
+  }],
+  ["POST", /^\/v1\/admin\/users\/([^/]+)\/reset$/, (m) => {
+    const u = users.users.find((x: Json) => x.id === decodeURIComponent(m[1]));
+    return u ? { status: 201, body: newLink(u.id, "reset", u.team, u.role) } : err(404, "no such person");
   }],
   ["DELETE", /^\/v1\/admin\/keys\/([^/]+)$/, (m) => {
     const k = keys.find((x) => x.id === decodeURIComponent(m[1]));
