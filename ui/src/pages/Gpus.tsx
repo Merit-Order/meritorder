@@ -8,6 +8,7 @@ import { Kpi, Loading, PageTitle, Panel, StateBadge, Status, StatusBadge } from 
 import { Icon } from "../components/icons";
 import { useData } from "../hooks";
 import { WhatIfPanel } from "./Infra";
+import { Person } from "../people";
 
 const when = (unix: number | null | undefined) => (unix ? new Date(unix * 1000).toLocaleString() : "–");
 const mins = (seconds: number | null | undefined) => (seconds == null ? "–" : seconds < 90 ? `${Math.round(seconds)}s` : `${(seconds / 60).toFixed(1)} min`);
@@ -216,7 +217,7 @@ function Placements({ d }: { d: Deployment }) {
           {rows.slice(0, 12).map((p) => (
             <Table.Tr key={p.id}>
               <Table.Td><Text size="xs" className="mono">{p.session ?? p.id}</Text>{p.thread && <Text size="xs" c="dimmed">{p.thread}</Text>}</Table.Td>
-              <Table.Td>{p.user ?? "–"}</Table.Td>
+              <Table.Td><Person id={p.user} /></Table.Td>
               <Table.Td>{p.replica ?? "load balancer"}{p.replica_status && p.replica_status !== "READY" && <Text span size="xs" c="dimmed"> ({p.replica_status.replace("_", " ").toLowerCase()})</Text>}</Table.Td>
               <Table.Td className="num">{ago(p.at)}</Table.Td>
               <Table.Td className="num">{p.tokens != null ? num(p.tokens) : "–"}</Table.Td>

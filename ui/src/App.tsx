@@ -13,6 +13,7 @@ import { Gpus } from "./pages/Gpus";
 import { Controls } from "./pages/Controls";
 import { Reports } from "./pages/Reports";
 import { SourceFooter } from "./components/SourceFooter";
+import { PeopleContext } from "./people";
 import { BrandMark, Icon } from "./components/icons";
 import { DEMO_KEY, DemoBanner } from "./demo/Banner";
 
@@ -86,6 +87,7 @@ export default function App() {
       throw e;
     });
   }, [api, epoch, migrating]);
+  const people = useData(() => (me.data ? api.people() : Promise.resolve({ people: {} })), [api, me.data?.user], 60_000);
   const [page, setPage] = useState(() => location.hash.slice(1));
   const [opened, { toggle, close }] = useDisclosure(false);
   const [changing, password] = useDisclosure(false);
@@ -116,6 +118,7 @@ export default function App() {
   if (me.loading && !me.data) return null;
   if (!me.data) return <SignIn onSignedIn={signedIn} notice={me.error ?? ssoError ?? ended} />;
   const role = me.data.role;
+  const shown = me.data.name || me.data.email || me.data.user;  // an SSO id is a GUID: show the person's name instead
   const pages = PAGES.filter((p) => p.roles.includes(role));
   const active = pages.find((p) => p.id === page.split("/")[0])?.id ?? pages[0].id;  // "models/evals": a tab within a page
   // The current page in the accent; the rest as quiet text buttons. Below 1240px (eleven admin pages) they fold into
@@ -127,6 +130,7 @@ export default function App() {
         onClick={() => go(p.id)}>{p.label}</Button>);
 
   return (
+    <PeopleContext.Provider value={people.data?.people ?? {}}>
     <AppShell header={{ height: 56 }} navbar={{ width: 220, breakpoint: 1240, collapsed: { desktop: true, mobile: !opened } }} padding="md">
       <AppShell.Header>
         <Group h="100%" px="md" gap={20} wrap="nowrap" maw={1480} mx="auto">
@@ -140,11 +144,11 @@ export default function App() {
             <SchemeToggle />
             <Menu position="bottom-end" withinPortal>
               <Menu.Target>
-                <Button variant="default" size="compact-sm" h={32} px={10} leftSection={<span className="avatar" aria-hidden="true">{me.data.user.slice(0, 1).toUpperCase()}</span>}
-                  rightSection={<Icon name="chev" size={12} />}>{me.data.user}</Button>
+                <Button variant="default" size="compact-sm" h={32} px={10} leftSection={<span className="avatar" aria-hidden="true">{shown.slice(0, 1).toUpperCase()}</span>}
+                  rightSection={<Icon name="chev" size={12} />} title={me.data.email ?? me.data.user}>{shown}</Button>
               </Menu.Target>
               <Menu.Dropdown>
-                <Menu.Label>{me.data.team} · {role.replace("_", " ")}</Menu.Label>
+                <Menu.Label>{me.data.email && me.data.email !== shown ? `${me.data.email} · ` : ""}{me.data.team} · {role.replace("_", " ")}</Menu.Label>
                 <Menu.Item onClick={() => go("me")}>My usage</Menu.Item>
                 {me.data.sign_in?.has_password && me.data.sign_in.method === "password" && <Menu.Item onClick={password.open}>Change password</Menu.Item>}
                 {!__DEMO__ && <Menu.Item color="red" onClick={() => void signOut()}>Sign out</Menu.Item>}
@@ -173,5 +177,6 @@ export default function App() {
       </AppShell.Main>
       <ChangePassword opened={changing} onClose={password.close} />
     </AppShell>
+    </PeopleContext.Provider>
   );
 }

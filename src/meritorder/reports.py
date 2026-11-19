@@ -278,6 +278,21 @@ def build_router(gateway) -> APIRouter:
         return Response(buf.getvalue(), media_type="text/csv",
                         headers={"content-disposition": f'attachment; filename="meritorder-{group_by.replace(":", "-")}.csv"'})
 
+    @router.get("/people")
+    async def people(request: Request):
+        """What to call each person the caller may see in reports (their name, else their email address), by id: an SSO
+        person's id is the identity provider's GUID, which the console shouldn't show. Finance and admins: everyone; a team
+        lead: their team; a user: themselves."""
+        p = await principal(request)
+        if p.at_least("finance"):
+            rows = await gateway.store.list_users()
+        elif p.role == "team_lead":
+            rows = await gateway.store.list_users(p.team)
+        else:
+            rows = [r for r in [await gateway.store.get_user(p.user_id)] if r]
+        return {"people": {r["id"]: {"name": r.get("display_name"), "email": r.get("email")}
+                           for r in rows if r.get("display_name") or r.get("email")}}
+
     @router.get("/me")
     async def me(request: Request):
         p = await principal(request)
@@ -285,8 +300,12 @@ def build_router(gateway) -> APIRouter:
         start = month_start()
         rows = await spend.summary(gateway.store, gateway.cfg, start, datetime.now(UTC) + timedelta(days=1), "model", user_id=p.user_id)
         totals = _totals(rows)
+        record = await gateway.store.get_user(p.user_id) or {}
         return {
             "user": p.user_id,
+            # What to call them: an SSO person's id is the identity provider's (a GUID for Entra), not something to show.
+            "name": record.get("display_name"),
+            "email": record.get("email"),
             "team": p.team,
             "role": p.role,
             "month": start.strftime("%Y-%m"),

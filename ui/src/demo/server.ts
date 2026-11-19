@@ -312,6 +312,8 @@ const routes: Route[] = [
       revoked_at: null, status: "active" });
     return ok({ id, api_key: `mo-demo-${uid()}${uid()}`, user: body.user, team, role: body.role, expires_at: expires });
   }],
+  ["GET", /^\/v1\/reports\/people$/, () => ok({ people: Object.fromEntries((users.users as Json[])
+    .filter((u) => u.display_name || u.email).map((u) => [u.id, { name: u.display_name ?? null, email: u.email ?? null }])) })],
   // Invite and reset links (decision 69): kept for the session; the demo has no one to send them to.
   ["GET", /^\/v1\/admin\/invites$/, () => ok({ invites })],
   ["POST", /^\/v1\/admin\/invites$/, (_m, _q, body) => {

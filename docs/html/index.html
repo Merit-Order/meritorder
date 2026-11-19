@@ -380,7 +380,7 @@ waits for (<a href="https://github.com/therick/meritorder/blob/main/ROADMAP.md#0
 <tbody>
 <tr>
 <td>2,319 tests (1,856 run anywhere; the other 463, mostly the real Redis and Postgres variants, run in CI; CI fails below 95% line coverage), each gateway, storage, and state test run against both in-memory and real Redis + Postgres</td>
-<td>Every provider other than OpenRouter, Anthropic, and OpenAI: <code>scripts/smoke_providers.py</code> (plain, streaming, tool calls, embeddings, both formats) once keys are in <code>.env</code></td>
+<td>The smoke test on Bedrock, Foundry, Claude on Vertex, the Gemini API, xAI, DeepSeek, Moonshot, Z.ai and MiniMax: <code>scripts/smoke_providers.py</code> (plain, streaming, tool calls, embeddings, both formats) once keys and quotas are in place</td>
 </tr>
 <tr>
 <td>Provider HTTP and streaming parsed from real wire bytes; retries, failover, circuit breaker</td>
@@ -445,6 +445,14 @@ waits for (<a href="https://github.com/therick/meritorder/blob/main/ROADMAP.md#0
 <tr>
 <td>Anthropic and OpenAI, by hand: the smoke test (incl. OpenAI's Responses API), gateway-added Claude caching (turns 2+ at a tenth of the price)</td>
 <td></td>
+</tr>
+<tr>
+<td>Mistral, Gemini on Vertex AI (Vertex's OpenAI-compatible endpoint) and Azure OpenAI (a GPT-5 nano deployment): the smoke test, every check passing (19 Nov)</td>
+<td></td>
+</tr>
+<tr>
+<td>Entra: the console's "Sign in with Microsoft" against a real tenant, a person created from the token (19 Nov)</td>
+<td><code>meritorder login</code> against a real tenant; group mapping and SCIM</td>
 </tr>
 <tr>
 <td>Docker Compose stack: migrate, gateway, worker, a request end to end; a fresh clone's quickstart, the console, <code>setup</code>, and the gpu and clickhouse profiles (by hand, 13 Nov)</td>

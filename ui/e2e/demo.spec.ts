@@ -43,7 +43,7 @@ for (const [hash, heading] of PAGES) {
 
 test("signed in as the demo's admin, with the banner's links", async ({ page }) => {
   await page.goto("./");
-  await expect(page.getByRole("button", { name: "alex.morgan@example.com" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Alex Morgan" })).toBeVisible();
   const banner = page.getByRole("note", { name: "Demo" });
   await expect(banner.getByRole("link", { name: "meritorder.dev" })).toHaveAttribute("href", "https://meritorder.dev");
   await expect(banner.getByRole("link", { name: "GitHub" })).toHaveAttribute("href", "https://github.com/therick/meritorder");

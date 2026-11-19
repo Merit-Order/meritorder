@@ -79,14 +79,14 @@ test("an invite link: set a password, sign out, sign in with it", async ({ page,
   await other.getByLabel(/^Password/).fill("a long enough passphrase");
   await other.getByLabel("Again").fill("a long enough passphrase");
   await other.getByRole("button", { name: "Create account and sign in" }).click();
-  await expect(other.getByRole("button", { name: "newhire@example.com" })).toBeVisible();
+  await expect(other.getByRole("button", { name: "New Hire" })).toBeVisible();
   expect(other.url()).not.toContain("invite="); // the used link leaves the address bar
-  await other.getByRole("button", { name: "newhire@example.com" }).click();
+  await other.getByRole("button", { name: "New Hire" }).click();
   await other.getByRole("menuitem", { name: "Sign out" }).click();
   await other.getByLabel("Email address").fill("newhire@example.com");
   await other.locator("input[autocomplete=current-password]").fill("a long enough passphrase");
   await other.getByRole("button", { name: "Sign in", exact: true }).click();
-  await expect(other.getByRole("button", { name: "newhire@example.com" })).toBeVisible();
+  await expect(other.getByRole("button", { name: "New Hire" })).toBeVisible();
   await other.context().close();
 });
 

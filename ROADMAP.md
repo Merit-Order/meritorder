@@ -30,8 +30,8 @@ you send it real traffic.
 
 **Providers**
 - [ ] `scripts/smoke_providers.py` (plain, streaming, tool calls, embeddings, both formats) on every provider
-  other than OpenRouter, Anthropic and OpenAI: Bedrock, Foundry, Vertex AI (Claude and Gemini), the Gemini API,
-  Azure OpenAI, xAI, DeepSeek, Mistral, Moonshot, Z.ai and MiniMax.
+  not yet checked: Bedrock, Foundry, Claude on Vertex AI (quota), the Gemini API, xAI, DeepSeek, Moonshot, Z.ai and
+  MiniMax. Passed on 19 Nov: Mistral, Azure OpenAI, Gemini on Vertex AI.
 - [ ] Gemini with a key and on Vertex AI: `thinkingLevel`, thought signatures, mid-stream errors.
 - [ ] Anthropic prompt-caching savings checked against an invoice.
 - [ ] The Responses API's stored mode on OpenAI: an expired `previous_response_id`, earlier turns in

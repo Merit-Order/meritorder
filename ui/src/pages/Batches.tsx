@@ -5,6 +5,7 @@ import type { Api, BatchRow, BatchStatus, BatchStorage, Me, Range } from "../api
 import { num, usd } from "../api";
 import { Kpi, Loading, Panel, StatusBadge, type StatusKind } from "../components/common";
 import { useData } from "../hooks";
+import { Person } from "../people";
 
 const STATUS: Record<BatchStatus, { label: string; kind: StatusKind; help: string }> = {
   in_progress: { label: "running", kind: "clock", help: "At the providers, or waiting for room on a GPU; the worker checks on it until it ends" },
@@ -103,7 +104,7 @@ export function Batches({ api, me, range }: { api: Api; me: Me; range: Range }) 
                   <Table.Td className="mono" style={{ whiteSpace: "nowrap" }}>{new Date(b.created_at).toLocaleString()}</Table.Td>
                   <Table.Td><Text className="mono" size="xs">{b.id}</Text>
                     <Text size="xs" c="dimmed">{b.format === "anthropic" ? "Anthropic Message Batches" : `OpenAI ${b.endpoint ?? ""}`}</Text></Table.Td>
-                  {me.role !== "user" && <Table.Td>{b.user} <Text span size="xs" c="dimmed">{b.team}</Text></Table.Td>}
+                  {me.role !== "user" && <Table.Td><Person id={b.user} /> <Text span size="xs" c="dimmed">{b.team}</Text></Table.Td>}
                   <Table.Td><StatusBadge size="sm" kind={STATUS[b.status].kind} title={STATUS[b.status].help}>{STATUS[b.status].label}</StatusBadge>
                     {b.cancelled_by && <Text size="xs" c="dimmed">by {b.cancelled_by}</Text>}</Table.Td>
                   <Table.Td className="num"><Counts b={b} /></Table.Td>

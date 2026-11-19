@@ -6,6 +6,7 @@ import { num, pct, usd } from "../api";
 import { AnsweredBy, Kpi, Loading, Panel, StatusBadge } from "../components/common";
 import { useData } from "../hooks";
 import { ExpectedCost } from "./ExpectedCost";
+import { Person } from "../people";
 
 const SIGNALS: Record<string, string> = {
   floor_raised: "raised X-Route-Floor", retried: "sent again", interrupted: "stopped", abandoned: "asked again elsewhere",
@@ -222,7 +223,7 @@ function Rows({ r }: { r: RouterReport }) {
             {r.rows.map((x, i) => (
               <Table.Tr key={i}>
                 <Table.Td className="mono" style={{ whiteSpace: "nowrap" }}>{new Date(x.ts).toLocaleString()}</Table.Td>
-                <Table.Td>{x.user}</Table.Td>
+                <Table.Td><Person id={x.user} /></Table.Td>
                 <Table.Td className="mono">{x.task}:{x.rules}</Table.Td>
                 <Table.Td className="mono">{x.task}:{x.learned} <Text span size="xs" c="dimmed">({pct(x.confidence)}, v{x.version})</Text></Table.Td>
                 <Table.Td><Badge size="sm" color={x.acted === "learned" ? "mo" : "gray"}>{x.acted === "learned" ? "learned" : OUTCOMES[x.outcome] ?? x.outcome}</Badge></Table.Td>
