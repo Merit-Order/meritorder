@@ -192,7 +192,9 @@ export type Me = {
 
 /** "password" or "sso": a console session; "key": a session opened with an API key, or a key in the header. */
 export type SignInStatus = { method: "password" | "sso" | "key" | null; has_password: boolean; setup_key_active?: boolean };
-export type AuthConfig = { oidc: { issuer: string; client_id: string } | null; local?: { enabled: boolean } };
+export type AuthConfig = { oidc: { issuer: string; client_id: string } | null; local?: { enabled: boolean };
+  /** The console's SSO button: who people sign in with, and where it starts. Null when browser sign-in isn't set up. */
+  sso?: { provider: "google" | "entra" | "oidc"; start: string } | null };
 export type InviteInfo = { kind: "invite" | "reset"; email: string; team: string | null; role: string | null; expires_at: string;
   min_password_length: number };
 /** An open invite or password-reset link. `token` and `path` only in the answer that created it: shown once. */

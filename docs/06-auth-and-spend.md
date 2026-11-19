@@ -96,11 +96,34 @@ People sign in to the console as themselves and get a session; keys are for harn
 
 | | Small team, no identity provider | Organization with Entra or Google |
 |---|---|---|
-| How people sign in | Email address and a password Merit Order keeps | `meritorder login` today; the console's SSO button is next |
+| How people sign in | Email address and a password Merit Order keeps; `meritorder login` asks for them | The console's "Sign in with Microsoft / Google / your organization" button; `meritorder login` (device code) |
 | How they join | An invite link from an admin or team lead (People → Invite someone) | The first time they sign in (or SCIM provisions them) |
 | Forgotten password | An admin's or lead's reset link (People → Password link) | Their identity provider |
 | Leaving | Disable them on the People page | Disable or remove them in the identity provider (with SCIM, at once) |
 | Turning passwords off | | `auth.local.enabled: false` |
+
+### SSO in the browser
+
+With `auth.oidc` set, the console's sign-in page shows a "Sign in with …" button. It uses OIDC's authorization-code
+flow with PKCE: the gateway sends the browser to your identity provider, takes the code back at
+`/auth/sso/callback`, checks the ID token (signature, issuer, audience, expiry, the nonce it sent, and for Google the
+Workspace domain), and opens a session for the person, created or updated from the same sign-in mappings as
+`meritorder login`. A disabled person is refused. The answer is tied to the browser that asked (a short-lived
+`mo_sso` cookie) and each sign-in attempt works once, within ten minutes.
+
+| Provider | What to register |
+|---|---|
+| Entra | In the same app registration: Authentication → Add a platform → **Web**, redirect URI `https://<gateway>/auth/sso/callback`, and a client secret (Certificates & secrets) in `MERITORDER_OIDC_BROWSER_CLIENT_SECRET`. Or, without a secret, the redirect URI under **Mobile and desktop applications** (a public client; "Allow public client flows" is already on for `meritorder login`) |
+| Google | A second OAuth client of type **Web application** (the device-login client can't do this), with that redirect URI as an authorized redirect URI. Its ID in `MERITORDER_OIDC_BROWSER_CLIENT_ID`, its secret in `MERITORDER_OIDC_BROWSER_CLIENT_SECRET`. Until both are set, the console doesn't show the button |
+| Other OIDC providers | A client allowed the authorization-code flow with that redirect URI; its secret if it's confidential |
+
+The gateway builds the redirect URI from the address the browser used (with `X-Forwarded-Proto` and
+`X-Forwarded-Host` behind a proxy); set `auth.oidc.redirect_uri` if that isn't what you registered.
+`auth.oidc.browser: false` hides the button. Where everyone should use SSO, set `auth.local.enabled: false`: the
+password form and invite links go away, and keys still work for harnesses and services.
+
+`meritorder login` signs in with the device-code flow where SSO is set up, and asks for the email address and password
+where it isn't (or with `--password`); either way it saves a short-lived key for the harnesses.
 
 **The first admin.** On a new install, either sign in once with the setup key (`MERITORDER_DEV_KEY` in `.env`:
 "Sign in with an API key instead") and invite yourself and others from the People page, or create the account
@@ -150,6 +173,10 @@ the proxy's own APIs (`/v1/chat/completions`, `/v1/messages`, …) never accept 
 | `auth.local.min_password_length` | `12` | 8 to 128 |
 | `auth.local.invite_hours` | `72` | How long an invite or reset link works |
 | `auth.session_hours` | `12` | How long a console sign-in lasts |
+| `auth.oidc.browser` | `true` | The console's SSO button |
+| `auth.oidc.browser_client_id` | `client_id` | The client the browser signs in with (Google: the Web application client) |
+| `auth.oidc.browser_client_secret_env` | | The environment variable holding that client's secret (`MERITORDER_OIDC_BROWSER_CLIENT_SECRET` in the shipped config) |
+| `auth.oidc.redirect_uri` | the browser's address + `/auth/sso/callback` | Set it if a proxy hides the gateway's public address |
 
 ## People and teams
 

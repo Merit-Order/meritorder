@@ -22,6 +22,7 @@ from .proxy import Gateway
 from .responses_compact import ResponsesTools
 from .responses_ws import ResponsesSocket
 from .accounts import build_router as build_accounts_router
+from .accounts import password_key
 from .admin import build_router as build_admin_router
 from .batches.api import build_router as build_batches_router
 from .console import build_router as build_console_router
@@ -244,11 +245,12 @@ def create_app(cfg: Config | None = None, gateway: Gateway | None = None) -> Fas
         o = gw.cfg.auth.oidc
         local = {"enabled": gw.cfg.auth.local.enabled}
         if not o:
-            return {"oidc": None, "local": local}
+            return {"oidc": None, "local": local, "sso": None}
         out = {"issuer": o.issuer, "client_id": o.client_id, "scopes": o.scopes}
         if o.public_client_secret:  # Google's device login sends it; it's public for that kind of client
             out["client_secret"] = o.public_client_secret
-        return {"oidc": out, "local": local}
+        sso = {"provider": o.provider, "start": "/auth/sso/start"} if o.browser_ready else None
+        return {"oidc": out, "local": local, "sso": sso}
 
     @app.post("/auth/exchange")
     async def auth_exchange(request: Request):
@@ -258,6 +260,8 @@ def create_app(cfg: Config | None = None, gateway: Gateway | None = None) -> Fas
             raise HTTPException(400, "request body must be JSON")
         if not isinstance(body, dict):
             raise HTTPException(400, "request body must be a JSON object with an id_token")
+        if "password" in body:  # `meritorder login` on a gateway with local accounts
+            return await password_key(gw, request, str(body.get("email") or ""), str(body.get("password") or ""))
         try:
             return await gw.authn.exchange(str(body.get("id_token") or ""))
         except AuthError as e:

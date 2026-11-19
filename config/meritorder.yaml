@@ -511,6 +511,12 @@ auth:
     client_id: ${MERITORDER_OIDC_CLIENT_ID}
     public_client_secret: ${MERITORDER_OIDC_CLIENT_SECRET}   # Google only (its device clients' secret is public)
     hosted_domains: ${MERITORDER_OIDC_HOSTED_DOMAINS}        # Google only, required: example.com,example.org
+    # The console's "Sign in with ..." button (authorization code with PKCE). Register <gateway>/auth/sso/callback as a
+    # redirect URI. Entra: the same app, Web platform with a client secret (or Mobile and desktop, without one).
+    # Google: a separate "Web application" OAuth client and its secret (docs/06-auth-and-spend.md#sso-in-the-browser).
+    browser_client_id: ${MERITORDER_OIDC_BROWSER_CLIENT_ID}  # blank: client_id
+    browser_client_secret_env: MERITORDER_OIDC_BROWSER_CLIENT_SECRET
+    # redirect_uri: https://llm.example.com/auth/sso/callback   # if the gateway can't tell its own address (proxies)
     team_from_groups: {}      # {"<entra-group-object-id>": platform}, or with google_groups {"platform@example.com": platform}
     role_from_groups: {}      # {"<entra-group-object-id>": admin}
     team_from_emails: {}      # Google: {"@research.example.com": research, "bob@example.com": platform}

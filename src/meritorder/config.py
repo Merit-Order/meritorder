@@ -825,6 +825,22 @@ class OIDCConfig(BaseModel):
     default_team: str = "default"
     key_ttl_days: int = 30
     scopes: list[str] = ["openid", "profile", "email", "offline_access"]
+    # Signing in to the console in the browser (authorization code with PKCE, decision 69). The identity provider must
+    # accept <gateway>/auth/sso/callback as a redirect URI: in Entra, add it under the app registration's Web platform
+    # (with a client secret) or Mobile and desktop (none); Google needs its own "Web application" OAuth client and secret.
+    browser: bool = True
+    browser_client_id: str | None = None  # the client for the browser, when it isn't client_id (Google's always is another)
+    browser_client_secret_env: str | None = None  # the environment variable holding that client's secret, if it has one
+    redirect_uri: str | None = None  # defaults to the address the browser used + /auth/sso/callback
+
+    @property
+    def browser_secret(self) -> str | None:
+        return os.environ.get(self.browser_client_secret_env) or None if self.browser_client_secret_env else None
+
+    @property
+    def browser_ready(self) -> bool:
+        """Whether the console offers the SSO button: on, and (Google) with the Web client and its secret it needs."""
+        return self.browser and (not self.is_google or bool(self.browser_client_id and self.browser_secret))
 
     @property
     def is_google(self) -> bool:
@@ -835,7 +851,7 @@ class OIDCConfig(BaseModel):
         """For the console's wording: who people sign in with."""
         return "google" if self.is_google else "entra" if "login.microsoftonline.com" in self.issuer.lower() else "oidc"
 
-    @field_validator("public_client_secret", mode="before")
+    @field_validator("public_client_secret", "browser_client_id", "browser_client_secret_env", "redirect_uri", mode="before")
     @classmethod
     def _secret_unset_when_blank(cls, v):
         return None if isinstance(v, str) and not v.strip() else v

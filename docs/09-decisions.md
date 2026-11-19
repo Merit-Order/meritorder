@@ -72,7 +72,7 @@ What we decided, why, and what would make us revisit it. Newest decisions go at 
 | 66 | An unknown price is refused, not served free; spend counters checked against the ledger, Redis without persistence | Accepted |
 | 67 | A failure costs what the request puts at stake: the person's cost scaled by level and size; the tie band and move margin on money | Accepted; amends 62 |
 | 68 | Contributions under a CLA: a license grant to Espeto LLC, not an assignment; signed on the pull request through an in-repo workflow | Accepted; replaces the DCO in 55 |
-| 69 | People sign in to the console with an account (a password here, or SSO), not a pasted key; keys are for harnesses and services | Accepted; browser SSO follows |
+| 69 | People sign in to the console with an account (a password here, or SSO), not a pasted key; keys are for harnesses and services | Accepted |
 
 **Still open:** an embedding feature source for the learned router (decision 44). Judged labels are built (decision 52),
 opt-in per team, and tested only against mocks.
@@ -2057,9 +2057,16 @@ Entra or Google and SCIM (decision 8).
   never see the cookie, and the proxy's APIs (`/v1/chat/completions`, `/v1/messages` and the rest) don't accept it.
 - `GET /auth/session` answers 200 whether or not the browser is signed in, so a signed-out console logs no error.
 
-SSO in the browser comes next, on the same sessions: a "Sign in with Microsoft / Google / your organization" button
-using OIDC's authorization-code flow with PKCE, for any OIDC provider; `meritorder login` opening the browser the same
-way; and a setting that requires SSO and turns passwords off.
+- **SSO in the browser**: a "Sign in with Microsoft / Google / your organization" button, for any OIDC provider, using
+  the authorization-code flow with PKCE (S256), a nonce, and a single-use state kept in Redis for ten minutes. A
+  short-lived `SameSite=Lax` cookie ties the provider's answer to the browser that started it, so a link someone else
+  started can't sign you in as them. The ID token is checked as the device login's is (decision 8), with the browser
+  client as its audience, and the person's record is created or refreshed from the same mappings; a disabled person
+  is refused. Entra uses the same app registration (a Web redirect URI with a secret, or a public Mobile and desktop
+  one); Google needs a separate Web application client, because its device client can't do this flow.
+  `auth.local.enabled: false` makes SSO the only way in for people.
+- **`meritorder login`** keeps the device-code flow where SSO is set up (no redirect URI on the laptop needed) and
+  asks for the email address and password where it isn't, or with `--password`; either way it saves a short-lived key.
 
 **Not chosen:** Keep the key in `localStorage` and add password sign-in beside it: two ways in, and the weaker one
 stays. A JWT in the cookie instead of a server-side session: it can't be ended at sign-out or when someone is
