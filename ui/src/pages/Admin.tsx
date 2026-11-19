@@ -9,6 +9,7 @@ import { Kpi, Loading, PageTitle, Panel, SpendSplit, Status, StatusBadge } from 
 import { Icon } from "../components/icons";
 import { Meter } from "./Controls";
 import { useData } from "../hooks";
+import { Person, usePersonLabel } from "../people";
 
 const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
@@ -67,6 +68,7 @@ export function Teams({ api, me, onNavigate }: { api: Api; me: Me; onNavigate: (
 // ------------------------------------------------------------------ Keys
 
 export function Keys({ api, me }: { api: Api; me: Me }) {
+  const label = usePersonLabel();
   const [tick, setTick] = useState(0);
   const res = useData(() => api.keys(), [api, tick]);
   const [user, setUser] = useState("");
@@ -95,7 +97,7 @@ export function Keys({ api, me }: { api: Api; me: Me }) {
   const revoke = async (k: ApiKey) => {
     try {
       await api.revokeKey(k.id);
-      notifications.show({ color: "green", title: "Key revoked", message: `${k.id} (${k.user_id}) stops working within a minute on every gateway.` });
+      notifications.show({ color: "green", title: "Key revoked", message: `${k.id} (${label(k.user_id)}) stops working within a minute on every gateway.` });
       setTick((n) => n + 1);
     } catch (e) {
       notifications.show({ color: "red", title: "Couldn't revoke", message: errorText(e) });
@@ -131,9 +133,9 @@ export function Keys({ api, me }: { api: Api; me: Me }) {
               <Table.Tbody>
                 {(res.data?.keys ?? []).slice().reverse().map((k) => (
                   <Table.Tr key={k.id}>
-                    <Table.Td className="mono">{k.id}</Table.Td><Table.Td>{k.user_id}</Table.Td><Table.Td>{k.team}</Table.Td><Table.Td>{k.role.replace("_", " ")}
+                    <Table.Td className="mono">{k.id}</Table.Td><Table.Td><Person id={k.user_id} /></Table.Td><Table.Td>{k.team}</Table.Td><Table.Td>{k.role.replace("_", " ")}
                       {k.user_role && k.user_role !== k.role && k.acts_as === k.role && (
-                        <Text size="xs" c="dimmed">{k.user_id} is {k.user_role.replace("_", " ")}; this key acts as {k.role.replace("_", " ")}</Text>)}</Table.Td>
+                        <Text size="xs" c="dimmed">{label(k.user_id)} is {k.user_role.replace("_", " ")}; this key acts as {k.role.replace("_", " ")}</Text>)}</Table.Td>
                     <Table.Td>{k.name ?? ""}</Table.Td>
                     <Table.Td>{k.status === "active" ? <StatusBadge kind="good" size="sm">{k.status}</StatusBadge> : <StatusBadge kind="off" size="sm">{k.status}</StatusBadge>}</Table.Td>
                     <Table.Td>{k.expires_at ? new Date(k.expires_at).toLocaleDateString() : "never"}</Table.Td>

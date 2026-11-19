@@ -11,6 +11,7 @@ import { Bills } from "./Bills";
 import { LearnedRouter } from "./LearnedRouter";
 import { Levels } from "./Levels";
 import { RequestsView } from "./RequestsView";
+import { Person } from "../people";
 
 const PRESETS = [{ value: "month", label: "This month" }, { value: "7d", label: "Last 7 days" }, { value: "30d", label: "Last 30 days" }, { value: "last-month", label: "Last month" }];
 
@@ -32,7 +33,9 @@ function causeSeries(t: Row): Series[] {
 
 /** A row's name. The GPU time no request paid for (decision 64) is the organization's, not a team's or a person's: its
  * row says so. */
-function RowKey({ k }: { k: string }) {
+/** A row's key; a person (``person``) by name. */
+function RowKey({ k, person = false }: { k: string; person?: boolean }) {
+  if (person && k !== GPU_IDLE_KEY) return <Person id={k} />;
   if (k !== GPU_IDLE_KEY) return <>{k}</>;
   return <Text span inherit c="dimmed" data-tip="GPU time no request paid for: starting, idle, draining, and capacity requests left unused. The organization's, so no team or person carries it." tabIndex={0}>{k}</Text>;
 }
@@ -65,7 +68,7 @@ function TopTable({ rows, what, onMore }: { rows: Row[]; what: "team" | "user"; 
             <Table.Tbody>
               {top.map((r) => (
                 <Table.Tr key={String(r.key)}>
-                  <Table.Td><RowKey k={String(r.key)} /></Table.Td>
+                  <Table.Td><RowKey k={String(r.key)} person={what === "user"} /></Table.Td>
                   <Table.Td className="num">{num(r.requests)}</Table.Td>
                   <Table.Td className="num">{usd(r.actual_cost)}<div className="mini acc"><i style={{ width: `${(r.actual_cost / max) * 100}%` }} /></div></Table.Td>
                   <Table.Td className="num" c="dimmed">{usd(r.baseline_cost)}</Table.Td>
@@ -186,7 +189,7 @@ function Breakdown({ api, range, me, initial }: { api: Api; range: Range; me: Me
           <Table.Tbody>
             {rows.map((r: Row) => (
               <Table.Tr key={String(r.key)}>
-                <Table.Td>{dim === "day" ? String(r.key).slice(0, 10) : <RowKey k={String(r.key)} />}</Table.Td>
+                <Table.Td>{dim === "day" ? String(r.key).slice(0, 10) : <RowKey k={String(r.key)} person={dim === "user"} />}</Table.Td>
                 <Table.Td className="num">{num(r.requests)}</Table.Td>
                 <Table.Td className="num">{usd(r.actual_cost)}</Table.Td>
                 {gpus && <><Table.Td className="num" c="dimmed">{usd(r.api_cost)}</Table.Td><Table.Td className="num" c="dimmed">{usd(r.gpu_cost)}</Table.Td></>}

@@ -49,6 +49,7 @@ async def test_invite_set_password_sign_in_and_out(client, durable):
                                                           "role": "team_lead", "method": "password"}
     me = await client.get("/v1/reports/me")
     assert me.status_code == 200 and me.json()["user"] == "pat@example.com" and me.json()["sign_in"]["method"] == "password"
+    assert (me.json()["name"], me.json()["email"]) == ("Pat", "pat@example.com")  # what the console shows
     # A link works once.
     assert (await accept(client, inv["token"])).status_code == 410
     # Sign out ends the session on the server, not only in this browser.
@@ -199,3 +200,15 @@ def test_hashes_verify_and_are_salted():
     assert a != b and a.startswith("scrypt$")
     assert accounts.verify_password_sync("pw-one-two-three", a) and not accounts.verify_password_sync("pw-one-two-four", a)
     assert not accounts.verify_password_sync("x", "garbage")
+
+
+async def test_people_names_are_scoped_like_reports(client, durable):
+    """GET /v1/reports/people: what the console shows instead of an SSO person's GUID, only for people the viewer may see."""
+    store = durable.store
+    await store.upsert_user("0c1-guid", "default", "user", email="sam@example.com", display_name="Sam Lee")
+    await store.upsert_user("0c2-guid", "ops", "user", email="ops@example.com")
+    await store.upsert_user("lee", "default", "team_lead")  # no name or address: left out, the id is all there is
+    admin = (await client.get("/v1/reports/people", headers=auth(ADMIN_KEY))).json()["people"]
+    assert admin == {"0c1-guid": {"name": "Sam Lee", "email": "sam@example.com"}, "0c2-guid": {"name": None, "email": "ops@example.com"}}
+    assert set((await client.get("/v1/reports/people", headers=auth(LEAD_KEY))).json()["people"]) == {"0c1-guid"}
+    assert (await client.get("/v1/reports/people", headers=auth(TEST_KEY))).json()["people"] == {}

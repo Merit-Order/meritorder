@@ -172,6 +172,9 @@ export type RouterReport = {
 
 export type Me = {
   user: string;
+  /** From the person's record (sign-in or invite), when known: what the console shows instead of the id. */
+  name?: string | null;
+  email?: string | null;
   team: string;
   role: "user" | "team_lead" | "finance" | "admin";
   month: string;
@@ -671,6 +674,11 @@ export class Api {
 
   me() {
     return this.get<Me>("/v1/reports/me");
+  }
+
+  /** Names and email addresses of the people this viewer may see, by id (people.tsx). */
+  people() {
+    return this.get<{ people: Record<string, { name: string | null; email: string | null }> }>("/v1/reports/people");
   }
 
   summary(range: Range, groupBy: string, filters: Record<string, string> = {}) {

@@ -6,6 +6,7 @@ import { MeritChart, MeritTable } from "../components/charts";
 import { Kpi, Loading, Panel, SpendSplit, StateBadge, Status, StatusBadge, type StatusKind } from "../components/common";
 import { Icon } from "../components/icons";
 import { useData } from "../hooks";
+import { Person } from "../people";
 
 const LEVEL_KIND: Record<string, StatusKind> = { critical: "bad", warning: "warn", info: "info" };
 const LEVEL_WORD: Record<string, string> = { critical: "Critical", warning: "Warning", info: "Info" };
@@ -47,7 +48,7 @@ export function FeedRow({ e }: { e: FeedEvent }) {
     <Table.Tr>
       <Table.Td c="dimmed">{time(e.ts)}</Table.Td>
       <Table.Td className="sans">
-        <div style={{ lineHeight: 1.25 }}>{e.user}</div>
+        <div style={{ lineHeight: 1.25 }}><Person id={e.user} /></div>
         <Text size="xs" c="dimmed">{e.team}</Text>
       </Table.Td>
       <Table.Td className="sans" title={e.error ?? ""}>

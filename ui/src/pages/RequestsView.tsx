@@ -5,6 +5,7 @@ import { CAUSES, compact, ms, num, usd } from "../api";
 import { AnsweredBy, Loading, Panel, StatusBadge } from "../components/common";
 import { Icon } from "../components/icons";
 import { useData } from "../hooks";
+import { Person, usePersonLabel } from "../people";
 
 /** The Requests tab (docs/08-reporting.md#the-requests-view): the ledger a page at a time, filtered on the server, with the
  * filters and the cursor in the URL (#reports/requests?...), so a view can be shared and survives a refresh. */
@@ -81,6 +82,7 @@ const statusOf = (r: LedgerRow) => r.status >= 400
 
 /** One request: its ledger fields, why it was routed where it went, its cost and savings. Never its content. */
 function Detail({ row, onSession }: { row: LedgerRow; onSession: (id: string) => void }) {
+  const label = usePersonLabel();
   const kv = (k: string, v: ReactNode) => (
     <Table.Tr key={k}><Table.Td c="dimmed" w={170}>{k}</Table.Td><Table.Td>{v ?? "–"}</Table.Td></Table.Tr>);
   const [task, level] = (row.floor ?? "").split(":");
@@ -115,7 +117,7 @@ function Detail({ row, onSession }: { row: LedgerRow; onSession: (id: string) =>
         <Table><Table.Tbody>
           {kv("Time", <span className="mono">{new Date(row.ts).toLocaleString()}</span>)}
           {kv("Id", <span className="mono">{row.id}</span>)}
-          {kv("Person, team", `${row.user_id} · ${row.team}`)}
+          {kv("Person, team", `${label(row.user_id)} · ${row.team}`)}
           {kv("Key", <span className="mono">{row.key_id ?? "–"}</span>)}
           {kv("Session", row.session_id ? <Anchor size="sm" className="mono" onClick={() => onSession(row.session_id!)}>{row.session_id}</Anchor> : "–")}
           {kv("Status", <>{statusOf(row)} {row.error && <Text size="xs" c="dimmed" mt={4}>{row.error}</Text>}</>)}
@@ -281,7 +283,7 @@ export function RequestsView({ api, me }: { api: Api; me: Me }) {
                     <Table.Tr key={r.id} onClick={() => setOpen(r)} style={{ cursor: "pointer" }} tabIndex={0}
                       onKeyDown={(e) => { if (e.key === "Enter") setOpen(r); }} aria-label={`Request ${r.id}`}>
                       <Table.Td className="mono" style={{ whiteSpace: "nowrap" }}>{new Date(r.ts).toLocaleString()}</Table.Td>
-                      <Table.Td><div>{r.user_id}</div>{people && <Text size="xs" c="dimmed">{r.team}</Text>}</Table.Td>
+                      <Table.Td><div><Person id={r.user_id} /></div>{people && <Text size="xs" c="dimmed">{r.team}</Text>}</Table.Td>
                       <Table.Td>{r.requested_model || "–"} → <b>{r.served_model}</b>
                         {r.upgraded && <Badge ml={6} size="sm" color="mo">free upgrade</Badge>}
                         {r.service_tier === "batch" && <Badge ml={6} size="sm" color="gray" title={`Through the provider's batch API, in ${r.batch_id}`}>batch</Badge>}
