@@ -96,7 +96,9 @@ class OIDCVerifier:
                 self._discovery = resp.json()
         return self._discovery
 
-    async def verify(self, token: str) -> dict:
+    async def verify(self, token: str, audience: str | None = None) -> dict:
+        """The token's claims, if it's genuine, current and for this gateway: ``audience`` (default: the configured
+        audience or client_id), the issuer, and an account allowed in."""
         import jwt
 
         disc = await self.discovery()
@@ -110,7 +112,7 @@ class OIDCVerifier:
                 token,
                 key.key,
                 algorithms=["RS256", "RS384", "RS512", "ES256", "ES384"],
-                audience=self.cfg.audience or self.cfg.client_id,
+                audience=audience or self.cfg.audience or self.cfg.client_id,
                 issuer=list(GOOGLE_ISSUERS) if google else issuer,
                 options={"require": ["exp", "iss", "aud"]},  # a token without an expiry must not be valid forever
             )
@@ -362,24 +364,32 @@ class Authenticator:
                 if principal.key_id == key_id:
                     cache.pop(h, None)
 
-    async def exchange(self, id_token: str) -> dict:
-        """Trade a verified OIDC token for a short-lived Merit Order key."""
-        if not self.oidc:
-            raise AuthError(400, "OIDC is not configured on this gateway")
-        claims = await self.oidc.verify(id_token)
+    async def sign_in(self, claims: dict) -> tuple[Principal, str | None]:
+        """Someone with a verified identity token signs in (the CLI's device login, or the console's SSO): their record
+        is created or refreshed from the sign-in mappings, and they act as it says (an admin's pinned team and role win).
+        Refused for a disabled account. Returns their principal as the record has it, and their email address."""
         groups = None
         address = verified_address(claims)
         if self.groups and address:  # Google's tokens carry no groups: ask Google (or, if it can't answer, the cache)
             groups = await self.groups.at_sign_in(user_id_of(claims), address)
         principal, email, name = self.oidc.principal(claims, groups)
         current = await self.store.get_user(principal.user_id)
-        if current and current.get("disabled_at"):  # refuse before a key exists, not on its first use
+        if current and current.get("disabled_at"):  # refuse before a key or session exists, not on its first use
             raise AuthError(403, "this account is disabled; contact your Merit Order admin")
         await self.store.upsert_user(principal.user_id, principal.team, principal.role, email, name)
-        # The key is issued as the record says (an admin's pinned team and role win over the mappings), so it acts as
-        # the person does now; a later change to their record can lower it, never raise it.
         record = await self.store.get_user(principal.user_id) or {}
-        team, role = record.get("team") or principal.team, record.get("role") or principal.role
+        self.forget_user(principal.user_id)  # the record may have changed: the next request reads it again
+        return replace(principal, team=record.get("team") or principal.team, role=record.get("role") or principal.role), email
+
+    async def exchange(self, id_token: str) -> dict:
+        """Trade a verified OIDC token for a short-lived Merit Order key."""
+        if not self.oidc:
+            raise AuthError(400, "OIDC is not configured on this gateway")
+        claims = await self.oidc.verify(id_token)
+        principal, email = await self.sign_in(claims)
+        # The key is issued as the record says, so it acts as the person does now; a later change to their record can
+        # lower it, never raise it.
+        team, role = principal.team, principal.role
         expires = datetime.now(UTC) + timedelta(days=self.cfg.auth.oidc.key_ttl_days)
         key_id, secret = await self.store.create_key(principal.user_id, team, role, name="oidc login", expires_at=expires)
         return {"api_key": secret, "key_id": key_id, "expires_at": expires.isoformat(), "user": email or principal.user_id, "team": team}

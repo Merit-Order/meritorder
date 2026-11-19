@@ -31,6 +31,14 @@ function takeOldKey(): string | null {
 
 const inviteToken = () => (location.hash.startsWith("#invite=") ? decodeURIComponent(location.hash.slice(8)) : null);
 
+/** Why an SSO sign-in failed: the gateway sends the browser back to /ui/#sso-error=<message>. Read once, then cleared. */
+function takeSsoError(): string | null {
+  if (!location.hash.startsWith("#sso-error=")) return null;
+  const message = decodeURIComponent(location.hash.slice(11));
+  history.replaceState(null, "", location.pathname);
+  return `Single sign-on didn't work: ${message}`;
+}
+
 type Page = { id: string; label: string; roles: string[] };
 const PAGES: Page[] = [
   { id: "dispatch", label: "Dispatch", roles: ["admin", "finance", "team_lead"] },
@@ -63,6 +71,7 @@ export default function App() {
   const [epoch, setEpoch] = useState(0);  // bumped on sign-in and sign-out, to ask the gateway who this is again
   const [invite, setInvite] = useState(inviteToken);
   const [migrating, setMigrating] = useState(() => !__DEMO__ && !inviteToken());
+  const [ssoError] = useState(takeSsoError);
   const [ended, setEnded] = useState<string | null>(null);  // why a session stopped working, for the sign-in page
   // Signed out is an answer, not an error: null. /auth/session answers 200 either way, so a signed-out console logs no error.
   const me = useData(async () => {
@@ -105,7 +114,7 @@ export default function App() {
 
   if (invite) return <AcceptInvite token={invite} onDone={() => { setInvite(null); signedIn(); }} />;
   if (me.loading && !me.data) return null;
-  if (!me.data) return <SignIn onSignedIn={signedIn} notice={me.error ?? ended} />;
+  if (!me.data) return <SignIn onSignedIn={signedIn} notice={me.error ?? ssoError ?? ended} />;
   const role = me.data.role;
   const pages = PAGES.filter((p) => p.roles.includes(role));
   const active = pages.find((p) => p.id === page.split("/")[0])?.id ?? pages[0].id;  // "models/evals": a tab within a page

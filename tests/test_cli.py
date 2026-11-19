@@ -282,7 +282,7 @@ def test_login_device_flow_saves_the_key(monkeypatch, capsys):
 
 
 @pytest.mark.parametrize("case, message", [
-    ("no-oidc", "no OIDC login configured"),
+    ("no-oidc", "no sign-in configured"),
     ("denied", "login failed: user said no"),
     ("timeout", "login timed out"),
     ("exchange", "key exchange failed: 403"),
@@ -357,6 +357,35 @@ def test_login_when_the_provider_cant_start_device_login(monkeypatch, discovery,
     monkeypatch.setattr(cli.httpx, "Client", lambda **kw: real(transport=httpx.MockTransport(handler), **kw))
     with pytest.raises(SystemExit, match=message):
         cli.main(["login", "--gateway", "http://gw.test"])
+
+
+@pytest.mark.parametrize("oidc", [False, True])
+def test_login_with_a_password_on_a_gateway_with_local_accounts(monkeypatch, capsys, oidc):
+    """No SSO, or --password where there is: the console's email address and password get a key."""
+    sent = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if str(request.url) == "http://gw.test/auth/config":
+            return httpx.Response(200, json={"oidc": {"issuer": "https://idp.test/", "client_id": "cli", "scopes": ["openid"]} if oidc else None,
+                                             "local": {"enabled": True}})
+        assert str(request.url) == "http://gw.test/auth/exchange"
+        sent.append(json.loads(request.content))
+        if sent[-1]["password"] != "right one":
+            return httpx.Response(401, json={"detail": "wrong email address or password"})
+        return httpx.Response(200, json={"api_key": "mo-pw", "user": "pat@example.com", "team": "default", "expires_at": "2026-12-19T00:00:00Z"})
+
+    real = httpx.Client
+    monkeypatch.setattr(cli.httpx, "Client", lambda **kw: real(transport=httpx.MockTransport(handler), **kw))
+    monkeypatch.setattr("builtins.input", lambda prompt="": "pat@example.com")
+    monkeypatch.setattr("getpass.getpass", lambda prompt="": "nope")
+    extra = ["--password"] if oidc else []
+    with pytest.raises(SystemExit, match="login failed: wrong email address or password"):
+        cli.main(["login", "--gateway", "http://gw.test", *extra])
+    monkeypatch.setattr("getpass.getpass", lambda prompt="": "right one")
+    cli.main(["login", "--gateway", "http://gw.test", "--email", "pat@example.com", *extra])
+    assert "Logged in as pat@example.com (team default)" in capsys.readouterr().out
+    assert harness.KEY_FILE.read_text().strip() == "mo-pw"
+    assert sent[-1] == {"email": "pat@example.com", "password": "right one"}
 
 
 def install_idp(monkeypatch, poll, oidc=True, expires_in=60, exchange_status=200):

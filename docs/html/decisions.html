@@ -503,7 +503,7 @@ figure { margin: 1.4em 0 1.8em; }
 <tr>
 <td>69</td>
 <td>People sign in to the console with an account (a password here, or SSO), not a pasted key; keys are for harnesses and services</td>
-<td>Accepted; browser SSO follows</td>
+<td>Accepted</td>
 </tr>
 </tbody>
 </table></div>
@@ -2289,11 +2289,22 @@ Entra or Google and SCIM (decision 8).</p>
   <code>SameSite=Strict</code> already keeps the cookie off requests started from other sites. <code>/auth/login</code> and the other
   <code>/auth</code> changes need the header too. Requests with a key in the <code>Authorization</code> header are unaffected: harnesses
   never see the cookie, and the proxy's APIs (<code>/v1/chat/completions</code>, <code>/v1/messages</code> and the rest) don't accept it.</li>
-<li><code>GET /auth/session</code> answers 200 whether or not the browser is signed in, so a signed-out console logs no error.</li>
+<li>
+<p><code>GET /auth/session</code> answers 200 whether or not the browser is signed in, so a signed-out console logs no error.</p>
+</li>
+<li>
+<p><strong>SSO in the browser</strong>: a "Sign in with Microsoft / Google / your organization" button, for any OIDC provider, using
+  the authorization-code flow with PKCE (S256), a nonce, and a single-use state kept in Redis for ten minutes. A
+  short-lived <code>SameSite=Lax</code> cookie ties the provider's answer to the browser that started it, so a link someone else
+  started can't sign you in as them. The ID token is checked as the device login's is (decision 8), with the browser
+  client as its audience, and the person's record is created or refreshed from the same mappings; a disabled person
+  is refused. Entra uses the same app registration (a Web redirect URI with a secret, or a public Mobile and desktop
+  one); Google needs a separate Web application client, because its device client can't do this flow.
+  <code>auth.local.enabled: false</code> makes SSO the only way in for people.</p>
+</li>
+<li><strong><code>meritorder login</code></strong> keeps the device-code flow where SSO is set up (no redirect URI on the laptop needed) and
+  asks for the email address and password where it isn't, or with <code>--password</code>; either way it saves a short-lived key.</li>
 </ul>
-<p>SSO in the browser comes next, on the same sessions: a "Sign in with Microsoft / Google / your organization" button
-using OIDC's authorization-code flow with PKCE, for any OIDC provider; <code>meritorder login</code> opening the browser the same
-way; and a setting that requires SSO and turns passwords off.</p>
 <p><strong>Not chosen:</strong> Keep the key in <code>localStorage</code> and add password sign-in beside it: two ways in, and the weaker one
 stays. A JWT in the cookie instead of a server-side session: it can't be ended at sign-out or when someone is
 disabled without a lookup anyway, and a lookup is what a session is. argon2id: the better hash on paper, but a native

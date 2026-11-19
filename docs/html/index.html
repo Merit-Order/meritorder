@@ -7547,8 +7547,8 @@ and <a href="#auth-and-spend-google-groups">Google Groups</a> to map Google grou
 <tbody>
 <tr>
 <td>How people sign in</td>
-<td>Email address and a password Merit Order keeps</td>
-<td><code>meritorder login</code> today; the console's SSO button is next</td>
+<td>Email address and a password Merit Order keeps; <code>meritorder login</code> asks for them</td>
+<td>The console's "Sign in with Microsoft / Google / your organization" button; <code>meritorder login</code> (device code)</td>
 </tr>
 <tr>
 <td>How they join</td>
@@ -7572,6 +7572,41 @@ and <a href="#auth-and-spend-google-groups">Google Groups</a> to map Google grou
 </tr>
 </tbody>
 </table></div>
+<h4 id="auth-and-spend-sso-in-the-browser">SSO in the browser</h4>
+<p>With <code>auth.oidc</code> set, the console's sign-in page shows a "Sign in with …" button. It uses OIDC's authorization-code
+flow with PKCE: the gateway sends the browser to your identity provider, takes the code back at
+<code>/auth/sso/callback</code>, checks the ID token (signature, issuer, audience, expiry, the nonce it sent, and for Google the
+Workspace domain), and opens a session for the person, created or updated from the same sign-in mappings as
+<code>meritorder login</code>. A disabled person is refused. The answer is tied to the browser that asked (a short-lived
+<code>mo_sso</code> cookie) and each sign-in attempt works once, within ten minutes.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Provider</th>
+<th>What to register</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Entra</td>
+<td>In the same app registration: Authentication → Add a platform → <strong>Web</strong>, redirect URI <code>https://&lt;gateway&gt;/auth/sso/callback</code>, and a client secret (Certificates &amp; secrets) in <code>MERITORDER_OIDC_BROWSER_CLIENT_SECRET</code>. Or, without a secret, the redirect URI under <strong>Mobile and desktop applications</strong> (a public client; "Allow public client flows" is already on for <code>meritorder login</code>)</td>
+</tr>
+<tr>
+<td>Google</td>
+<td>A second OAuth client of type <strong>Web application</strong> (the device-login client can't do this), with that redirect URI as an authorized redirect URI. Its ID in <code>MERITORDER_OIDC_BROWSER_CLIENT_ID</code>, its secret in <code>MERITORDER_OIDC_BROWSER_CLIENT_SECRET</code>. Until both are set, the console doesn't show the button</td>
+</tr>
+<tr>
+<td>Other OIDC providers</td>
+<td>A client allowed the authorization-code flow with that redirect URI; its secret if it's confidential</td>
+</tr>
+</tbody>
+</table></div>
+<p>The gateway builds the redirect URI from the address the browser used (with <code>X-Forwarded-Proto</code> and
+<code>X-Forwarded-Host</code> behind a proxy); set <code>auth.oidc.redirect_uri</code> if that isn't what you registered.
+<code>auth.oidc.browser: false</code> hides the button. Where everyone should use SSO, set <code>auth.local.enabled: false</code>: the
+password form and invite links go away, and keys still work for harnesses and services.</p>
+<p><code>meritorder login</code> signs in with the device-code flow where SSO is set up, and asks for the email address and password
+where it isn't (or with <code>--password</code>); either way it saves a short-lived key for the harnesses.</p>
 <p><strong>The first admin.</strong> On a new install, either sign in once with the setup key (<code>MERITORDER_DEV_KEY</code> in <code>.env</code>:
 "Sign in with an API key instead") and invite yourself and others from the People page, or create the account
 directly:</p>
@@ -7633,6 +7668,26 @@ the proxy's own APIs (<code>/v1/chat/completions</code>, <code>/v1/messages</cod
 <td><code>auth.session_hours</code></td>
 <td><code>12</code></td>
 <td>How long a console sign-in lasts</td>
+</tr>
+<tr>
+<td><code>auth.oidc.browser</code></td>
+<td><code>true</code></td>
+<td>The console's SSO button</td>
+</tr>
+<tr>
+<td><code>auth.oidc.browser_client_id</code></td>
+<td><code>client_id</code></td>
+<td>The client the browser signs in with (Google: the Web application client)</td>
+</tr>
+<tr>
+<td><code>auth.oidc.browser_client_secret_env</code></td>
+<td></td>
+<td>The environment variable holding that client's secret (<code>MERITORDER_OIDC_BROWSER_CLIENT_SECRET</code> in the shipped config)</td>
+</tr>
+<tr>
+<td><code>auth.oidc.redirect_uri</code></td>
+<td>the browser's address + <code>/auth/sso/callback</code></td>
+<td>Set it if a proxy hides the gateway's public address</td>
 </tr>
 </tbody>
 </table></div>
@@ -11686,7 +11741,7 @@ that key's role may see.</p></section><section id="decisions"><header class="sec
 <tr>
 <td>69</td>
 <td>People sign in to the console with an account (a password here, or SSO), not a pasted key; keys are for harnesses and services</td>
-<td>Accepted; browser SSO follows</td>
+<td>Accepted</td>
 </tr>
 </tbody>
 </table></div>
@@ -13472,11 +13527,22 @@ Entra or Google and SCIM (decision 8).</p>
   <code>SameSite=Strict</code> already keeps the cookie off requests started from other sites. <code>/auth/login</code> and the other
   <code>/auth</code> changes need the header too. Requests with a key in the <code>Authorization</code> header are unaffected: harnesses
   never see the cookie, and the proxy's APIs (<code>/v1/chat/completions</code>, <code>/v1/messages</code> and the rest) don't accept it.</li>
-<li><code>GET /auth/session</code> answers 200 whether or not the browser is signed in, so a signed-out console logs no error.</li>
+<li>
+<p><code>GET /auth/session</code> answers 200 whether or not the browser is signed in, so a signed-out console logs no error.</p>
+</li>
+<li>
+<p><strong>SSO in the browser</strong>: a "Sign in with Microsoft / Google / your organization" button, for any OIDC provider, using
+  the authorization-code flow with PKCE (S256), a nonce, and a single-use state kept in Redis for ten minutes. A
+  short-lived <code>SameSite=Lax</code> cookie ties the provider's answer to the browser that started it, so a link someone else
+  started can't sign you in as them. The ID token is checked as the device login's is (decision 8), with the browser
+  client as its audience, and the person's record is created or refreshed from the same mappings; a disabled person
+  is refused. Entra uses the same app registration (a Web redirect URI with a secret, or a public Mobile and desktop
+  one); Google needs a separate Web application client, because its device client can't do this flow.
+  <code>auth.local.enabled: false</code> makes SSO the only way in for people.</p>
+</li>
+<li><strong><code>meritorder login</code></strong> keeps the device-code flow where SSO is set up (no redirect URI on the laptop needed) and
+  asks for the email address and password where it isn't, or with <code>--password</code>; either way it saves a short-lived key.</li>
 </ul>
-<p>SSO in the browser comes next, on the same sessions: a "Sign in with Microsoft / Google / your organization" button
-using OIDC's authorization-code flow with PKCE, for any OIDC provider; <code>meritorder login</code> opening the browser the same
-way; and a setting that requires SSO and turns passwords off.</p>
 <p><strong>Not chosen:</strong> Keep the key in <code>localStorage</code> and add password sign-in beside it: two ways in, and the weaker one
 stays. A JWT in the cookie instead of a server-side session: it can't be ended at sign-out or when someone is
 disabled without a lookup anyway, and a lookup is what a session is. argon2id: the better hash on paper, but a native

@@ -8,6 +8,10 @@
   are for harnesses and services; one typed into the console opens a session tied to it, and the browser no longer
   stores it. Signing out ends the session on the gateway. Admins see a warning while the setup key still works after
   a real admin account exists (decision 69). Needs migration 21 (`meritorder migrate`).
+- The console signs in with your organization's SSO (Entra, Google, any OIDC provider) through a "Sign in with …"
+  button: the authorization-code flow with PKCE. Register `<gateway>/auth/sso/callback` as a redirect URI; Google needs
+  a Web application client (`MERITORDER_OIDC_BROWSER_CLIENT_ID`, `MERITORDER_OIDC_BROWSER_CLIENT_SECRET`).
+  `meritorder login` asks for your email address and password on gateways without SSO.
 
 ## 0.0.1 (2026-11-15)
 

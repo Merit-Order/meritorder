@@ -1,4 +1,4 @@
-import { Alert, Anchor, Button, Code, Group, Modal, Paper, PasswordInput, Stack, Text, TextInput, Title } from "@mantine/core";
+import { Alert, Anchor, Button, Code, Divider, Group, Modal, Paper, PasswordInput, Stack, Text, TextInput, Title } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import { useState, type ReactNode } from "react";
 import { auth } from "../api";
@@ -30,18 +30,21 @@ function Frame({ title, intro, children, footer }: { title: string; intro: React
   );
 }
 
-/** The console's sign-in page: email and password (local accounts), or an API key, which the gateway trades for a session
- * so the browser never keeps it. */
+const SSO_NAME = { entra: "Microsoft", google: "Google", oidc: "your organization" } as const;
+
+/** The console's sign-in page: the organization's SSO, email and password (local accounts), or an API key, which the
+ * gateway trades for a session so the browser never keeps it. */
 export function SignIn({ onSignedIn, notice }: { onSignedIn: () => void; notice?: string | null }) {
   const cfg = useData(() => auth.config(), []);
   const local = cfg.data ? cfg.data.local?.enabled !== false : true;
+  const sso = cfg.data?.sso ?? null;
   const [withKey, setWithKey] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [key, setKey] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const useKey = withKey || !local;
+  const useKey = withKey || (!local && !sso);
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setBusy(true);
@@ -62,7 +65,15 @@ export function SignIn({ onSignedIn, notice }: { onSignedIn: () => void; notice?
       footer={<Text size="xs" c="dimmed" ta="center">{useKey
         ? <>Run <Code>meritorder token</Code> to print your key, or <Code>meritorder login</Code> to get one.</>
         : "No account yet? Ask your Merit Order admin for an invite link."}</Text>}>
-      <form onSubmit={submit}>
+      {sso && !withKey && (
+        <>
+          <Button component="a" href={sso.start} fullWidth variant="default" leftSection={<Icon name="ok" size={16} />}>
+            Sign in with {SSO_NAME[sso.provider]}
+          </Button>
+          {local && <Divider label="or" labelPosition="center" />}
+        </>
+      )}
+      <form onSubmit={submit} hidden={!!sso && !local && !withKey}>
         <Stack gap="sm">
           {useKey ? (
             <PasswordInput label="API key" placeholder="mo-…" value={key} onChange={(e) => setKey(e.currentTarget.value)} autoComplete="off"
@@ -77,10 +88,10 @@ export function SignIn({ onSignedIn, notice }: { onSignedIn: () => void; notice?
         </Stack>
       </form>
       {(error || notice) && <Alert color="red" icon={<Icon name="bad" size={16} />}>{error ?? notice}</Alert>}
-      {local && (
+      {(local || sso) && (
         <Text size="sm" ta="center">
           <Anchor component="button" type="button" size="sm" onClick={() => { setWithKey(!withKey); setError(null); }}>
-            {withKey ? "Sign in with your email address instead" : "Sign in with an API key instead"}
+            {withKey ? (local ? "Sign in with your email address instead" : `Sign in with ${SSO_NAME[sso!.provider]} instead`) : "Sign in with an API key instead"}
           </Anchor>
         </Text>
       )}

@@ -638,9 +638,13 @@ def cmd_batch(args) -> None:
 def cmd_login(args) -> None:
     gateway = (args.gateway or os.environ.get("MERITORDER_URL") or "http://localhost:8080").rstrip("/")
     with httpx.Client(timeout=30) as c:
-        oidc = c.get(f"{gateway}/auth/config").json().get("oidc")
+        cfg = c.get(f"{gateway}/auth/config").json()
+        oidc = cfg.get("oidc")
+        local = (cfg.get("local") or {}).get("enabled", False)
+        if getattr(args, "password", False) or (not oidc and local):
+            return _password_login(c, gateway, args)
         if not oidc:
-            raise SystemExit("this gateway has no OIDC login configured; ask an admin for an API key")
+            raise SystemExit("this gateway has no sign-in configured; ask an admin for an API key")
         disc = c.get(oidc["issuer"].rstrip("/") + "/.well-known/openid-configuration").json()
         if not disc.get("device_authorization_endpoint"):
             raise SystemExit(f"{oidc['issuer']} doesn't offer device login (no device_authorization_endpoint in its discovery document)")
@@ -670,10 +674,30 @@ def cmd_login(args) -> None:
         if resp.status_code != 200:
             raise SystemExit(f"key exchange failed: {resp.status_code} {resp.text}")
         result = resp.json()
+    _logged_in(gateway, result)
+
+
+def _logged_in(gateway: str, result: dict) -> None:
     save_key(gateway, result["api_key"], {k: v for k, v in result.items() if k != "api_key"})
     print(f"\nLogged in as {result['user']} (team {result['team']}); key expires {result['expires_at'][:10]}.")
     print(f"Key saved to {KEY_FILE}\n")
     print("Next: `meritorder setup pi`, `meritorder setup claude-code` or `meritorder setup codex`.")
+
+
+def _password_login(c: httpx.Client, gateway: str, args) -> None:
+    """A gateway with local accounts (decision 69): the email address and password from the console get a key."""
+    import getpass
+
+    email = getattr(args, "email", None) or input("Email address: ").strip()
+    password = getpass.getpass("Password: ")
+    resp = c.post(f"{gateway}/auth/exchange", json={"email": email, "password": password})
+    if resp.status_code != 200:
+        try:
+            detail = resp.json().get("detail")
+        except ValueError:
+            detail = resp.text
+        raise SystemExit(f"login failed: {detail}")
+    _logged_in(gateway, resp.json())
 
 
 def cmd_use_key(args) -> None:
@@ -1138,8 +1162,10 @@ def main(argv: list[str] | None = None) -> None:
         x.add_argument("--key")
     bt.set_defaults(func=cmd_batch)
 
-    lg = sub.add_parser("login", help="sign in with your organization (OIDC device code) and get an API key")
+    lg = sub.add_parser("login", help="sign in (your organization's SSO, or your email address and password) and get an API key")
     lg.add_argument("--gateway")
+    lg.add_argument("--password", action="store_true", help="sign in with your email address and password even where SSO is set up")
+    lg.add_argument("--email", help="your email address (asked for if not given)")
     lg.set_defaults(func=cmd_login)
 
     uk = sub.add_parser("use-key", help="save an API key an admin gave you")

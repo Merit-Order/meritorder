@@ -70,6 +70,7 @@ _OWN_SECRETS: list[tuple[re.Pattern, frozenset[str], tuple[str, ...]]] = [
     (re.compile(r"^compressor\.api_key_env$"), frozenset({"MERITORDER_COMPRESSOR_KEY"}), ()),
     (re.compile(r"^auth\.oidc\.google_groups\.credentials_(env|file)$"), frozenset({"MERITORDER_GOOGLE_GROUPS_CREDENTIALS"}), ()),
     (re.compile(r"^auth\.oidc\.public_client_secret$"), frozenset({"MERITORDER_OIDC_CLIENT_SECRET"}), ()),
+    (re.compile(r"^auth\.oidc\.browser_client_secret_env$"), frozenset({"MERITORDER_OIDC_BROWSER_CLIENT_SECRET"}), ()),
     (re.compile(r"^batches\.(key|previous_key)_(env|file)$"), frozenset({"MERITORDER_BATCH_KEY", "MERITORDER_BATCH_KEY_PREVIOUS"}), ()),
     (re.compile(r"^response_store\.(key|old_keys)_(env|file)$"),
      frozenset({"MERITORDER_RESPONSES_KEY", "MERITORDER_RESPONSES_OLD_KEYS"}), ()),
@@ -84,7 +85,7 @@ PLAIN_ENVS = frozenset({
     "MERITORDER_BEDROCK", "MERITORDER_CLICKHOUSE_DATABASE", "MERITORDER_CLICKHOUSE_URL", "MERITORDER_CLICKHOUSE_USER",
     "MERITORDER_COMPRESSOR_MODEL", "MERITORDER_COMPRESSOR_URL", "MERITORDER_FOUNDRY_CLAUDE", "MERITORDER_GOOGLE_GROUPS",
     "MERITORDER_GPU_BUDGET_USD", "MERITORDER_KUBERNETES", "MERITORDER_LOCAL_VLLM", "MERITORDER_MAX_GPU_REPLICAS",
-    "MERITORDER_MAX_GPU_USD_PER_HOUR", "MERITORDER_MAX_REQUEST_USD", "MERITORDER_OIDC_CLIENT_ID",
+    "MERITORDER_MAX_GPU_USD_PER_HOUR", "MERITORDER_MAX_REQUEST_USD", "MERITORDER_OIDC_BROWSER_CLIENT_ID", "MERITORDER_OIDC_CLIENT_ID",
     "MERITORDER_OIDC_HOSTED_DOMAINS", "MERITORDER_OIDC_ISSUER", "MERITORDER_ORG_BUDGET_USD", "MERITORDER_SKYPILOT",
     "MERITORDER_SKYPILOT_SMALL", "MERITORDER_SOURCE_URL", "MERITORDER_VERTEX", "MERITORDER_VERTEX_GEMINI_NATIVE",
 })
