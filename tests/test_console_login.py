@@ -185,13 +185,13 @@ async def test_password_sign_in_can_be_turned_off(client, durable):
         durable.cfg.auth.local.enabled = True
 
 
-async def test_setup_key_warning_once_a_real_admin_exists(client, durable):
+async def test_me_says_how_you_signed_in(client, durable):
     me = (await client.get("/v1/reports/me", headers=auth(ADMIN_KEY))).json()
-    assert me["sign_in"]["setup_key_active"] is False
+    assert me["sign_in"] == {"method": "key", "has_password": False}
     inv = await invite(client, "real@example.com", role="admin")
     await accept(client, inv["token"])
     me = (await client.get("/v1/reports/me")).json()
-    assert me["sign_in"] == {"method": "password", "has_password": True, "setup_key_active": True}
+    assert me["sign_in"] == {"method": "password", "has_password": True}
 
 
 def test_hashes_verify_and_are_salted():

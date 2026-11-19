@@ -350,9 +350,8 @@ directly:</p>
 docker compose exec gateway meritorder accounts create pat@example.com --link --url http://localhost:8080   # prints an invite link
 docker compose exec gateway meritorder accounts reset pat@example.com --url http://localhost:8080          # prints a reset link
 </code></pre>
-<p>Once an admin with a password exists (or SSO is set up), the console warns admins while a static admin key from
-the environment or the config file still works. Take it out and restart the gateway: anyone who has it can do
-anything.</p>
+<p>A static admin key from the environment or the config file keeps working after that. Outside a laptop, take it out
+once people have their own accounts and restart the gateway: anyone who has it can do anything.</p>
 <p><strong>Sessions.</strong> A session is a random token in an <code>HttpOnly</code>, <code>SameSite=Strict</code> cookie (<code>Secure</code> when the console is
 reached over HTTPS, directly or through a proxy that sets <code>X-Forwarded-Proto</code>). The gateway keeps only its hash.
 It lasts <code>auth.session_hours</code> (12 by default). Like a key, it acts as the person's record as it is now, at most a

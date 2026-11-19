@@ -73,6 +73,7 @@ What we decided, why, and what would make us revisit it. Newest decisions go at 
 | 67 | A failure costs what the request puts at stake: the person's cost scaled by level and size; the tie band and move margin on money | Accepted; amends 62 |
 | 68 | Contributions under a CLA: a license grant to Espeto LLC, not an assignment; signed on the pull request through an in-repo workflow | Accepted; replaces the DCO in 55 |
 | 69 | People sign in to the console with an account (a password here, or SSO), not a pasted key; keys are for harnesses and services | Accepted |
+| 70 | Attribution is tags: Claude Code's agent labels recorded as tags, 32 tags a request, and a capabilities answer for services | Accepted |
 
 **Still open:** an embedding feature source for the learned router (decision 44). Judged labels are built (decision 52),
 opt-in per team, and tested only against mocks.
@@ -2046,9 +2047,9 @@ Entra or Google and SCIM (decision 8).
   browser never stores it and revoking the key ends the session. A console that kept a key in `localStorage` from
   before trades it for a session once and deletes it.
 - **The first admin** of a new install: `meritorder accounts create you@example.com --role admin` asks for a password,
-  or the setup key (`MERITORDER_DEV_KEY`, `MERITORDER_BOOTSTRAP_ADMIN_KEY`) signs in once to invite people. Once an
-  admin with a password exists (or SSO is set up), the console warns admins while a static admin key from the
-  environment or the config file still works.
+  or the setup key (`MERITORDER_DEV_KEY`, `MERITORDER_BOOTSTRAP_ADMIN_KEY`) signs in once to invite people. The setup
+  key keeps working until it's taken out of the environment; the docs say to do that outside a laptop. (A console
+  banner warning about it was tried and dropped: on a laptop the dev key is wanted, and the banner was noise.)
 - **Cross-site requests:** the cookie is sent by the browser on its own, so a request made with it that changes
   something must carry the console's `x-meritorder-console` header and, when the browser names an `Origin`, come from
   the gateway's own host. No other site can send that header (the gateway allows no cross-origin requests), and
@@ -2080,3 +2081,31 @@ the gateway already verifies; SAML can come if someone needs it.
 
 **Revisit if:** people want two-factor on local accounts (TOTP or passkeys), someone needs SAML, sessions should be
 listed and ended per device, or invites should send email.
+
+## 70. Attribution is tags: Claude Code's agent labels recorded as tags, 32 tags a request, and a capabilities answer for services
+
+**Why:** Two kinds of caller want cost split finer than a person and a team. Claude Code runs subagents and side
+requests in one session, and people want to know which of them cost what. Services built on the gateway, Blackstart
+first, attribute every call to an org, project, story, run, step and subagent role, keep their own cost ledger and
+reconcile it against ours; Blackstart's facade asks the upstream at connect what it offers (a capability handshake).
+
+**How:** No new mechanism: tags already reach the ledger, every report and every export.
+- Claude Code's labels become tags: `x-claude-code-agent-id` → `cc_agent`, `x-claude-code-parent-agent-id` →
+  `cc_parent_agent`, and with its hint headers (which `meritorder setup claude-code` turns on)
+  `x-claude-code-agent-type` → `cc_agent_type` and `x-claude-code-request-class` → `cc_request_class`. The client's
+  `X-MeritOrder-Tags` and the key's tags win over them, as the key's win over the client's. Routing already used the
+  request class to cap side requests (`routing.request_class_levels`); this adds the record.
+- A request may carry 32 tags instead of 10: Blackstart's attribution alone is about eleven fields.
+- `GET /v1/capabilities` (any key) answers what Blackstart's handshake reads: usage in every response; cost in the
+  `x-meritorder-cost-usd` header on replies that aren't streamed, and for streams a lookup by request id or tag; the
+  tags header and its limits; `x-session-id` for cache affinity; the embedding models; `/readyz`. Route listing with
+  providers, prices and retention, and enforcing a caller's data policy, are stated as not offered, so the facade
+  falls back as its contract says.
+
+**Not chosen:** A separate attribution header or a JSON body field (`metadata`): a second way to say what tags already
+say, and Blackstart's facade strips caller metadata anyway. Cost for streams in a final SSE event: an extra event can
+break strict clients; the ledger lookup works for every format. Making the `cc_` tags reserved: a client that wants
+other names for them should be able to set them.
+
+**Revisit if:** Blackstart needs route listing or data-policy enforcement from the gateway (then a routes endpoint with
+providers, prices and retention flags), streamed cost is needed inline, or 32 tags isn't enough.

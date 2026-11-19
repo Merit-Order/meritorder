@@ -23,6 +23,7 @@ from .responses_compact import ResponsesTools
 from .responses_ws import ResponsesSocket
 from .accounts import build_router as build_accounts_router
 from .accounts import password_key
+from .proxy import MAX_TAGS
 from .admin import build_router as build_admin_router
 from .batches.api import build_router as build_batches_router
 from .console import build_router as build_console_router
@@ -212,6 +213,34 @@ def create_app(cfg: Config | None = None, gateway: Gateway | None = None) -> Fas
         data += [{"id": m.name, "object": "model", "created": 0, "owned_by": "meritorder", "context_window": m.context_window,
                   "quality": m.quality, "type": m.kind, "self_hostable": bool(m.hf_id)} for m in usable]
         return {"object": "list", "data": data}
+
+    @app.get("/v1/capabilities")
+    async def capabilities(request: Request):
+        """What this gateway offers a service built on it (Blackstart's capability handshake, decision 70), and how to use
+        each: where usage and cost come back, how to attribute calls, how to keep a cache warm. Needs a key, like
+        /v1/models; the answer is the same for every caller."""
+        try:
+            await gw.authn.authenticate({k.lower(): v for k, v in request.headers.items()})
+        except AuthError as e:
+            raise HTTPException(e.status, e.message)
+        embeddings = sorted(m.name for m in gw.cfg.models if m.kind == "embedding" and any(r.backend in gw.backends for r in m.routes))
+        return {
+            "name": "Merit Order", "version": __version__,
+            "capabilities": {
+                "usage_in_response": True,
+                # Non-streaming replies carry it in a header; for a stream, look the request up by its id or a tag.
+                "cost_in_response": {"header": "x-meritorder-cost-usd", "streaming": False,
+                                     "lookup": "/v1/reports/requests?tag=<name>=<value>", "request_id_header": "x-meritorder-request-id"},
+                "attribution_passthrough": {"header": "x-meritorder-tags", "format": "name=value,name=value",
+                                            "max_tags": MAX_TAGS, "max_value_length": 200, "key_tags_win": True},
+                "cache_affinity": {"header": "x-session-id"},
+                "embedding_route": bool(embeddings),
+                "embedding_models": embeddings,
+                "route_listing": False,  # /v1/models lists models and quality; not providers, prices or retention yet
+                "data_policy_enforcement": False,
+                "health": "/readyz",
+            },
+        }
 
     @app.get("/metrics")
     async def metrics(request: Request):

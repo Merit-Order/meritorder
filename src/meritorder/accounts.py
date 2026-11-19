@@ -490,15 +490,9 @@ def build_router(gateway) -> APIRouter:
 
 
 async def sign_in_status(gateway, p: Principal) -> dict:
-    """For /v1/reports/me: how this person signed in, whether they have a password here, and (admins) whether a setup key
-    from the environment still works after a real admin sign-in exists."""
-    out = {"method": p.session or ("key" if p.key_id else None),
-           "has_password": await gateway.store.get_password(p.user_id) is not None}
-    if p.role == "admin":
-        setup = [k for k in gateway.authn.static.values() if k.role == "admin"]
-        real = gateway.cfg.auth.oidc is not None or await gateway.store.has_local_admin()
-        out["setup_key_active"] = bool(setup) and real
-    return out
+    """For /v1/reports/me: how this person signed in, and whether they have a password here."""
+    return {"method": p.session or ("key" if p.key_id else None),
+            "has_password": await gateway.store.get_password(p.user_id) is not None}
 
 
 async def password_key(gateway, request: Request, email: str, password: str) -> dict:

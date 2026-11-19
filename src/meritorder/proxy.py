@@ -166,9 +166,12 @@ def kind_for_status(status: int) -> str:
             413: "request_too_large", 429: "rate_limit_error", 529: "overloaded_error"}.get(status, "api_error")
 
 
+MAX_TAGS = 32  # per request, from X-MeritOrder-Tags: enough for a pipeline's attribution (org, project, story, run, step...)
+
+
 def parse_tags(value: str) -> dict[str, str]:
     tags: dict[str, str] = {}
-    for part in (value or "").split(",")[:10]:
+    for part in (value or "").split(",")[:MAX_TAGS]:
         m = _TAG_PAIR.match(part)
         if m:
             tags[m.group(1)] = m.group(2)
@@ -182,10 +185,18 @@ def parse_tags(value: str) -> dict[str, str]:
 RESERVED_TAGS = ("compression", "compaction", JUDGED_TAG, "explore", "explore_from", "escalation", "escalated_from", "usage")
 
 
+# Claude Code's own labels (its LLM-gateway headers; the last two with CLAUDE_CODE_GATEWAY_HINT_HEADERS=1, which `meritorder
+# setup claude-code` sets), recorded as tags so reports split cost by agent, subagent type and kind of request.
+CLAUDE_CODE_TAGS = {"x-claude-code-agent-id": "cc_agent", "x-claude-code-parent-agent-id": "cc_parent_agent",
+                    "x-claude-code-agent-type": "cc_agent_type", "x-claude-code-request-class": "cc_request_class"}
+
+
 def request_tags(headers: dict, principal: Principal) -> dict[str, str]:
-    """A request's ledger tags: the client's X-MeritOrder-Tags, then its key's, without the ones the gateway sets; and on
-    the gateway's own requests (judged labels' replays and judging), which they are, so reports can split them out."""
-    tags = {**parse_tags(headers.get("x-meritorder-tags", "")), **principal.tags}
+    """A request's ledger tags: Claude Code's labels, then the client's X-MeritOrder-Tags, then its key's, without the ones
+    the gateway sets; and on the gateway's own requests (judged labels' replays and judging), which they are, so reports
+    can split them out."""
+    labels = {tag: str(headers[h]).strip()[:200] for h, tag in CLAUDE_CODE_TAGS.items() if str(headers.get(h) or "").strip()}
+    tags = {**labels, **parse_tags(headers.get("x-meritorder-tags", "")), **principal.tags}
     for k in RESERVED_TAGS:
         tags.pop(k, None)
     if principal.internal:

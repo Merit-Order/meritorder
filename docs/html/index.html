@@ -7614,9 +7614,8 @@ directly:</p>
 docker compose exec gateway meritorder accounts create pat@example.com --link --url http://localhost:8080   # prints an invite link
 docker compose exec gateway meritorder accounts reset pat@example.com --url http://localhost:8080          # prints a reset link
 </code></pre>
-<p>Once an admin with a password exists (or SSO is set up), the console warns admins while a static admin key from
-the environment or the config file still works. Take it out and restart the gateway: anyone who has it can do
-anything.</p>
+<p>A static admin key from the environment or the config file keeps working after that. Outside a laptop, take it out
+once people have their own accounts and restart the gateway: anyone who has it can do anything.</p>
 <p><strong>Sessions.</strong> A session is a random token in an <code>HttpOnly</code>, <code>SameSite=Strict</code> cookie (<code>Secure</code> when the console is
 reached over HTTPS, directly or through a proxy that sets <code>X-Forwarded-Proto</code>). The gateway keeps only its hash.
 It lasts <code>auth.session_hours</code> (12 by default). Like a key, it acts as the person's record as it is now, at most a
@@ -10983,7 +10982,51 @@ sidecar (kube-prometheus-stack picks up the <code>grafana_dashboard</code> label
 </code></pre>
 <p>Tags flow into the ledger and every report can group by them. A tag set on the key wins over the
 same tag in the header, so a client can add tags but can't move spend off a cost center an admin
-assigned.</p>
+assigned. A request carries up to 32 tags (names of up to 64 letters, digits, <code>_</code>, <code>.</code> or <code>-</code>; values up to 200
+characters, without commas); more are dropped.</p>
+<p><strong>Claude Code's agents.</strong> Claude Code labels each request it sends to a gateway, and Merit Order records the labels as
+tags, so Breakdown → Tag shows what each subagent and kind of request cost:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Tag</th>
+<th>From</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>cc_agent</code></td>
+<td><code>x-claude-code-agent-id</code></td>
+<td>The agent (main session or subagent) that sent it</td>
+</tr>
+<tr>
+<td><code>cc_parent_agent</code></td>
+<td><code>x-claude-code-parent-agent-id</code></td>
+<td>The agent that started that subagent</td>
+</tr>
+<tr>
+<td><code>cc_agent_type</code></td>
+<td><code>x-claude-code-agent-type</code></td>
+<td>The subagent's type (<code>Explore</code>, <code>Plan</code>, your own agents' names)</td>
+</tr>
+<tr>
+<td><code>cc_request_class</code></td>
+<td><code>x-claude-code-request-class</code></td>
+<td><code>main</code>, <code>subagent</code>, <code>auxiliary</code> (titles, summaries) or <code>compaction</code></td>
+</tr>
+</tbody>
+</table></div>
+<p>The last two come only with <code>CLAUDE_CODE_GATEWAY_HINT_HEADERS=1</code>, which <code>meritorder setup claude-code</code> sets. A tag of
+the same name in <code>X-MeritOrder-Tags</code> or on the key wins.</p>
+<p><strong>Services built on the gateway.</strong> A service that attributes every call (Blackstart's facade stamps org, project,
+story, run, step and subagent role) sends them as tags and reconciles against the ledger. <code>GET /v1/capabilities</code>
+(any key) says what the gateway offers and how to use it: usage in every response; the cost in
+<code>x-meritorder-cost-usd</code> on replies that aren't streamed, and for a stream, the ledger row found by its
+<code>x-meritorder-request-id</code> or a tag (<code>/v1/reports/requests?tag=name=value</code>); the tags header and its limits;
+<code>x-session-id</code> for cache affinity; the embedding models; and <code>/readyz</code> for health. Listing each route's providers,
+prices and data-retention flags, and enforcing a caller's data policy, aren't offered yet; the answer says so
+(<code>route_listing</code>, <code>data_policy_enforcement</code>: false).</p>
 <p>Eight tags are the gateway's own, and a client or key can't set them: <code>usage</code> (<code>estimated</code>, on a stream that broke off
 before the provider said what it used, <a href="#reporting-estimated-rows">above</a>), <code>compression</code> (<code>rules</code> or <code>model</code>, on requests whose
 tool results were compressed), <code>compaction</code> (<code>responses</code>, on the summary the gateway writes for
@@ -11741,6 +11784,11 @@ that key's role may see.</p></section><section id="decisions"><header class="sec
 <tr>
 <td>69</td>
 <td>People sign in to the console with an account (a password here, or SSO), not a pasted key; keys are for harnesses and services</td>
+<td>Accepted</td>
+</tr>
+<tr>
+<td>70</td>
+<td>Attribution is tags: Claude Code's agent labels recorded as tags, 32 tags a request, and a capabilities answer for services</td>
 <td>Accepted</td>
 </tr>
 </tbody>
@@ -13518,9 +13566,9 @@ Entra or Google and SCIM (decision 8).</p>
   browser never stores it and revoking the key ends the session. A console that kept a key in <code>localStorage</code> from
   before trades it for a session once and deletes it.</li>
 <li><strong>The first admin</strong> of a new install: <code>meritorder accounts create you@example.com --role admin</code> asks for a password,
-  or the setup key (<code>MERITORDER_DEV_KEY</code>, <code>MERITORDER_BOOTSTRAP_ADMIN_KEY</code>) signs in once to invite people. Once an
-  admin with a password exists (or SSO is set up), the console warns admins while a static admin key from the
-  environment or the config file still works.</li>
+  or the setup key (<code>MERITORDER_DEV_KEY</code>, <code>MERITORDER_BOOTSTRAP_ADMIN_KEY</code>) signs in once to invite people. The setup
+  key keeps working until it's taken out of the environment; the docs say to do that outside a laptop. (A console
+  banner warning about it was tried and dropped: on a laptop the dev key is wanted, and the banner was noise.)</li>
 <li><strong>Cross-site requests:</strong> the cookie is sent by the browser on its own, so a request made with it that changes
   something must carry the console's <code>x-meritorder-console</code> header and, when the browser names an <code>Origin</code>, come from
   the gateway's own host. No other site can send that header (the gateway allows no cross-origin requests), and
@@ -13553,7 +13601,30 @@ Two-factor for local accounts in this change: an organization that needs it has 
 already enforces MFA; TOTP or passkeys for local accounts can follow. SAML: most identity providers speak OIDC, which
 the gateway already verifies; SAML can come if someone needs it.</p>
 <p><strong>Revisit if:</strong> people want two-factor on local accounts (TOTP or passkeys), someone needs SAML, sessions should be
-listed and ended per device, or invites should send email.</p></section><section id="how-it-decides"><header class="sec-head"><span class="n">10</span><h2>How it decides</h2></header><p>Every decision Merit Order makes, in the order it makes them, with the exact rules and defaults.
+listed and ended per device, or invites should send email.</p>
+<h3 id="decisions-70-attribution-is-tags-claude-codes-agent-labels-recorded-as-tags-32-tags-a-request-and-a-capabilities-answer-for-services">70. Attribution is tags: Claude Code's agent labels recorded as tags, 32 tags a request, and a capabilities answer for services</h3>
+<p><strong>Why:</strong> Two kinds of caller want cost split finer than a person and a team. Claude Code runs subagents and side
+requests in one session, and people want to know which of them cost what. Services built on the gateway, Blackstart
+first, attribute every call to an org, project, story, run, step and subagent role, keep their own cost ledger and
+reconcile it against ours; Blackstart's facade asks the upstream at connect what it offers (a capability handshake).</p>
+<p><strong>How:</strong> No new mechanism: tags already reach the ledger, every report and every export.
+- Claude Code's labels become tags: <code>x-claude-code-agent-id</code> → <code>cc_agent</code>, <code>x-claude-code-parent-agent-id</code> →
+  <code>cc_parent_agent</code>, and with its hint headers (which <code>meritorder setup claude-code</code> turns on)
+  <code>x-claude-code-agent-type</code> → <code>cc_agent_type</code> and <code>x-claude-code-request-class</code> → <code>cc_request_class</code>. The client's
+  <code>X-MeritOrder-Tags</code> and the key's tags win over them, as the key's win over the client's. Routing already used the
+  request class to cap side requests (<code>routing.request_class_levels</code>); this adds the record.
+- A request may carry 32 tags instead of 10: Blackstart's attribution alone is about eleven fields.
+- <code>GET /v1/capabilities</code> (any key) answers what Blackstart's handshake reads: usage in every response; cost in the
+  <code>x-meritorder-cost-usd</code> header on replies that aren't streamed, and for streams a lookup by request id or tag; the
+  tags header and its limits; <code>x-session-id</code> for cache affinity; the embedding models; <code>/readyz</code>. Route listing with
+  providers, prices and retention, and enforcing a caller's data policy, are stated as not offered, so the facade
+  falls back as its contract says.</p>
+<p><strong>Not chosen:</strong> A separate attribution header or a JSON body field (<code>metadata</code>): a second way to say what tags already
+say, and Blackstart's facade strips caller metadata anyway. Cost for streams in a final SSE event: an extra event can
+break strict clients; the ledger lookup works for every format. Making the <code>cc_</code> tags reserved: a client that wants
+other names for them should be able to set them.</p>
+<p><strong>Revisit if:</strong> Blackstart needs route listing or data-policy enforcement from the gateway (then a routes endpoint with
+providers, prices and retention flags), streamed cost is needed inline, or 32 tags isn't enough.</p></section><section id="how-it-decides"><header class="sec-head"><span class="n">10</span><h2>How it decides</h2></header><p>Every decision Merit Order makes, in the order it makes them, with the exact rules and defaults.
 Each rule names the setting that controls it. The code is the source of truth:
 <code>proxy.py</code> (request pipeline), <code>router.py</code> (model and backend choice), <code>classifier.py</code> (levels), <code>learned.py</code> and
 <code>learned_jobs.py</code> (the opt-in learned router), <code>success.py</code> (expected total cost: the success predictor and the cascade),

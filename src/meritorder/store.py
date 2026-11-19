@@ -505,10 +505,6 @@ class MemoryStore(MemoryBatches, MemoryStored):
     async def get_password(self, user_id: str) -> str | None:
         return self.__dict__.setdefault("passwords", {}).get(user_id)
 
-    async def has_local_admin(self) -> bool:
-        pw = self.__dict__.setdefault("passwords", {})
-        return any(u["role"] == "admin" and not u.get("disabled_at") and u["id"] in pw for u in self.users.values())
-
     async def create_session(self, user_id: str, method: str, expires_at: datetime, key_hash: str | None = None,
                              user_agent: str | None = None) -> str:
         sid, token = new_secret("ses")
@@ -1550,11 +1546,6 @@ class PostgresStore(PostgresBatches, PostgresStored):
     async def get_password(self, user_id: str) -> str | None:
         async with self.pool.acquire() as c:
             return await c.fetchval("SELECT password_hash FROM local_credentials WHERE user_id=$1", user_id)
-
-    async def has_local_admin(self) -> bool:
-        async with self.pool.acquire() as c:
-            return bool(await c.fetchval("""SELECT EXISTS (SELECT 1 FROM users u JOIN local_credentials l ON l.user_id = u.id
-                                            WHERE u.role = 'admin' AND u.disabled_at IS NULL)"""))
 
     async def create_session(self, user_id, method, expires_at, key_hash=None, user_agent=None) -> str:
         sid, token = new_secret("ses")
