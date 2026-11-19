@@ -66,7 +66,7 @@ from .sessions import SESSION_HEADERS, SESSION_TTL, Session, is_task_boundary, p
 from .store import SAVINGS_FIELDS, month_start
 from .tokens import SETTING as TOKENS_SETTING
 from .pauses import SETTING as PAUSES_SETTING
-from . import outcomes
+from . import outcomes, screening
 from .success import SETTING as SUCCESS_SETTING
 from .success import VERSION_SETTING as SUCCESS_VERSION
 from .success import Predictor, SuccessModel, TaskContext, project_hash, repo_hash, track, triage_buckets
@@ -182,7 +182,8 @@ def parse_tags(value: str) -> dict[str, str]:
 # which of the gateway's own requests for judged labels it was (replay or judge), and a summary it wrote for the Responses
 # API's compaction (responses_compact.py), and the exploration arm of a task start and the level it would have had
 # (decision 59), and an escalation inside a task: how many so far and the model it left (decision 62).
-RESERVED_TAGS = ("compression", "compaction", JUDGED_TAG, "explore", "explore_from", "escalation", "escalated_from", "usage")
+RESERVED_TAGS = ("compression", "compaction", JUDGED_TAG, "explore", "explore_from", "escalation", "escalated_from", "usage",
+                 "screen", "screen_untrusted")
 
 
 # Claude Code's own labels (its LLM-gateway headers; the last two with CLAUDE_CODE_GATEWAY_HINT_HEADERS=1, which `meritorder
@@ -1002,6 +1003,8 @@ class Gateway:
                                    "invalid_request_error")
             decision.candidates = within
         tags = {**request_tags(headers, principal), **(gateway_tags or {})}
+        if team.screening.mode == "shadow":
+            tags.update(self.screen(session, body, team.name))
         arm = decision.explore if boundary or decision.explore else session.explore
         if arm and arm.get("arm") != "served" and decision.floor is not None:
             tags["explore"], tags["explore_from"] = arm["arm"], f"{decision.floor.task}:{arm['from']}"  # every turn of the task
@@ -1209,6 +1212,22 @@ class Gateway:
             self.spawn(self.store.mark_route_outcome(session.learn_row, retried=retried, floor_raised=raised))
         if not compacted and not retried:
             self.coding_outcome(session, body, boundary, prompt_tokens, spent, headers)
+
+    def screen(self, session: Session, body: dict, team: str) -> dict[str, str]:
+        """Request screening in shadow mode (screening.py): what's new since the session's last turn, as ledger tags and
+        metrics. Never changes or refuses the request; a failure in it is logged and ignored."""
+        t0 = time.perf_counter()
+        try:
+            msgs = body.get("messages") or []
+            since = session.msg_count if session.msg_count <= len(msgs) else 0  # a rewritten history is read again
+            found, session.untrusted = screening.scan(body, since, session.untrusted)
+        except Exception as e:  # noqa: BLE001
+            log.warning("request screening failed: %s", e)
+            return {}
+        for kind, n in found.items():
+            self.metrics.inc("meritorder_screening_findings_total", {"kind": kind, "team": team}, n)
+        self.metrics.observe("meritorder_screening_seconds", {}, time.perf_counter() - t0)
+        return screening.tags(found, session.untrusted)
 
     def coding_outcome(self, session: Session, body: dict, boundary: bool, prompt_tokens: int, spent: dict | None = None,
                        headers: dict | None = None) -> None:

@@ -74,6 +74,7 @@ What we decided, why, and what would make us revisit it. Newest decisions go at 
 | 68 | Contributions under a CLA: a license grant to Espeto LLC, not an assignment; signed on the pull request through an in-repo workflow | Accepted; replaces the DCO in 55 |
 | 69 | People sign in to the console with an account (a password here, or SSO), not a pasted key; keys are for harnesses and services | Accepted |
 | 70 | Attribution is tags: Claude Code's agent labels recorded as tags, 32 tags a request, and a capabilities answer for services | Accepted |
+| 71 | Request screening starts in shadow, with fixed rules on what agents do, not a detector | Accepted |
 
 **Still open:** an embedding feature source for the learned router (decision 44). Judged labels are built (decision 52),
 opt-in per team, and tested only against mocks.
@@ -2118,3 +2119,32 @@ other names for them should be able to set them.
 
 **Revisit if:** Blackstart needs route listing or data-policy enforcement from the gateway (then a routes endpoint with
 providers, prices and retention flags), streamed cost is needed inline, or 32 tags isn't enough.
+
+## 71. Request screening starts in shadow, with fixed rules on what agents do, not a detector
+
+**Why:** The planned request-security layers (secret scanning, normalization, injection signals, moderation, audit)
+needed an order and a first step. Research on what works against agent attacks (19 Nov 2026) found that prompt-injection
+detectors are weak as gates: the best detector on one benchmark caught 2% of AgentDojo injections at a 1% false-positive
+rate, several flagged about a third of ordinary tool output, and adaptive attacks beat most published defenses more
+than 90% of the time. Character tricks (emoji and Unicode tag smuggling) evaded every guardrail one study tested. What a
+gateway does have is a view of every tool call before the agent's next turn, and real incidents (DNS exfiltration in
+Claude Code, a malicious MCP config write in Cursor, markdown image leaks) have shapes fixed rules can see.
+
+**How:** `screening.py`, per team (`screening.mode`: `off` by default, or `shadow`), on the messages new since the
+session's last turn, as outcomes.py reads them: hidden Unicode (tag characters, bidi overrides, zero-width), keys with
+known prefixes in tool calls and in prompts, shell rules (download piped to a shell, uploads, DNS lookups with command
+substitution, credential reads, config writes), edits to agent, editor, hook, CI and shell configuration, image links
+with data in the model's text, and untrusted content (web fetch and search results) that marks the session so later
+risky calls also count as `after_untrusted`. Findings are ledger tags (`screen`, `screen_untrusted`, reserved) and
+`meritorder_screening_findings_total`; only kinds and counts, never content. Shadow first so its false-alarm rate is
+measured on real traffic before anything blocks.
+
+**Not chosen:** A hosted injection detector in the request path: the numbers above, plus latency and sending every
+tool result to another provider; it may come as a sampled, asynchronous audit. A local classifier (Prompt Guard and
+the like): the owner's rule is no local model in the request path. Entropy rules for secrets: agent traffic is full of
+hashes and base64, so they'd mostly be noise. Blocking from day one: a rule that's wrong blocks real work, and nobody
+yet knows how often these are wrong here. Spotlighting or encoding tool results: it would break agents' verbatim edits
+and the prompt cache.
+
+**Revisit if:** shadow data shows a kind is rarely wrong (then block it, holding back the tool call while text still
+streams), a hosted detector shows good numbers on agent traffic, or encodings (base64, hex) start hiding the shapes.

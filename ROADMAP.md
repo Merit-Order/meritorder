@@ -90,10 +90,13 @@ you send it real traffic.
 - [ ] Load against Redis and Postgres over a real network.
 - [ ] ClickHouse at hundreds of millions of rows, and on ClickHouse Cloud and replicated clusters.
 
-## Next: request security (planned)
+## Next: request security
 
-Planned, not built. Every layer is opt-in per team and starts in shadow mode: it reports what it would do before it
-acts.
+Every layer is opt-in per team and starts in shadow mode: it reports what it would do before it acts. Built so far
+(decision 71, team `screening.mode: shadow`): hidden Unicode, provider-prefixed keys in prompts and tool calls, risky
+tool calls (download piped to a shell, uploads, DNS exfiltration, credential reads, config writes), image links with
+data, and untrusted content (web fetches) marking a session, all recorded as tags and metrics. Next: blocking where
+shadow mode shows few false alarms, then the rest of this list.
 
 1. **Secret scanning on prompts.** API keys, tokens, private keys and database URLs found by pattern and entropy
    rules, then redacted, blocked or alerted on, per team. Only the kind and position are recorded, never the value.

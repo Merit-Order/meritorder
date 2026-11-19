@@ -190,6 +190,46 @@ the proxy's own APIs (`/v1/chat/completions`, `/v1/messages`, …) never accept 
 | `auth.oidc.browser_client_secret_env` | | The environment variable holding that client's secret (`MERITORDER_OIDC_BROWSER_CLIENT_SECRET` in the shipped config) |
 | `auth.oidc.redirect_uri` | the browser's address + `/auth/sso/callback` | Set it if a proxy hides the gateway's public address |
 
+## Request screening
+
+Agents read web pages, run commands and edit files on someone's machine, and the gateway sees every tool call they
+make and every result they send back. Request screening reads those and records what a security team would want to
+know. It's per team (`screening.mode: shadow`, off by default) and, for now, shadow only: **nothing is blocked or
+changed**, so it can run on real traffic to show what it would catch and how often it would be wrong before anything
+acts on it ([decision 71](09-decisions.md#71-request-screening-starts-in-shadow-with-fixed-rules-on-what-agents-do-not-a-detector)).
+
+Each request is read once: only what's new since the session's last turn, so an agent's tool calls and their results
+are each looked at as they arrive. Fixed rules, no model; it takes well under a millisecond
+(`meritorder_screening_seconds`).
+
+| Kind | What it means |
+|---|---|
+| `unicode_tags` | Unicode tag characters: invisible to people, read by models ("ASCII smuggling") |
+| `unicode_bidi`, `unicode_invisible` | Bidirectional overrides; zero-width characters (not the joiner emoji use) |
+| `secret_in_tool_call` | A provider-prefixed key (`sk-ant-`, `ghp_`, `AKIA`, private key blocks and others) in a tool call the model made: it may be sending it somewhere |
+| `secret_in_prompt` | Such a key in text going to the provider: a prompt or a tool result |
+| `pipe_to_shell` | A download piped into a shell or interpreter (`curl … \| sh`) |
+| `upload` | Data sent out: `curl -d/-F/-T`, `wget --post-*`, `nc host port` |
+| `dns_exfil` | `ping`, `dig`, `nslookup`… with command substitution: a known way to leak data through DNS |
+| `credential_read` | Reading `.env`, SSH keys, `~/.aws/credentials`, `.netrc`, `.git-credentials`, kube or Docker config |
+| `config_write` | Writing agent, editor, git-hook, CI workflow or shell start-up configuration (`.claude/settings*.json`, `.mcp.json`, `.cursor/mcp.json`, `.git/hooks/*`, `~/.zshrc`…) |
+| `md_image_url` | An image link with a query string in the model's own text: a way to leak data when a client renders it |
+| `after_untrusted` | One of the risky kinds above after the session read untrusted content: the shape of a prompt injection |
+
+Untrusted content is a result from a web fetch or search tool (`WebFetch`, `web_search`, browser tools, MCP fetch
+tools). Once a session has read some, its requests carry `screen_untrusted: 1`.
+
+**Where it shows.** Each request with findings gets a `screen` ledger tag (the kinds, joined with `+`, for example
+`after_untrusted+credential_read`), so Reports → Breakdown → Tag → `screen` lists them and the Requests view filters
+by `tag=screen`. `meritorder_screening_findings_total` counts each kind by team for alerts. Only kinds and counts are
+kept: never the text, the command, the path or the key. A finding about a tool call lands on the request after it,
+which is when the gateway first sees the call. Clients and keys can't set or clear these tags.
+
+**What it doesn't do yet.** Block or redact anything; detect injections in prose (published detectors miss most
+injections against agents and flag up to a third of ordinary tool output, [decision 71](09-decisions.md));
+read base64 or other encodings; scan responses as they stream. Each is a later step, and blocking will start from what
+shadow mode shows on your traffic.
+
 ## People and teams
 
 | What | Where it's managed |

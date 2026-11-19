@@ -142,6 +142,8 @@ class Session:
     # thread's spend counters when it started ("spend0", "base0"), and its escalations so far ("escalations", "from",
     # "reasons", "charged").
     task: dict | None = None
+    # Request screening (decision 71): the session has read untrusted content (a web fetch or search result).
+    untrusted: bool = False
 
     @property
     def state_id(self) -> str:
