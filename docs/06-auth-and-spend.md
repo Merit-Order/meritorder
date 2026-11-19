@@ -135,9 +135,8 @@ docker compose exec gateway meritorder accounts create pat@example.com --link --
 docker compose exec gateway meritorder accounts reset pat@example.com --url http://localhost:8080          # prints a reset link
 ```
 
-Once an admin with a password exists (or SSO is set up), the console warns admins while a static admin key from
-the environment or the config file still works. Take it out and restart the gateway: anyone who has it can do
-anything.
+A static admin key from the environment or the config file keeps working after that. Outside a laptop, take it out
+once people have their own accounts and restart the gateway: anyone who has it can do anything.
 
 **Sessions.** A session is a random token in an `HttpOnly`, `SameSite=Strict` cookie (`Secure` when the console is
 reached over HTTPS, directly or through a proxy that sets `X-Forwarded-Proto`). The gateway keeps only its hash.

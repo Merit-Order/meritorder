@@ -191,7 +191,7 @@ export type Me = {
 };
 
 /** "password" or "sso": a console session; "key": a session opened with an API key, or a key in the header. */
-export type SignInStatus = { method: "password" | "sso" | "key" | null; has_password: boolean; setup_key_active?: boolean };
+export type SignInStatus = { method: "password" | "sso" | "key" | null; has_password: boolean };
 export type AuthConfig = { oidc: { issuer: string; client_id: string } | null; local?: { enabled: boolean };
   /** The console's SSO button: who people sign in with, and where it starts. Null when browser sign-in isn't set up. */
   sso?: { provider: "google" | "entra" | "oidc"; start: string } | null };

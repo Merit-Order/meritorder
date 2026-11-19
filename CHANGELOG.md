@@ -6,8 +6,11 @@
 - People sign in to the console as themselves: an email address and password kept by Merit Order (invited with a
   one-time link from the People page, or `meritorder accounts create`), with a session in an HttpOnly cookie. API keys
   are for harnesses and services; one typed into the console opens a session tied to it, and the browser no longer
-  stores it. Signing out ends the session on the gateway. Admins see a warning while the setup key still works after
-  a real admin account exists (decision 69). Needs migration 21 (`meritorder migrate`).
+  stores it. Signing out ends the session on the gateway (decision 69). Needs migration 21 (`meritorder migrate`).
+- Claude Code's agent labels are recorded as tags (`cc_agent`, `cc_parent_agent`, `cc_agent_type`, `cc_request_class`),
+  so reports show what each subagent and kind of request cost. A request carries up to 32 tags (was 10).
+  `GET /v1/capabilities` tells a service built on the gateway (Blackstart) how usage, cost, attribution, cache
+  affinity and embeddings work here (decision 70).
 - The console signs in with your organization's SSO (Entra, Google, any OIDC provider) through a "Sign in with …"
   button: the authorization-code flow with PKCE. Register `<gateway>/auth/sso/callback` as a redirect URI; Google needs
   a Web application client (`MERITORDER_OIDC_BROWSER_CLIENT_ID`, `MERITORDER_OIDC_BROWSER_CLIENT_SECRET`).

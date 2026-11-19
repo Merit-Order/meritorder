@@ -1,4 +1,4 @@
-import { Alert, AppShell, Burger, Button, Code, Group, Menu, NavLink, ScrollArea, Text, UnstyledButton, useMantineColorScheme } from "@mantine/core";
+import { AppShell, Burger, Button, Group, Menu, NavLink, ScrollArea, Text, UnstyledButton, useMantineColorScheme } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Api, ApiError, auth } from "./api";
@@ -157,13 +157,6 @@ export default function App() {
       <AppShell.Main>
         {__DEMO__ && <DemoBanner />}
         <div style={{ maxWidth: 1480, margin: "0 auto", paddingTop: 6 }}>
-          {me.data.sign_in?.setup_key_active && (
-            <Alert color="yellow" variant="light" mb="md" title="The setup key still works as an admin">
-              Now that people sign in with their own accounts, take the admin key out of the environment
-              (<Code>MERITORDER_DEV_KEY</Code> or <Code>MERITORDER_BOOTSTRAP_ADMIN_KEY</Code>, or a static admin key in the config file) and restart
-              the gateway. Anyone who has it can do anything here.
-            </Alert>
-          )}
           {active === "dispatch" && <Dispatch api={api} me={me.data} onNavigate={go} />}
           {active === "reports" && <Reports api={api} me={me.data} />}
           {active === "gpus" && <Gpus api={api} me={me.data} />}

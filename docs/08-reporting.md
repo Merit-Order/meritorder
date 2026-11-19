@@ -650,7 +650,30 @@ X-MeritOrder-Tags: project=checkout-rewrite,ticket=PLAT-1234
 
 Tags flow into the ledger and every report can group by them. A tag set on the key wins over the
 same tag in the header, so a client can add tags but can't move spend off a cost center an admin
-assigned.
+assigned. A request carries up to 32 tags (names of up to 64 letters, digits, `_`, `.` or `-`; values up to 200
+characters, without commas); more are dropped.
+
+**Claude Code's agents.** Claude Code labels each request it sends to a gateway, and Merit Order records the labels as
+tags, so Breakdown → Tag shows what each subagent and kind of request cost:
+
+| Tag | From | |
+|---|---|---|
+| `cc_agent` | `x-claude-code-agent-id` | The agent (main session or subagent) that sent it |
+| `cc_parent_agent` | `x-claude-code-parent-agent-id` | The agent that started that subagent |
+| `cc_agent_type` | `x-claude-code-agent-type` | The subagent's type (`Explore`, `Plan`, your own agents' names) |
+| `cc_request_class` | `x-claude-code-request-class` | `main`, `subagent`, `auxiliary` (titles, summaries) or `compaction` |
+
+The last two come only with `CLAUDE_CODE_GATEWAY_HINT_HEADERS=1`, which `meritorder setup claude-code` sets. A tag of
+the same name in `X-MeritOrder-Tags` or on the key wins.
+
+**Services built on the gateway.** A service that attributes every call (Blackstart's facade stamps org, project,
+story, run, step and subagent role) sends them as tags and reconciles against the ledger. `GET /v1/capabilities`
+(any key) says what the gateway offers and how to use it: usage in every response; the cost in
+`x-meritorder-cost-usd` on replies that aren't streamed, and for a stream, the ledger row found by its
+`x-meritorder-request-id` or a tag (`/v1/reports/requests?tag=name=value`); the tags header and its limits;
+`x-session-id` for cache affinity; the embedding models; and `/readyz` for health. Listing each route's providers,
+prices and data-retention flags, and enforcing a caller's data policy, aren't offered yet; the answer says so
+(`route_listing`, `data_policy_enforcement`: false).
 
 Eight tags are the gateway's own, and a client or key can't set them: `usage` (`estimated`, on a stream that broke off
 before the provider said what it used, [above](#estimated-rows)), `compression` (`rules` or `model`, on requests whose
