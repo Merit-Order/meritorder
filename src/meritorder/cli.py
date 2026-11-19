@@ -276,7 +276,7 @@ def cmd_accounts(args) -> None:
     async def link(store, kind: str):
         await store.revoke_user_invites(email)
         expires = datetime.now(UTC) + timedelta(hours=args.hours)
-        _, token = await store.create_invite(email, kind, expires, created_by="cli")
+        _, token = await store.create_invite(email, kind, expires, created_by="cli", creator_role="admin")
         base = (args.url or "").rstrip("/")
         print(f"{'Invite' if kind == 'invite' else 'Password reset'} link for {email}, valid once until {expires:%Y-%m-%d %H:%M} UTC:")
         print(f"{base}/ui/#invite={token}" if base else f"<your gateway>/ui/#invite={token}")

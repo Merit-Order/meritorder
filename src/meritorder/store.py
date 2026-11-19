@@ -499,17 +499,22 @@ class MemoryStore(MemoryBatches, MemoryStored):
 
     # ----------------------------------------------------------------- console sign-in (decision 69)
 
-    async def set_password(self, user_id: str, password_hash: str) -> None:
+    async def set_password(self, user_id: str, password_hash: str, max_role: str | None = None) -> None:
         self.__dict__.setdefault("passwords", {})[user_id] = password_hash
+        self.__dict__.setdefault("password_caps", {})[user_id] = max_role
 
     async def get_password(self, user_id: str) -> str | None:
         return self.__dict__.setdefault("passwords", {}).get(user_id)
 
+    async def get_credential(self, user_id: str) -> dict | None:
+        h = self.__dict__.setdefault("passwords", {}).get(user_id)
+        return {"password_hash": h, "max_role": self.__dict__.setdefault("password_caps", {}).get(user_id)} if h else None
+
     async def create_session(self, user_id: str, method: str, expires_at: datetime, key_hash: str | None = None,
-                             user_agent: str | None = None) -> str:
+                             user_agent: str | None = None, max_role: str | None = None) -> str:
         sid, token = new_secret("ses")
         self.__dict__.setdefault("sessions", {})[hash_key(token)] = {
-            "id": sid, "user_id": user_id, "method": method, "key_hash": key_hash, "user_agent": user_agent,
+            "id": sid, "user_id": user_id, "method": method, "key_hash": key_hash, "user_agent": user_agent, "max_role": max_role,
             "created_at": datetime.now(UTC), "expires_at": expires_at, "revoked_at": None}
         return token
 
@@ -533,10 +538,10 @@ class MemoryStore(MemoryBatches, MemoryStored):
         return n
 
     async def create_invite(self, user_id: str, kind: str, expires_at: datetime, team: str | None = None, role: str | None = None,
-                            created_by: str | None = None) -> tuple[str, str]:
+                            created_by: str | None = None, creator_role: str | None = None) -> tuple[str, str]:
         iid, token = new_secret("inv")
         self.__dict__.setdefault("invites", {})[hash_key(token)] = {
-            "id": iid, "user_id": user_id, "kind": kind, "team": team, "role": role, "created_by": created_by,
+            "id": iid, "user_id": user_id, "kind": kind, "team": team, "role": role, "created_by": created_by, "creator_role": creator_role,
             "created_at": datetime.now(UTC), "expires_at": expires_at, "used_at": None, "revoked_at": None}
         return iid, token
 
@@ -1291,10 +1296,17 @@ CREATE TABLE IF NOT EXISTS invites (
     revoked_at timestamptz
 );
 """
+# Console sign-in hardening (decision 69): who made a link (a team lead's links only set a password capped at the user
+# role), that cap on the password and on sessions it opens.
+SCHEMA_V22 = """
+ALTER TABLE invites ADD COLUMN IF NOT EXISTS creator_role text;
+ALTER TABLE local_credentials ADD COLUMN IF NOT EXISTS max_role text;
+ALTER TABLE console_sessions ADD COLUMN IF NOT EXISTS max_role text;
+"""
 MIGRATIONS = [(1, SCHEMA_V1), (2, SCHEMA_V2), (3, SCHEMA_V3), (4, SCHEMA_V4), (5, SCHEMA_V5), (6, SCHEMA_V6), (7, SCHEMA_V7),
               (8, SCHEMA_V8), (9, SCHEMA_V9), (10, SCHEMA_V10), (11, SCHEMA_V11), (12, SCHEMA_V12), (13, SCHEMA_V13),
               (14, SCHEMA_V14), (15, SCHEMA_V15), (16, SCHEMA_V16), (18, SCHEMA_V18), (19, SCHEMA_V19),
-              (20, SCHEMA_V20), (21, SCHEMA_V21)]
+              (20, SCHEMA_V20), (21, SCHEMA_V21), (22, SCHEMA_V22)]
 EVAL_RUN_FIELDS = ("status", "progress", "scores", "results", "error", "cost", "started_at", "finished_at", "applied_version")
 
 _SUMS_SQL = ", ".join(f"coalesce(sum({f}), 0) AS {f}" for f in SUM_FIELDS)
@@ -1537,21 +1549,27 @@ class PostgresStore(PostgresBatches, PostgresStored):
 
     # ----------------------------------------------------------------- console sign-in (decision 69)
 
-    async def set_password(self, user_id: str, password_hash: str) -> None:
+    async def set_password(self, user_id: str, password_hash: str, max_role: str | None = None) -> None:
         async with self.pool.acquire() as c:
-            await c.execute("""INSERT INTO local_credentials (user_id, password_hash) VALUES ($1,$2)
-                               ON CONFLICT (user_id) DO UPDATE SET password_hash=EXCLUDED.password_hash, updated_at=now()""",
-                            user_id, password_hash)
+            await c.execute("""INSERT INTO local_credentials (user_id, password_hash, max_role) VALUES ($1,$2,$3)
+                               ON CONFLICT (user_id) DO UPDATE SET password_hash=EXCLUDED.password_hash, max_role=EXCLUDED.max_role,
+                               updated_at=now()""", user_id, password_hash, max_role)
+
+    async def get_credential(self, user_id: str) -> dict | None:
+        async with self.pool.acquire() as c:
+            row = await c.fetchrow("SELECT password_hash, max_role FROM local_credentials WHERE user_id=$1", user_id)
+        return dict(row) if row else None
 
     async def get_password(self, user_id: str) -> str | None:
         async with self.pool.acquire() as c:
             return await c.fetchval("SELECT password_hash FROM local_credentials WHERE user_id=$1", user_id)
 
-    async def create_session(self, user_id, method, expires_at, key_hash=None, user_agent=None) -> str:
+    async def create_session(self, user_id, method, expires_at, key_hash=None, user_agent=None, max_role=None) -> str:
         sid, token = new_secret("ses")
         async with self.pool.acquire() as c:
-            await c.execute("""INSERT INTO console_sessions (id, token_hash, user_id, method, key_hash, user_agent, expires_at)
-                               VALUES ($1,$2,$3,$4,$5,$6,$7)""", sid, hash_key(token), user_id, method, key_hash, user_agent, expires_at)
+            await c.execute("""INSERT INTO console_sessions (id, token_hash, user_id, method, key_hash, user_agent, expires_at, max_role)
+                               VALUES ($1,$2,$3,$4,$5,$6,$7,$8)""", sid, hash_key(token), user_id, method, key_hash, user_agent, expires_at,
+                            max_role)
         return token
 
     async def find_session(self, token_hash: str) -> dict | None:
@@ -1570,11 +1588,12 @@ class PostgresStore(PostgresBatches, PostgresStored):
                                      WHERE user_id=$1 AND revoked_at IS NULL AND token_hash IS DISTINCT FROM $2""", user_id, keep)
         return int(res.split()[-1])
 
-    async def create_invite(self, user_id, kind, expires_at, team=None, role=None, created_by=None) -> tuple[str, str]:
+    async def create_invite(self, user_id, kind, expires_at, team=None, role=None, created_by=None, creator_role=None) -> tuple[str, str]:
         iid, token = new_secret("inv")
         async with self.pool.acquire() as c:
-            await c.execute("""INSERT INTO invites (id, token_hash, user_id, kind, team, role, created_by, expires_at)
-                               VALUES ($1,$2,$3,$4,$5,$6,$7,$8)""", iid, hash_key(token), user_id, kind, team, role, created_by, expires_at)
+            await c.execute("""INSERT INTO invites (id, token_hash, user_id, kind, team, role, created_by, expires_at, creator_role)
+                               VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)""", iid, hash_key(token), user_id, kind, team, role, created_by,
+                            expires_at, creator_role)
         return iid, token
 
     async def find_invite(self, token_hash: str) -> dict | None:

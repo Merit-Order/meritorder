@@ -23,7 +23,8 @@ from .store import hash_key
 log = logging.getLogger("meritorder.auth")
 
 ROLE_RANK = {"user": 0, "team_lead": 1, "finance": 2, "admin": 3}
-SESSION_COOKIE = "mo_session"
+SESSION_COOKIE = "mo_session"  # over plain HTTP (a laptop)
+SECURE_SESSION_COOKIE = "__Host-mo_session"  # over HTTPS: the prefix keeps another subdomain from setting one for this host
 CSRF_HEADER = "x-meritorder-console"  # the console sends it on every call; a cross-site form or link can't
 SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
 
@@ -72,6 +73,22 @@ def check_same_origin(headers: dict[str, str]) -> None:
             raise AuthError(403, "this request came from another site")
     elif origin == "null":
         raise AuthError(403, "this request came from another site")
+
+
+def secure_request(request) -> bool:
+    """Whether the browser reached the gateway over HTTPS (directly or through a proxy that says so)."""
+    proto = request.headers.get("x-forwarded-proto", "").split(",")[0].strip().lower()
+    return request.url.scheme == "https" or proto == "https"
+
+
+def session_cookie_name(request) -> str:
+    return SECURE_SESSION_COOKIE if secure_request(request) else SESSION_COOKIE
+
+
+def session_token(request) -> str | None:
+    """The console session's token from this request's cookie: over HTTPS only the __Host- one, which no other host can
+    set, so a sibling subdomain can't sign a browser in to an account of its choosing."""
+    return request.cookies.get(session_cookie_name(request))
 
 
 def bearer_token(headers: dict[str, str]) -> str | None:
@@ -274,7 +291,7 @@ class Authenticator:
         headers = {k.lower(): v for k, v in request.headers.items()}
         if bearer_token(headers):
             return await self.authenticate(headers)
-        token = request.cookies.get(SESSION_COOKIE)
+        token = session_token(request)
         if not token:
             raise AuthError(401, "sign in to the console, or send 'Authorization: Bearer <key>'")
         if request.method not in SAFE_METHODS:
@@ -300,7 +317,9 @@ class Authenticator:
                 raise AuthError(401, "your console session has ended; sign in again")
             if user.get("disabled_at"):
                 raise AuthError(401, "this account is disabled; contact your Merit Order admin")
-            principal = Principal(user_id=user["id"], team=user["team"], role=user["role"], budget_usd_month=user.get("budget_usd_month"))
+            # A session opened with a password a team lead's link set acts at most as that password's cap (decision 69).
+            role = lower_role(user["role"], row["max_role"]) if row.get("max_role") else user["role"]
+            principal = Principal(user_id=user["id"], team=user["team"], role=role, budget_usd_month=user.get("budget_usd_month"))
         principal = replace(principal, session=row["method"])  # a copy: the key's own cache entry stays a key's
         self._sessions[h] = (principal, min(time.time() + 60, row["expires_at"].timestamp()))
         return principal

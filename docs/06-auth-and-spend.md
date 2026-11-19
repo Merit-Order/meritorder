@@ -138,22 +138,35 @@ docker compose exec gateway meritorder accounts reset pat@example.com --url http
 A static admin key from the environment or the config file keeps working after that. Outside a laptop, take it out
 once people have their own accounts and restart the gateway: anyone who has it can do anything.
 
-**Sessions.** A session is a random token in an `HttpOnly`, `SameSite=Strict` cookie (`Secure` when the console is
-reached over HTTPS, directly or through a proxy that sets `X-Forwarded-Proto`). The gateway keeps only its hash.
+**Sessions.** A session is a random token in an `HttpOnly`, `SameSite=Strict` cookie: `mo_session` over plain HTTP,
+and over HTTPS (directly or through a proxy that sets `X-Forwarded-Proto`) `__Host-mo_session`, marked `Secure`, which
+no other subdomain can set, so a sibling site can't sign your browser in to an account of its choosing. The gateway keeps only its hash.
 It lasts `auth.session_hours` (12 by default). Like a key, it acts as the person's record as it is now, at most a
 minute old, so moving, demoting or disabling someone applies to their console sessions too. Signing out ends the
 session on the gateway, not only in that browser. Changing your password (account menu → Change password) ends your
 other sessions; a reset link ends all of them.
 
 **Invite and reset links** work once, for `auth.local.invite_hours` (72 by default). Each person has at most one open
-link; making a new one withdraws the old. Merit Order doesn't send email: the person who makes the link sends it.
-Who may make one follows the rule for keys: an admin for anyone, a team lead for new people and people on their own
-team with the user role. Open links are listed on the People page, where they can be withdrawn.
+link; making a new one withdraws the old, and so does changing their team, role or access. Merit Order doesn't send
+email: the person who makes the link sends it. Who may make one follows the rule for keys: an admin for anyone, a team
+lead for new people and people on their own team with the user role. A password set through a team lead's link acts at
+most as a user: if the person is promoted later, it stops signing in and they need an admin's link, so whoever chose
+it can't follow them up. Open links are listed on the People page, where they can be withdrawn. The link's token goes
+in the request body, never a URL, so access logs don't record it.
+
+**Passwords are only for people invited by email.** Someone who signs in with SSO, or who only has a key, can't be
+given one (People → Password link refuses, and so does inviting an address an SSO person already has), so removing
+them in the identity provider or revoking their key is enough. Inviting someone by email in an organization that also
+has SSO gives them a separate, local account; set `auth.local.enabled: false` where that shouldn't happen.
 
 **Passwords** need at least 12 characters (`auth.local.min_password_length`) and no particular mix of characters:
-length is what makes a password hard to guess. They're kept as scrypt hashes. After 10 failed sign-ins for one
-address in 15 minutes, or 30 from one client in a minute, the gateway answers 429 for a while, and a wrong address
-gets the same answer as a wrong password.
+length is what makes a password hard to guess. They're kept as scrypt hashes. Each attempt counts before it's checked
+(a right one is taken back off), so after 10 failed sign-ins for one address in 15 minutes, or 30 from one client in a
+minute, the gateway answers 429 until the window ends, however many attempts arrive at once. A wrong address gets the
+same answer as a wrong password. The per-address limit means anyone can lock a known address out for 15 minutes;
+that's the trade for stopping guessing. Behind a proxy, the gateway sees every client as the proxy's address unless
+the proxy is trusted (`FORWARDED_ALLOW_IPS`, [07](07-deployment.md)): then the per-client limit applies to everyone at
+once. Resetting or changing a password also revokes the keys `meritorder login` got with the old one.
 
 **Keys in the console.** "Sign in with an API key instead" still works: the gateway checks the key and opens a
 session tied to it, so the browser never stores the key, and revoking the key ends the session. A console that kept

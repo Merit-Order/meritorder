@@ -11,14 +11,18 @@ the console still accepts one, but exchanges it for a session instead of keeping
 * GET  /auth/sso/start                   to the organization's sign-in page (OIDC authorization code with PKCE)
 * GET  /auth/sso/callback                back from it: a session, then the console
 * POST /auth/exchange (email, password)  a short-lived key for `meritorder login` on a gateway with local accounts
-* GET  /auth/invite/{token}              who an invite or password-reset link is for
-* POST /auth/invite/{token}              set a password with it, and sign in
+* POST /auth/invite/info                 who an invite or password-reset link is for (the token in the body, never the URL)
+* POST /auth/invite/accept               set a password with it, and sign in
 * GET  /v1/admin/invites                 open invite and reset links (admin: all; team lead: their team's)
 * POST /v1/admin/invites                 invite someone (a one-time link, shown once)
 * DELETE /v1/admin/invites/{id}          withdraw one
 * POST /v1/admin/users/{user_id}/reset   a password-reset link for someone
 
 Passwords are stored as scrypt hashes (no extra dependency), session cookies and links only as SHA-256 hashes.
+
+Passwords are only for accounts invited by email (their id is the address). People who sign in with SSO or have only a
+key never get one, so leaving the identity provider or losing a key ends their access. A link a team lead makes sets a
+password that acts at most as a user: promoting the person later doesn't promote whoever chose that password.
 """
 
 from __future__ import annotations
@@ -30,6 +34,7 @@ import hmac
 import logging
 import re
 import secrets
+import weakref
 from datetime import UTC, datetime, timedelta
 
 from urllib.parse import quote, urlencode
@@ -39,7 +44,8 @@ from fastapi import APIRouter, HTTPException, Request, Response
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field
 
-from .auth import ROLE_RANK, SESSION_COOKIE, AuthError, Principal, check_same_origin, user_id_of
+from .auth import (ROLE_RANK, SECURE_SESSION_COOKIE, SESSION_COOKIE, AuthError, Principal, check_same_origin, lower_role,
+                   secure_request, session_cookie_name, session_token, user_id_of)
 from .config import Role
 from .store import hash_key
 
@@ -49,7 +55,9 @@ log = logging.getLogger("meritorder.accounts")
 # so a burst of sign-ins can't take the gateway's memory.
 SCRYPT_N, SCRYPT_R, SCRYPT_P = 2**17, 8, 1
 MAX_PASSWORD = 1024
-_hashing = asyncio.Semaphore(4)
+_hashing: weakref.WeakKeyDictionary = weakref.WeakKeyDictionary()  # four hashing slots per event loop
+MAX_WAITING = 64  # sign-ins waiting for a hashing slot; past this the gateway answers 503 rather than queue without end
+_waiting = 0
 EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 # Failed sign-ins: at most this many per address in 15 minutes, and per client address in a minute.
 LOGIN_TRIES_PER_ACCOUNT, LOGIN_TRIES_PER_IP = 10, 30
@@ -66,7 +74,10 @@ def hash_password_sync(password: str) -> str:
     return f"scrypt${SCRYPT_N}${SCRYPT_R}${SCRYPT_P}${b64(salt)}${b64(digest)}"
 
 
-def verify_password_sync(password: str, stored: str) -> bool:
+def verify_password_sync(password: str, stored: str | None) -> bool:
+    if stored is None:
+        verify_password_sync(password, _dummy())  # an unknown address takes as long as a wrong password
+        return False
     try:
         scheme, n, r, p, salt, digest = stored.split("$")
         if scheme != "scrypt":
@@ -87,15 +98,33 @@ def _dummy() -> str:
     return _DUMMY
 
 
+async def _hash_slot(fn, *args):
+    """Run a hash in a thread, at most four at a time; refuse rather than queue without end."""
+    global _waiting
+    if _waiting >= MAX_WAITING:
+        raise HTTPException(503, "too many sign-ins at once; try again in a moment", headers={"retry-after": "5"})
+    _waiting += 1
+    loop = asyncio.get_running_loop()
+    slots = _hashing.get(loop) or _hashing.setdefault(loop, asyncio.Semaphore(4))
+    try:
+        async with slots:
+            return await asyncio.to_thread(fn, *args)
+    finally:
+        _waiting -= 1
+
+
 async def hash_password(password: str) -> str:
-    async with _hashing:
-        return await asyncio.to_thread(hash_password_sync, password)
+    return await _hash_slot(hash_password_sync, password)
 
 
 async def verify_password(password: str, stored: str | None) -> bool:
-    async with _hashing:
-        ok = await asyncio.to_thread(verify_password_sync, password, stored or _dummy())
-    return ok and stored is not None
+    return await _hash_slot(verify_password_sync, password, stored)
+
+
+def local_account(user_id: str) -> bool:
+    """An account that may have a password: one invited by email, whose id is the address. SSO people (an IdP's id) and
+    key-only people (a name from the config file) never get one."""
+    return bool(EMAIL.match(user_id or ""))
 
 
 def password_problem(password: str, email: str | None, minimum: int) -> str | None:
@@ -109,19 +138,20 @@ def password_problem(password: str, email: str | None, minimum: int) -> str | No
     return None
 
 
-def secure_request(request: Request) -> bool:
-    """Whether the browser reached the gateway over HTTPS (directly or through a proxy that says so)."""
-    proto = request.headers.get("x-forwarded-proto", "").split(",")[0].strip().lower()
-    return request.url.scheme == "https" or proto == "https"
-
-
 def set_session_cookie(request: Request, response: Response, token: str, hours: int) -> None:
-    response.set_cookie(SESSION_COOKIE, token, max_age=hours * 3600, httponly=True, samesite="strict",
+    response.set_cookie(session_cookie_name(request), token, max_age=hours * 3600, httponly=True, samesite="strict",
                         secure=secure_request(request), path="/")
 
 
 def clear_session_cookie(request: Request, response: Response) -> None:
-    response.delete_cookie(SESSION_COOKIE, path="/", httponly=True, samesite="strict", secure=secure_request(request))
+    for name in (SESSION_COOKIE, SECURE_SESSION_COOKIE):
+        response.delete_cookie(name, path="/", httponly=True, samesite="strict", secure=name == SECURE_SESSION_COOKIE)
+
+
+def sso_code(value: str) -> str:
+    """An OAuth error code as it may be shown (``access_denied``): letters and underscores only. The provider's free text
+    never reaches the console, so a crafted link can't put words of its choosing on the sign-in page."""
+    return re.sub(r"[^a-z_]", "", (value or "").lower())[:40] or "unknown_error"
 
 
 SSO_COOKIE = "mo_sso"  # ties the identity provider's answer to the browser that asked (SameSite=Lax: it comes back by redirect)
@@ -150,7 +180,11 @@ class Login(BaseModel):
     api_key: str | None = None
 
 
-class SetPassword(BaseModel):
+class InviteToken(BaseModel):
+    token: str = Field(max_length=200)
+
+
+class SetPassword(InviteToken):
     password: str = Field(max_length=MAX_PASSWORD)
     name: str | None = Field(default=None, max_length=200)
 
@@ -171,10 +205,10 @@ def _iso(d: datetime | None) -> str | None:
 
 
 async def open_session(gateway, request: Request, response: Response, user_id: str, method: str,
-                       key_hash: str | None = None) -> str:
+                       key_hash: str | None = None, max_role: str | None = None) -> str:
     hours = gateway.cfg.auth.session_hours
     token = await gateway.store.create_session(user_id, method, datetime.now(UTC) + timedelta(hours=hours), key_hash=key_hash,
-                                               user_agent=(request.headers.get("user-agent") or "")[:300] or None)
+                                               user_agent=(request.headers.get("user-agent") or "")[:300] or None, max_role=max_role)
     set_session_cookie(request, response, token, hours)
     return token
 
@@ -209,20 +243,6 @@ def build_router(gateway) -> APIRouter:
         if gateway.store.kind != "postgres":
             raise HTTPException(409, "accounts need Postgres (set MERITORDER_DATABASE_URL); in memory they'd be gone at the next restart")
 
-    async def too_many(request: Request, email: str) -> None:
-        ip = request.client.host if request.client else "unknown"
-        if await gateway.state.rate_hit(f"login-ip:{ip}", 60, 0) >= LOGIN_TRIES_PER_IP or \
-                await gateway.state.rate_hit(f"login:{email}", 900, 0) >= LOGIN_TRIES_PER_ACCOUNT:
-            raise HTTPException(429, "too many failed sign-ins; wait a few minutes and try again", headers={"retry-after": "300"})
-
-    async def failed(request: Request, email: str) -> None:
-        ip = request.client.host if request.client else "unknown"
-        await gateway.state.rate_hit(f"login-ip:{ip}", 60)
-        await gateway.state.rate_hit(f"login:{email}", 900)
-
-    async def find_local(email: str) -> dict | None:
-        return await gateway.store.get_user(email) or await gateway.store.find_user_by_email(email)
-
     # ------------------------------------------------------------------ sign in and out
 
     @router.get("/auth/session")
@@ -232,7 +252,7 @@ def build_router(gateway) -> APIRouter:
         try:
             p = await gateway.authn.authenticate_console(request)
         except AuthError as e:
-            return {"signed_in": False, "reason": e.message if request.cookies.get(SESSION_COOKIE) else None}
+            return {"signed_in": False, "reason": e.message if session_token(request) else None}
         return {"signed_in": True, "user": p.user_id, "team": p.team, "role": p.role, "method": p.session or "key"}
 
     @router.post("/auth/login")
@@ -249,25 +269,16 @@ def build_router(gateway) -> APIRouter:
                 raise HTTPException(400, "sign in with a Merit Order key (mo-…) here, not an identity token")
             await open_session(gateway, request, response, p.user_id, "key", key_hash=hash_key(body.api_key.strip()))
             return {"user": p.user_id, "team": p.team, "role": p.role, "method": "key"}
-        require_local()
-        email = (body.email or "").strip().lower()
-        if not email or not body.password:
+        if not (body.email or "").strip() or not body.password:
             raise HTTPException(400, "enter your email address and password")
-        await too_many(request, email)
-        user = await find_local(email)
-        stored = await gateway.store.get_password(user["id"]) if user else None
-        if not await verify_password(body.password, stored) or not user:
-            await failed(request, email)
-            raise HTTPException(401, "wrong email address or password")
-        if user.get("disabled_at"):
-            raise HTTPException(403, "this account is disabled; contact your Merit Order admin")
-        await open_session(gateway, request, response, user["id"], "password")
+        user, cap = await password_sign_in(gateway, request, body.email or "", body.password)
+        await open_session(gateway, request, response, user["id"], "password", max_role=cap)
         return {"user": user["id"], "team": user["team"], "role": user["role"], "method": "password"}
 
     @router.post("/auth/logout")
     async def logout(request: Request, response: Response):
         same_origin(request)
-        token = request.cookies.get(SESSION_COOKIE)
+        token = session_token(request)
         if token:
             await gateway.store.revoke_session(hash_key(token))
             gateway.authn.forget_session(token)
@@ -286,9 +297,10 @@ def build_router(gateway) -> APIRouter:
         user = await gateway.store.get_user(p.user_id) or {}
         if why := password_problem(body.new, user.get("email") or p.user_id, local_cfg().min_password_length):
             raise HTTPException(422, why)
-        await gateway.store.set_password(p.user_id, await hash_password(body.new))
-        token = request.cookies.get(SESSION_COOKIE)
+        await gateway.store.set_password(p.user_id, await hash_password(body.new))  # chosen by the person: no cap
+        token = session_token(request)
         ended = await gateway.store.revoke_user_sessions(p.user_id, keep=hash_key(token) if token else None)
+        await revoke_password_keys(gateway, p.user_id)
         gateway.authn.forget_user(p.user_id)
         return {"changed": True, "other_sessions_ended": ended}
 
@@ -310,7 +322,8 @@ def build_router(gateway) -> APIRouter:
         try:
             disc = await gateway.authn.oidc.discovery()
         except Exception as e:  # noqa: BLE001 (the provider's discovery document: unreachable, or not JSON)
-            return sso_failed(f"couldn't reach the identity provider: {e}")
+            log.warning("console SSO: the identity provider's discovery document: %s", e)
+            return sso_failed("couldn't reach the identity provider")
         state, nonce, verifier, binding = (secrets.token_urlsafe(32) for _ in range(4))
         redirect_uri = o.redirect_uri or f"{public_base(request)}/auth/sso/callback"
         await gateway.state.set_json(f"sso:{hash_key(state)}", {"verifier": verifier, "nonce": nonce, "binding": hash_key(binding),
@@ -331,7 +344,7 @@ def build_router(gateway) -> APIRouter:
         if not sso_ready(gateway):
             return sso_failed("single sign-on isn't set up on this gateway")
         if error:
-            return sso_failed(error_description or error)
+            return sso_failed(f"the identity provider refused the sign-in ({sso_code(error)})")
         key = f"sso:{hash_key(state)}"
         pending = await gateway.state.get_json(key) if state else None
         if not pending or pending.get("used"):
@@ -352,9 +365,11 @@ def build_router(gateway) -> APIRouter:
             async with httpx.AsyncClient(timeout=20) as c:
                 tok = (await c.post(disc["token_endpoint"], data=form, headers={"accept": "application/json"})).json()
         except Exception as e:  # noqa: BLE001
-            return sso_failed(f"couldn't reach the identity provider: {e}")
+            log.warning("console SSO: the identity provider's token endpoint: %s", e)
+            return sso_failed("couldn't reach the identity provider")
         if "id_token" not in tok:
-            return sso_failed(f"the identity provider refused: {tok.get('error_description') or tok.get('error') or 'no ID token'}")
+            log.warning("console SSO: the token endpoint answered without an ID token: %s %s", tok.get("error"), tok.get("error_description"))
+            return sso_failed(f"the identity provider refused the sign-in ({sso_code(tok.get('error') or 'no_id_token')})")
         try:
             claims = await gateway.authn.oidc.verify(tok["id_token"], audience=client_id)
             if not hmac.compare_digest(str(claims.get("nonce") or ""), pending["nonce"]):
@@ -381,43 +396,56 @@ def build_router(gateway) -> APIRouter:
             raise HTTPException(410, "this link has expired; ask your Merit Order admin for a new one")
         return h, inv
 
-    @router.get("/auth/invite/{token}")
-    async def invite_info(token: str):
+    @router.post("/auth/invite/info")
+    async def invite_info(request: Request, body: InviteToken):
+        same_origin(request)
         require_local()
-        _, inv = await live_invite(token)
+        _, inv = await live_invite(body.token)
         user = await gateway.store.get_user(inv["user_id"]) or {}
         return {"kind": inv["kind"], "email": user.get("email") or inv["user_id"], "team": user.get("team"), "role": user.get("role"),
                 "expires_at": _iso(inv["expires_at"]), "min_password_length": local_cfg().min_password_length}
 
-    @router.post("/auth/invite/{token}")
-    async def accept_invite(token: str, request: Request, response: Response, body: SetPassword):
+    @router.post("/auth/invite/accept")
+    async def accept_invite(request: Request, response: Response, body: SetPassword):
         same_origin(request)
         require_local()
-        h, inv = await live_invite(token)
+        h, inv = await live_invite(body.token)
         user = await gateway.store.get_user(inv["user_id"])
-        if not user:
+        if not user or not local_account(user["id"]):
             raise HTTPException(404, "this link's account no longer exists; ask your Merit Order admin")
         if user.get("disabled_at"):
             raise HTTPException(403, "this account is disabled; contact your Merit Order admin")
+        # A team lead's link sets a password for someone on their team with the user role, and only while that's still so;
+        # the password then acts at most as a user, whatever the person becomes later.
+        cap = None
+        if inv.get("creator_role") != "admin":
+            if user["team"] != inv.get("team") or ROLE_RANK.get(user["role"], 0) > ROLE_RANK["user"]:
+                raise HTTPException(403, "this link was made by a team lead, and this account's team or role has changed since; "
+                                         "ask an admin for a new link")
+            cap = "user"
         if why := password_problem(body.password, user.get("email") or user["id"], local_cfg().min_password_length):
             raise HTTPException(422, why)
         hashed = await hash_password(body.password)
         if not await gateway.store.use_invite(h):  # someone used it a moment ago
             raise HTTPException(410, "this link has already been used; sign in, or ask your admin for a new one")
-        await gateway.store.set_password(user["id"], hashed)
+        await gateway.store.set_password(user["id"], hashed, max_role=cap)
         if body.name and body.name.strip():
             await gateway.store.upsert_user(user["id"], user["team"], user["role"], display_name=body.name.strip(), source="ensure")
-        await gateway.store.revoke_user_sessions(user["id"])  # a reset ends sessions opened with the old password
+        # A reset ends what the old password opened: sessions, and keys from `meritorder login`.
+        await gateway.store.revoke_user_sessions(user["id"])
+        await revoke_password_keys(gateway, user["id"])
         gateway.authn.forget_user(user["id"])
-        await open_session(gateway, request, response, user["id"], "password")
-        return {"user": user["id"], "team": user["team"], "role": user["role"], "method": "password"}
+        await open_session(gateway, request, response, user["id"], "password", max_role=cap)
+        role = lower_role(user["role"], cap) if cap else user["role"]
+        return {"user": user["id"], "team": user["team"], "role": role, "method": "password"}
 
     def may_manage(p: Principal, team: str, role: str) -> None:
-        """The same rule as for keys: a team lead invites and resets only people on their own team with the user role."""
+        """The same rule as for keys: a team lead invites and resets only people on their own team with the user role. The
+        refusal doesn't say the person's team or role, so a lead can't learn them for people outside their team."""
         if p.role == "admin":
             return
         if team != p.team or ROLE_RANK.get(role, 0) > ROLE_RANK["user"]:
-            raise HTTPException(403, f"that person is on team '{team}' with role '{role}'; only an admin can do this for them")
+            raise HTTPException(403, "only an admin can do this for them")
 
     def invite_out(inv: dict, token: str | None = None) -> dict:
         out = {"id": inv["id"], "user": inv["user_id"], "kind": inv["kind"], "team": inv.get("team"), "role": inv.get("role"),
@@ -443,6 +471,11 @@ def build_router(gateway) -> APIRouter:
             raise HTTPException(422, "that isn't an email address")
         team = body.team or p.team
         existing = await gateway.store.get_user(email)
+        other = await gateway.store.find_user_by_email(email)
+        if other and other["id"] != email:  # someone who signs in with SSO (or has a key) already has this address
+            if p.role != "admin" and other["team"] != p.team:
+                raise HTTPException(403, "only an admin can do this for them")
+            raise HTTPException(409, "someone with this address already signs in with SSO or a key; they don't need a password here")
         if existing:
             may_manage(p, existing["team"], existing["role"])
             team, role = existing["team"], existing["role"]
@@ -454,7 +487,8 @@ def build_router(gateway) -> APIRouter:
         await gateway.store.revoke_user_invites(email)  # one open link per person
         expires = datetime.now(UTC) + timedelta(hours=local_cfg().invite_hours)
         kind = "reset" if existing and await gateway.store.get_password(email) else "invite"
-        iid, token = await gateway.store.create_invite(email, kind, expires, team=team, role=role, created_by=p.user_id)
+        iid, token = await gateway.store.create_invite(email, kind, expires, team=team, role=role, created_by=p.user_id,
+                                                       creator_role=p.role)
         log.info("%s created a %s link for %s", p.user_id, kind, email)
         return invite_out({"id": iid, "user_id": email, "kind": kind, "team": team, "role": role, "created_by": p.user_id,
                            "created_at": datetime.now(UTC), "expires_at": expires}, token)
@@ -478,10 +512,13 @@ def build_router(gateway) -> APIRouter:
         if not user:
             raise HTTPException(404, "no such person")
         may_manage(p, user["team"], user["role"])
+        if not local_account(user_id):
+            raise HTTPException(409, "they sign in with SSO or a key; passwords are only for people invited by email address")
         await gateway.store.revoke_user_invites(user_id)
         expires = datetime.now(UTC) + timedelta(hours=local_cfg().invite_hours)
         kind = "reset" if await gateway.store.get_password(user_id) else "invite"
-        iid, token = await gateway.store.create_invite(user_id, kind, expires, team=user["team"], role=user["role"], created_by=p.user_id)
+        iid, token = await gateway.store.create_invite(user_id, kind, expires, team=user["team"], role=user["role"], created_by=p.user_id,
+                                                       creator_role=p.role)
         log.info("%s created a %s link for %s", p.user_id, kind, user_id)
         return invite_out({"id": iid, "user_id": user_id, "kind": kind, "team": user["team"], "role": user["role"],
                            "created_by": p.user_id, "created_at": datetime.now(UTC), "expires_at": expires}, token)
@@ -495,25 +532,47 @@ async def sign_in_status(gateway, p: Principal) -> dict:
             "has_password": await gateway.store.get_password(p.user_id) is not None}
 
 
+async def revoke_password_keys(gateway, user_id: str) -> None:
+    """The keys `meritorder login` got with a password: ended when the password is reset or changed, so whoever knew the
+    old one keeps nothing."""
+    for k in await gateway.store.list_keys(user_id=user_id):
+        if k.get("name") == "password login" and not k.get("revoked_at") and await gateway.store.revoke_key(k["id"]):
+            gateway.authn.forget(k["id"])
+
+
+async def password_sign_in(gateway, request: Request, email: str, password: str) -> tuple[dict, str | None]:
+    """An email address and password, checked: the person's record and the password's role cap (or None). Each attempt is
+    counted before the password is checked, so attempts sent at once can't all slip under the limit; a right password
+    takes its own attempt back off."""
+    if not gateway.cfg.auth.local.enabled:
+        raise HTTPException(403, "password sign-in is turned off on this gateway (auth.local.enabled); sign in with SSO")
+    email = email.strip().lower()
+    ip = request.client.host if request.client else "unknown"
+    by_account = await gateway.state.rate_hit(f"login:{email}", 900)
+    by_ip = await gateway.state.rate_hit(f"login-ip:{ip}", 60)
+    if by_account > LOGIN_TRIES_PER_ACCOUNT or by_ip > LOGIN_TRIES_PER_IP:
+        raise HTTPException(429, "too many failed sign-ins; wait a few minutes and try again", headers={"retry-after": "300"})
+    user = await gateway.store.get_user(email) if local_account(email) else None
+    cred = await gateway.store.get_credential(user["id"]) if user else None
+    if not await verify_password(password, cred["password_hash"] if cred else None) or not user:
+        raise HTTPException(401, "wrong email address or password")
+    await gateway.state.rate_hit(f"login:{email}", 900, -1)
+    await gateway.state.rate_hit(f"login-ip:{ip}", 60, -1)
+    if user.get("disabled_at"):
+        raise HTTPException(403, "this account is disabled; contact your Merit Order admin")
+    cap = cred.get("max_role")
+    if cap and ROLE_RANK.get(user["role"], 0) > ROLE_RANK.get(cap, 0):
+        raise HTTPException(403, "your role has changed since a team lead's link set this password; ask an admin for a new "
+                                 "password link")
+    return user, cap
+
+
 async def password_key(gateway, request: Request, email: str, password: str) -> dict:
     """`meritorder login` on a gateway with local accounts: the password signs in, and the person gets a short-lived key
     (``auth.oidc.key_ttl_days``, or 30 days) for their harnesses, as with SSO's device login."""
-    if not gateway.cfg.auth.local.enabled:
-        raise HTTPException(403, "password sign-in is turned off on this gateway (auth.local.enabled); use `meritorder login` with SSO")
-    email = email.strip().lower()
-    ip = request.client.host if request.client else "unknown"
-    if await gateway.state.rate_hit(f"login-ip:{ip}", 60, 0) >= LOGIN_TRIES_PER_IP or \
-            await gateway.state.rate_hit(f"login:{email}", 900, 0) >= LOGIN_TRIES_PER_ACCOUNT:
-        raise HTTPException(429, "too many failed sign-ins; wait a few minutes and try again", headers={"retry-after": "300"})
-    user = await gateway.store.get_user(email) or await gateway.store.find_user_by_email(email)
-    stored = await gateway.store.get_password(user["id"]) if user else None
-    if not await verify_password(password, stored) or not user:
-        await gateway.state.rate_hit(f"login-ip:{ip}", 60)
-        await gateway.state.rate_hit(f"login:{email}", 900)
-        raise HTTPException(401, "wrong email address or password")
-    if user.get("disabled_at"):
-        raise HTTPException(403, "this account is disabled; contact your Merit Order admin")
+    user, cap = await password_sign_in(gateway, request, email, password)
+    role = lower_role(user["role"], cap) if cap else user["role"]
     days = gateway.cfg.auth.oidc.key_ttl_days if gateway.cfg.auth.oidc else 30
     expires = datetime.now(UTC) + timedelta(days=days)
-    key_id, secret = await gateway.store.create_key(user["id"], user["team"], user["role"], name="password login", expires_at=expires)
+    key_id, secret = await gateway.store.create_key(user["id"], user["team"], role, name="password login", expires_at=expires)
     return {"api_key": secret, "key_id": key_id, "expires_at": expires.isoformat(), "user": user.get("email") or user["id"], "team": user["team"]}

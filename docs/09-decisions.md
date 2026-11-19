@@ -2069,6 +2069,15 @@ Entra or Google and SCIM (decision 8).
 - **`meritorder login`** keeps the device-code flow where SSO is set up (no redirect URI on the laptop needed) and
   asks for the email address and password where it isn't, or with `--password`; either way it saves a short-lived key.
 
+**After a security review** (19 Nov 2026), before any release: passwords and links only for accounts invited by email
+(an SSO person or a key-only person never gets a password, so the identity provider and key revocation stay the way
+out); a team lead's link checks, when it's used, that the person is still on the lead's team with the user role, and
+the password it sets (and the sessions it opens) act at most as a user, so a later promotion doesn't promote whoever
+chose it; changing someone's team, role or access withdraws their open link; a reset or change revokes the keys
+`meritorder login` got with the old password; each sign-in attempt counts before the hash, so parallel attempts can't
+pass the limit; link tokens travel in request bodies, not URLs; the provider's error text never reaches the console,
+only its error code; the session cookie is `__Host-` over HTTPS; at most 64 sign-ins wait for a hashing slot.
+
 **Not chosen:** Keep the key in `localStorage` and add password sign-in beside it: two ways in, and the weaker one
 stays. A JWT in the cookie instead of a server-side session: it can't be ended at sign-out or when someone is
 disabled without a lookup anyway, and a lookup is what a session is. argon2id: the better hash on paper, but a native

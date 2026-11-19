@@ -650,9 +650,10 @@ export const auth = {
   session: async () => (await call("/auth/session")).json() as Promise<{ signed_in: boolean; reason?: string | null }>,
   login: (body: { email: string; password: string } | { api_key: string }) => post<{ user: string; role: string }>("/auth/login", body),
   logout: () => post<{ signed_out: boolean }>("/auth/logout"),
-  invite: async (token: string) => (await call(`/auth/invite/${encodeURIComponent(token)}`)).json() as Promise<InviteInfo>,
+  // The token goes in the body, never the URL, so no access log or proxy records it.
+  invite: (token: string) => post<InviteInfo>("/auth/invite/info", { token }),
   acceptInvite: (token: string, body: { password: string; name?: string }) =>
-    post<{ user: string; role: string }>(`/auth/invite/${encodeURIComponent(token)}`, body),
+    post<{ user: string; role: string }>("/auth/invite/accept", { token, ...body }),
   changePassword: (current: string, next: string) => post<{ changed: boolean; other_sessions_ended: number }>("/auth/password", { current, new: next }),
 };
 
