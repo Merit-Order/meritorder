@@ -7,6 +7,9 @@
   one-time link from the People page, or `meritorder accounts create`), with a session in an HttpOnly cookie. API keys
   are for harnesses and services; one typed into the console opens a session tied to it, and the browser no longer
   stores it. Signing out ends the session on the gateway (decision 69). Needs migration 21 (`meritorder migrate`).
+- Console sign-in hardened after a security review: passwords only for accounts invited by email; a team lead's link
+  can't lead to more than the user role; resets revoke `meritorder login` keys; parallel attempts count against the
+  limit; link tokens out of URLs; `__Host-` session cookie over HTTPS. Needs migration 22.
 - Claude Code's agent labels are recorded as tags (`cc_agent`, `cc_parent_agent`, `cc_agent_type`, `cc_request_class`),
   so reports show what each subagent and kind of request cost. A request carries up to 32 tags (was 10).
   `GET /v1/capabilities` tells a service built on the gateway (Blackstart) how usage, cost, attribution, cache

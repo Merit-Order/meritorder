@@ -295,6 +295,8 @@ def build_router(gateway) -> APIRouter:
                                                managed="idp" if body.follow_idp else None, **limit)
         if user is None:
             raise HTTPException(404, "no such user")
+        if body.team is not None or body.role is not None or body.disabled:
+            await gateway.store.revoke_user_invites(user_id)  # an open password link was made for who they were
         if body.follow_idp and gateway.authn.groups and await gateway.authn.groups.refresh(user_id):
             user = await gateway.store.get_user(user_id) or user  # Google groups read now: the mappings apply at once
         gateway.authn.forget_user(user_id)

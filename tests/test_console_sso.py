@@ -10,7 +10,7 @@ from conftest import ADMIN_KEY, auth
 from test_oidc import CLIENT, IDP_KEY, ISSUER, jwk, token
 
 from meritorder import accounts
-from meritorder.auth import Authenticator, OIDCVerifier, SESSION_COOKIE
+from meritorder.auth import SECURE_SESSION_COOKIE, Authenticator, OIDCVerifier
 from meritorder.config import OIDCConfig
 
 BROWSER = "meritorder-web"
@@ -120,7 +120,7 @@ async def test_sso_refuses_answers_not_meant_for_this_browser_or_sign_in(client,
     assert "access_denied" in await error_of(await client.get("/auth/sso/callback", params={"state": q["state"], "error": "access_denied"}))
     _, q = await start(client)
     idp.id_token = None
-    assert "bad code" in await error_of(await client.get("/auth/sso/callback", params={"state": q["state"], "code": "c"}))
+    assert "invalid_grant" in await error_of(await client.get("/auth/sso/callback", params={"state": q["state"], "code": "c"}))
     assert (await client.get("/auth/session")).json()["signed_in"] is False
 
 
@@ -155,7 +155,7 @@ async def test_cli_login_with_a_password_gets_a_key(client, gateway, monkeypatch
     gateway.store.kind = "postgres"
     try:
         inv = (await client.post("/v1/admin/invites", json={"email": "cli@example.com"}, headers=auth(ADMIN_KEY))).json()
-        await client.post(f"/auth/invite/{inv['token']}", json={"password": "a long enough passphrase"}, headers=CONSOLE)
+        await client.post("/auth/invite/accept", json={"token": inv["token"], "password": "a long enough passphrase"}, headers=CONSOLE)
         client.cookies.clear()
         bad = await client.post("/auth/exchange", json={"email": "cli@example.com", "password": "wrong wrong wrong"})
         assert bad.status_code == 401
@@ -174,5 +174,5 @@ async def test_the_session_cookie_is_secure_behind_https(client, sso, idp):
     _, q = await start(client)
     idp.id_token = token({"aud": BROWSER, "nonce": q["nonce"]})
     r = await client.get("/auth/sso/callback", params={"state": q["state"], "code": "c"}, headers={"x-forwarded-proto": "https"})
-    cookie = [h for h in r.headers.get_list("set-cookie") if h.startswith(SESSION_COOKIE)][0]
+    cookie = [h for h in r.headers.get_list("set-cookie") if h.startswith(SECURE_SESSION_COOKIE + "=")][0]
     assert "secure" in cookie.lower() and "httponly" in cookie.lower()

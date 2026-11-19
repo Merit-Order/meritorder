@@ -31,13 +31,13 @@ async def invite(client, email, key=ADMIN_KEY, **kw):
 
 
 async def accept(client, token, password=PASSWORD, **kw):
-    return await client.post(f"/auth/invite/{token}", json={"password": password, **kw}, headers=CONSOLE)
+    return await client.post("/auth/invite/accept", json={"token": token, "password": password, **kw}, headers=CONSOLE)
 
 
 async def test_invite_set_password_sign_in_and_out(client, durable):
     inv = await invite(client, "Pat@Example.com", team="default", role="team_lead")
     assert inv["path"] == f"/ui/#invite={inv['token']}" and inv["kind"] == "invite" and inv["role"] == "team_lead"
-    info = (await client.get(f"/auth/invite/{inv['token']}")).json()
+    info = (await client.post("/auth/invite/info", json={"token": inv["token"]}, headers=CONSOLE)).json()
     assert info["email"] == "pat@example.com" and info["kind"] == "invite"
     assert (await accept(client, inv["token"], "short")).status_code == 422
     r = await accept(client, inv["token"], name="Pat")
