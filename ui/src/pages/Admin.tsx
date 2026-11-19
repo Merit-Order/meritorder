@@ -1,4 +1,4 @@
-import { Alert, Badge, Button, Code, CopyButton, Group, NumberInput, Paper, PasswordInput, Select,
+import { Alert, Badge, Button, Code, CopyButton, Group, NumberInput, Paper, Select,
   SimpleGrid, Stack, Table, Text, TextInput, Title } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import { useState } from "react";
@@ -6,9 +6,8 @@ import type { Api, ApiKey, Me, NewKeyResult, TeamStatus } from "../api";
 import { num, pct, storedLine, usd } from "../api";
 import { HBars } from "../components/charts";
 import { Kpi, Loading, PageTitle, Panel, SpendSplit, Status, StatusBadge } from "../components/common";
-import { BrandMark, Icon } from "../components/icons";
+import { Icon } from "../components/icons";
 import { Meter } from "./Controls";
-import { SourceFooter } from "../components/SourceFooter";
 import { useData } from "../hooks";
 
 const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e));
@@ -180,32 +179,3 @@ export function MyUsage({ me }: { me: Me }) {
   );
 }
 
-export function SignIn({ onKey, error }: { onKey: (k: string) => void; error?: string | null }) {
-  const [value, setValue] = useState("");
-  return (
-    <Stack maw={400} mx="auto" pt="14vh" px="md" gap="lg" mih="100vh">
-      <Group gap={10} justify="center">
-        <BrandMark size={28} />
-        <Title order={1} fz={22} style={{ letterSpacing: "-.02em" }}>Merit Order</Title>
-      </Group>
-      <Paper px="lg" py="lg">
-        <Stack gap="md">
-          <div>
-            <Text fw={600} size="md">Sign in to the console</Text>
-            <Text size="sm" c="dimmed" mt={2}>The control panel for your organization's LLM traffic. Sign in with a Merit Order API key.</Text>
-          </div>
-          <form onSubmit={(e) => { e.preventDefault(); if (value.trim()) onKey(value.trim()); }}>
-            <Stack gap="sm">
-              <PasswordInput label="API key" placeholder="mo-…" value={value} onChange={(e) => setValue(e.currentTarget.value)} autoComplete="off"
-                styles={{ input: { fontFamily: "var(--mantine-font-family-monospace)" } }} />
-              <Button type="submit" fullWidth>Sign in</Button>
-            </Stack>
-          </form>
-          {error && <Alert color="red" icon={<Icon name="bad" size={16} />}>{error}</Alert>}
-        </Stack>
-      </Paper>
-      <Text size="xs" c="dimmed" ta="center">Run <Code>meritorder token</Code> to print your key, or <Code>meritorder login</Code> to get one.</Text>
-      <div style={{ marginTop: "auto" }}><SourceFooter /></div>
-    </Stack>
-  );
-}

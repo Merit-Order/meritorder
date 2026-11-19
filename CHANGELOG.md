@@ -3,6 +3,11 @@
 ## Unreleased
 
 - Contributions now need a signed CLA (CLA.md); DCO sign-off is no longer required.
+- People sign in to the console as themselves: an email address and password kept by Merit Order (invited with a
+  one-time link from the People page, or `meritorder accounts create`), with a session in an HttpOnly cookie. API keys
+  are for harnesses and services; one typed into the console opens a session tied to it, and the browser no longer
+  stores it. Signing out ends the session on the gateway. Admins see a warning while the setup key still works after
+  a real admin account exists (decision 69). Needs migration 21 (`meritorder migrate`).
 
 ## 0.0.1 (2026-11-15)
 

@@ -11,8 +11,9 @@ import asyncio
 import logging
 import os
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime, timedelta
+from urllib.parse import urlsplit
 
 import httpx
 
@@ -22,6 +23,9 @@ from .store import hash_key
 log = logging.getLogger("meritorder.auth")
 
 ROLE_RANK = {"user": 0, "team_lead": 1, "finance": 2, "admin": 3}
+SESSION_COOKIE = "mo_session"
+CSRF_HEADER = "x-meritorder-console"  # the console sends it on every call; a cross-site form or link can't
+SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
 
 
 def lower_role(a: str, b: str) -> str:
@@ -47,12 +51,27 @@ class Principal:
     budget_usd_month: float | None = None  # the person's own monthly limit; None means their team's per-person default
     # The gateway's own requests (judged labels' replays and judging, judged.py): "replay" or "judge". Never from a key.
     internal: str | None = None
+    session: str | None = None  # how the console session was opened ("password", "sso", "key"), for a request with its cookie
 
     def monthly_limit(self, team_default: float | None) -> float | None:
         return self.budget_usd_month if self.budget_usd_month is not None else team_default
 
     def at_least(self, role: str) -> bool:
         return ROLE_RANK.get(self.role, 0) >= ROLE_RANK[role]
+
+
+def check_same_origin(headers: dict[str, str]) -> None:
+    """For a request sent with the session cookie that changes something: the console's header, and an Origin (when the
+    browser sends one) naming this gateway. SameSite=Strict on the cookie already keeps it off cross-site requests."""
+    if not headers.get(CSRF_HEADER):
+        raise AuthError(403, f"a change made with the console's session needs the {CSRF_HEADER} header")
+    origin = headers.get("origin")
+    if origin and origin != "null":
+        host = headers.get("x-forwarded-host") or headers.get("host") or ""
+        if urlsplit(origin).netloc.lower() != host.split(",")[0].strip().lower():
+            raise AuthError(403, "this request came from another site")
+    elif origin == "null":
+        raise AuthError(403, "this request came from another site")
 
 
 def bearer_token(headers: dict[str, str]) -> str | None:
@@ -205,6 +224,7 @@ class Authenticator:
 
             self.groups = GoogleGroups(cfg.auth.oidc, store, state if state is not None else MemoryState(), forget=self.forget_user)
         self._cache: dict[str, tuple[Principal, float]] = {}
+        self._sessions: dict[str, tuple[Principal, float]] = {}  # console sessions, by the cookie's hash
         self._limits: dict[str, tuple[float | None, float]] = {}  # static-key person -> (limit from their record, expiry)
 
     async def authenticate(self, headers: dict[str, str]) -> Principal:
@@ -212,18 +232,25 @@ class Authenticator:
         if not token:
             raise AuthError(401, "missing API key: send 'Authorization: Bearer <key>' or 'x-api-key: <key>'")
         h = hash_key(token)
-        if h in self.static:
-            return await self._static_with_limit(self.static[h])
         cached = self._cache.get(h)
-        if cached and cached[1] > time.time():
-            return cached[0]
-        if self.oidc and token.count(".") == 2 and not token.startswith("mo-"):
+        if h not in self.static and not (cached and cached[1] > time.time()) and self.oidc and token.count(".") == 2 \
+                and not token.startswith("mo-"):
             claims = await self.oidc.verify(token)
             groups = await self.groups.known_groups(user_id_of(claims)) if self.groups else None  # cached: no call on this path
             principal, _, _ = self.oidc.principal(claims, groups)
             principal = await self._apply_user_record(principal)
             self._cache[h] = (principal, min(time.time() + 60, float(claims.get("exp", time.time() + 60))))
             return principal
+        return await self.by_key_hash(h)
+
+    async def by_key_hash(self, h: str) -> Principal:
+        """The principal for a Merit Order key (static or issued), by its hash: also how a console session opened with a
+        key is checked, so revoking the key ends the session."""
+        if h in self.static:
+            return await self._static_with_limit(self.static[h])
+        cached = self._cache.get(h)
+        if cached and cached[1] > time.time():
+            return cached[0]
         row = await self.store.find_key(h)
         if not row:
             raise AuthError(401, "invalid API key")
@@ -236,6 +263,48 @@ class Authenticator:
         principal = await self._apply_user_record(principal, key_role=row["role"])
         self._cache[h] = (principal, time.time() + 60)
         return principal
+
+    async def authenticate_console(self, request) -> Principal:
+        """The console's APIs (reports, console, admin, controls) and /auth: a key in the headers as everywhere, or the
+        browser's session cookie. A cookie is sent by the browser on its own, so a request that changes something must
+        also carry the console's own header and, if it says where it came from, come from this gateway (no cross-site
+        request can do either: the gateway allows no other origin)."""
+        headers = {k.lower(): v for k, v in request.headers.items()}
+        if bearer_token(headers):
+            return await self.authenticate(headers)
+        token = request.cookies.get(SESSION_COOKIE)
+        if not token:
+            raise AuthError(401, "sign in to the console, or send 'Authorization: Bearer <key>'")
+        if request.method not in SAFE_METHODS:
+            check_same_origin(headers)
+        return await self.session_principal(token)
+
+    async def session_principal(self, token: str) -> Principal:
+        """A console session: its person's record as it is now (a minute's cache at most, like keys), or, for one opened
+        with a key, that key as it is now."""
+        h = hash_key(token)
+        cached = self._sessions.get(h)
+        if cached and cached[1] > time.time():
+            return cached[0]
+        row = await self.store.find_session(h)
+        now = datetime.now(UTC)
+        if not row or row.get("revoked_at") or row["expires_at"] <= now:
+            raise AuthError(401, "your console session has ended; sign in again")
+        if row.get("key_hash"):
+            principal = await self.by_key_hash(row["key_hash"])
+        else:
+            user = await self.store.get_user(row["user_id"])
+            if not user:
+                raise AuthError(401, "your console session has ended; sign in again")
+            if user.get("disabled_at"):
+                raise AuthError(401, "this account is disabled; contact your Merit Order admin")
+            principal = Principal(user_id=user["id"], team=user["team"], role=user["role"], budget_usd_month=user.get("budget_usd_month"))
+        principal = replace(principal, session=row["method"])  # a copy: the key's own cache entry stays a key's
+        self._sessions[h] = (principal, min(time.time() + 60, row["expires_at"].timestamp()))
+        return principal
+
+    def forget_session(self, token: str) -> None:
+        self._sessions.pop(hash_key(token), None)
 
     async def _apply_user_record(self, p: Principal, key_role: str | None = None) -> Principal:
         """The user's record (from the sign-in mappings at login, or set by an admin) decides team and role, so moving
@@ -280,15 +349,18 @@ class Authenticator:
 
     def forget_user(self, user_id: str) -> None:
         self._limits.pop(user_id, None)
-        for h, (principal, _) in list(self._cache.items()):
-            if principal.user_id == user_id:
-                self._cache.pop(h, None)
+        for cache in (self._cache, self._sessions):
+            for h, (principal, _) in list(cache.items()):
+                if principal.user_id == user_id:
+                    cache.pop(h, None)
 
     def forget(self, key_id: str) -> None:
-        """Drop a key from the lookup cache (after revocation) so it stops working at once on this gateway."""
-        for h, (principal, _) in list(self._cache.items()):
-            if principal.key_id == key_id:
-                self._cache.pop(h, None)
+        """Drop a key from the lookup cache (after revocation) so it stops working at once on this gateway, with the
+        console sessions opened with it."""
+        for cache in (self._cache, self._sessions):
+            for h, (principal, _) in list(cache.items()):
+                if principal.key_id == key_id:
+                    cache.pop(h, None)
 
     async def exchange(self, id_token: str) -> dict:
         """Trade a verified OIDC token for a short-lived Merit Order key."""

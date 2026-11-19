@@ -500,6 +500,10 @@ auth:
     # Development key from the environment. In production, create keys with
     # `meritorder keys create` or use OIDC login.
     - {key_env: MERITORDER_DEV_KEY, user: dev, team: default, role: admin}
+  # People sign in to the console with an email address and a password kept here (invited from the People page), or
+  # with SSO (docs/06-auth-and-spend.md#signing-in-to-the-console). enabled: false leaves SSO and keys only.
+  # local: {enabled: true, min_password_length: 12, invite_hours: 72}
+  # session_hours: 12        # how long a console sign-in lasts
   # Entra ID, Google, or any OIDC provider. Switched off while MERITORDER_OIDC_ISSUER is empty.
   # Entra issuer: https://login.microsoftonline.com/<tenant-id>/v2.0. Google: https://accounts.google.com.
   oidc:

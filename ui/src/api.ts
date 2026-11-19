@@ -186,7 +186,18 @@ export type Me = {
   savings_usd: number;
   requests: number;
   by_model: Row[];
+  /** How this person signed in (decision 69). Absent from older gateways and the demo's recorded answers. */
+  sign_in?: SignInStatus;
 };
+
+/** "password" or "sso": a console session; "key": a session opened with an API key, or a key in the header. */
+export type SignInStatus = { method: "password" | "sso" | "key" | null; has_password: boolean; setup_key_active?: boolean };
+export type AuthConfig = { oidc: { issuer: string; client_id: string } | null; local?: { enabled: boolean } };
+export type InviteInfo = { kind: "invite" | "reset"; email: string; team: string | null; role: string | null; expires_at: string;
+  min_password_length: number };
+/** An open invite or password-reset link. `token` and `path` only in the answer that created it: shown once. */
+export type Invite = { id: string; user: string; kind: "invite" | "reset"; team: string | null; role: string | null;
+  created_by: string | null; created_at: string | null; expires_at: string; token?: string; path?: string; note?: string };
 
 export type LedgerRow = Row & {
   id: string;
@@ -606,24 +617,49 @@ export class ApiError extends Error {
   }
 }
 
-export class Api {
-  constructor(public key: string) {}
+/** The header the console sends on every call (auth.CSRF_HEADER): with the session cookie, a change needs it, and no
+ * other site's form or link can send it. */
+export const CONSOLE_HEADER = "x-meritorder-console";
 
-  async request(path: string, init: RequestInit = {}): Promise<Response> {
-    const headers: Record<string, string> = { authorization: `Bearer ${this.key}` };
-    if (init.body) headers["content-type"] = "application/json";
-    const resp = await fetch(path, { ...init, headers });
-    if (!resp.ok) {
-      let message = `${resp.status} ${resp.statusText}`;
-      try {
-        const body = await resp.json();
-        message = body.detail ?? body.error?.message ?? message;
-      } catch {
-        /* not JSON */
-      }
-      throw new ApiError(resp.status, message);
+async function call(path: string, init: RequestInit = {}, key: string | null = null): Promise<Response> {
+  const headers: Record<string, string> = { [CONSOLE_HEADER]: "1" };
+  if (key) headers.authorization = `Bearer ${key}`;
+  if (init.body) headers["content-type"] = "application/json";
+  const resp = await fetch(path, { ...init, headers, credentials: "same-origin" });
+  if (!resp.ok) {
+    let message = `${resp.status} ${resp.statusText}`;
+    try {
+      const body = await resp.json();
+      message = body.detail ?? body.error?.message ?? message;
+    } catch {
+      /* not JSON */
     }
-    return resp;
+    throw new ApiError(resp.status, message);
+  }
+  return resp;
+}
+
+const post = async <T>(path: string, body: unknown = {}): Promise<T> =>
+  (await call(path, { method: "POST", body: JSON.stringify(body) })).json() as Promise<T>;
+
+/** Signing in and out (accounts.py). The session lives in an HttpOnly cookie the console never sees. */
+export const auth = {
+  config: async () => (await call("/auth/config")).json() as Promise<AuthConfig>,
+  session: async () => (await call("/auth/session")).json() as Promise<{ signed_in: boolean; reason?: string | null }>,
+  login: (body: { email: string; password: string } | { api_key: string }) => post<{ user: string; role: string }>("/auth/login", body),
+  logout: () => post<{ signed_out: boolean }>("/auth/logout"),
+  invite: async (token: string) => (await call(`/auth/invite/${encodeURIComponent(token)}`)).json() as Promise<InviteInfo>,
+  acceptInvite: (token: string, body: { password: string; name?: string }) =>
+    post<{ user: string; role: string }>(`/auth/invite/${encodeURIComponent(token)}`, body),
+  changePassword: (current: string, next: string) => post<{ changed: boolean; other_sessions_ended: number }>("/auth/password", { current, new: next }),
+};
+
+export class Api {
+  /** `key`: only the demo passes one. The console itself is signed in by its session cookie. */
+  constructor(public key: string | null = null) {}
+
+  request(path: string, init: RequestInit = {}): Promise<Response> {
+    return call(path, init, this.key);
   }
 
   async get<T>(path: string): Promise<T> {
@@ -795,6 +831,22 @@ export class Api {
   saveConfig(input: { yaml?: string; document?: Doc }, comment: string, baseVersion: number | null) {
     return this.send<{ version: number; summary: ConfigSummary }>("PUT", "/v1/admin/config", { ...input, comment, base_version: baseVersion });
   }
+  invites() {
+    return this.get<{ invites: Invite[] }>("/v1/admin/invites");
+  }
+
+  async createInvite(body: { email: string; team?: string; role?: string }) {
+    return (await this.request("/v1/admin/invites", { method: "POST", body: JSON.stringify(body) })).json() as Promise<Invite>;
+  }
+
+  async withdrawInvite(id: string) {
+    return (await this.request(`/v1/admin/invites/${encodeURIComponent(id)}`, { method: "DELETE" })).json();
+  }
+
+  async resetLink(user: string) {
+    return (await this.request(`/v1/admin/users/${encodeURIComponent(user)}/reset`, { method: "POST", body: "{}" })).json() as Promise<Invite>;
+  }
+
   users() {
     return this.get<{ users: Person[]; teams: string[]; oidc: boolean; idp: Idp | null; scim: boolean; google_groups?: boolean;
       google_groups_refresh_seconds?: number | null }>("/v1/admin/users");

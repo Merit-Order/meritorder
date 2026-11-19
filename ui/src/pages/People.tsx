@@ -1,7 +1,7 @@
-import { Alert, Badge, Button, Group, NumberInput, Select, Stack, Switch, Table, Text, TextInput, Tooltip } from "@mantine/core";
+import { Alert, Badge, Button, Code, CopyButton, Group, Modal, NumberInput, Select, Stack, Switch, Table, Text, TextInput, Tooltip } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import { useEffect, useMemo, useState } from "react";
-import type { Api, GoogleReading, Idp, MappedFrom, Me, Person, PersonChange } from "../api";
+import type { Api, GoogleReading, Idp, Invite, MappedFrom, Me, Person, PersonChange } from "../api";
 import { usd } from "../api";
 import { Loading, PageTitle, Panel, Status, StatusBadge } from "../components/common";
 import { useData } from "../hooks";
@@ -82,11 +82,100 @@ function GoogleGroupsCell({ g, pinned, admin, signedIn }: { g: GoogleReading | n
   );
 }
 
+const linkFor = (inv: Invite) => `${location.origin}${inv.path}`;
+
+/** A link just made: shown once, to copy and send. */
+function NewLink({ invite, onClose }: { invite: Invite | null; onClose: () => void }) {
+  if (!invite) return null;
+  const reset = invite.kind === "reset";
+  return (
+    <Modal opened onClose={onClose} title={reset ? `Password reset link for ${invite.user}` : `Invite link for ${invite.user}`} size="lg">
+      <Stack gap="sm">
+        <Text size="sm">Send it to them yourself (chat or email). It works once, until {new Date(invite.expires_at).toLocaleString()}, and isn't
+          shown again. {reset ? "Using it sets a new password and signs them out everywhere." : `They choose a password and join ${invite.team} as ${invite.role?.replace("_", " ")}.`}</Text>
+        <Group gap="xs" wrap="nowrap"><Code fz="sm" style={{ overflowWrap: "anywhere" }}>{linkFor(invite)}</Code>
+          <CopyButton value={linkFor(invite)}>{({ copied, copy }) => <Button size="compact-sm" variant="default" onClick={copy}>{copied ? "Copied" : "Copy"}</Button>}</CopyButton></Group>
+        <Group justify="flex-end"><Button onClick={onClose}>Done</Button></Group>
+      </Stack>
+    </Modal>
+  );
+}
+
+/** Invite someone who'll sign in with a password (local accounts), and the links still open. */
+function Invites({ api, me, teams, made, onMade }: { api: Api; me: Me; teams: string[]; made: number; onMade: (i: Invite) => void }) {
+  const admin = me.role === "admin";
+  const res = useData(() => api.invites(), [api, made]);
+  const [email, setEmail] = useState("");
+  const [team, setTeam] = useState<string | null>(me.team);
+  const [role, setRole] = useState<string | null>("user");
+  const [busy, setBusy] = useState(false);
+  const create = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      onMade(await api.createInvite({ email: email.trim(), team: admin ? team ?? undefined : undefined, role: admin ? role ?? "user" : "user" }));
+      setEmail("");
+    } catch (err) {
+      notifications.show({ color: "red", title: "No link made", message: err instanceof Error ? err.message : String(err) });
+    } finally {
+      setBusy(false);
+    }
+  };
+  const withdraw = async (i: Invite) => {
+    try {
+      await api.withdrawInvite(i.id);
+      onMade({ ...i, token: undefined });
+    } catch (err) {
+      notifications.show({ color: "red", title: "Not withdrawn", message: err instanceof Error ? err.message : String(err) });
+    }
+  };
+  const open = res.data?.invites ?? [];
+  return (
+    <Panel title="Invite someone">
+      <Text size="sm" c="dimmed" mb="sm">For people who sign in with an email address and a password Merit Order keeps. You get a one-time link to send them.
+        {admin ? "" : " Team leads invite people to their own team with the user role."}</Text>
+      <form onSubmit={create}>
+        <Group gap="sm" align="flex-end">
+          <TextInput size="xs" label="Email address" type="email" value={email} onChange={(e) => setEmail(e.currentTarget.value)} w={260} required />
+          {admin && <Select size="xs" label="Team" data={[...new Set([...teams, me.team])]} value={team} onChange={setTeam} allowDeselect={false} w={150} />}
+          {admin && <Select size="xs" label="Role" data={ROLES.map((r) => ({ value: r, label: r.replace("_", " ") }))} value={role} onChange={setRole} allowDeselect={false} w={130} />}
+          <Button size="xs" type="submit" loading={busy} disabled={!email.trim()}>Make invite link</Button>
+        </Group>
+      </form>
+      {open.length > 0 && (
+        <Table mt="md">
+          <Table.Thead><Table.Tr><Table.Th>Open link for</Table.Th><Table.Th>Kind</Table.Th><Table.Th>Team</Table.Th><Table.Th>Made by</Table.Th><Table.Th>Expires</Table.Th><Table.Th /></Table.Tr></Table.Thead>
+          <Table.Tbody>
+            {open.map((i) => (
+              <Table.Tr key={i.id}>
+                <Table.Td>{i.user}</Table.Td><Table.Td>{i.kind === "reset" ? "password reset" : "invite"}</Table.Td>
+                <Table.Td>{i.team ?? "–"}</Table.Td><Table.Td>{i.created_by ?? "–"}</Table.Td>
+                <Table.Td>{new Date(i.expires_at).toLocaleString()}</Table.Td>
+                <Table.Td><Button size="compact-xs" variant="subtle" color="red" onClick={() => void withdraw(i)}>Withdraw</Button></Table.Td>
+              </Table.Tr>
+            ))}
+          </Table.Tbody>
+        </Table>
+      )}
+    </Panel>
+  );
+}
+
 export function People({ api, me }: { api: Api; me: Me }) {
   const [tick, setTick] = useState(0);
   const res = useData(() => api.users(), [api, tick]);
   const [filter, setFilter] = useState("");
   const [team, setTeam] = useState<string | null>(null);
+  const [made, setMade] = useState<Invite | null>(null);
+  const [links, setLinks] = useState(0);  // bumped when a link is made or withdrawn
+  const madeLink = (i: Invite) => { if (i.token) setMade(i); setLinks((n) => n + 1); };
+  const resetLink = async (u: Person) => {
+    try {
+      madeLink(await api.resetLink(u.id));
+    } catch (e) {
+      notifications.show({ color: "red", title: "No link made", message: e instanceof Error ? e.message : String(e) });
+    }
+  };
   const admin = me.role === "admin";
   const idp: Idp = res.data?.idp ?? "oidc";
   const googleGroups = !!res.data?.google_groups;
@@ -115,7 +204,7 @@ export function People({ api, me }: { api: Api; me: Me }) {
       <Alert color="gray" variant="light" mb="md">
         {res.data?.oidc
           ? `People appear here when they first sign in with ${IDP_NAME[idp]} (meritorder login) or when someone issues them a key. Their team and role follow the ${mappedBy(idp, googleGroups)} mapped in Config → Access unless you set them here, which pins them.`
-          : "People appear here when someone issues them a key on the Keys page. Turn on single sign-on in Config → Access to create them automatically from Entra or Google."}
+          : "People appear here when you invite them (below) or issue them a key on the Keys page. Turn on single sign-on in Config → Access to create them automatically from Entra or Google."}
         {googleGroups && ` Their Google groups are read at sign-in and again every ${every} seconds while they use the gateway, and a change reaches every gateway within a minute after that. If Google can't be reached, their last known groups stand for a while (Config → Access), then the email and domain rules apply.`}
         {" "}Each person can have their own monthly limit; blank means their team's per-person default applies. Team and organization budgets still apply on top.
         {" "}Changes apply within a minute on every gateway, including keys already issued. Disabling someone, here or through SCIM, also deletes
@@ -124,6 +213,8 @@ export function People({ api, me }: { api: Api; me: Me }) {
           : idp === "google" ? " Google doesn't provision people over SCIM: disable leavers here. Their keys from sign-in also expire on their own (Config → Access)."
           : " Turn on Entra provisioning (SCIM) to disable people the moment they leave: see Config → Access."}
       </Alert>
+      <Invites api={api} me={me} teams={res.data?.teams ?? []} made={links} onMade={madeLink} />
+      <NewLink invite={made} onClose={() => setMade(null)} />
       <Panel title={`${rows.length} people`}>
         <Loading loading={res.loading} error={res.error} />
         <Table.ScrollContainer minWidth={googleGroups ? 1400 : 1120}>
@@ -153,16 +244,19 @@ export function People({ api, me }: { api: Api; me: Me }) {
                   <Table.Td><MonthlyLimit u={u} admin={admin} onSave={(v) => patch(u, { budget_usd_month: v },
                     v == null ? "Own limit removed: the default applies." : v === 0 ? "Limit set to $0: their requests are refused." : `Monthly limit set to ${usd(v)}.`)} /></Table.Td>
                   <Table.Td>{u.last_seen ? new Date(u.last_seen).toLocaleString() : "–"}</Table.Td>
-                  <Table.Td>{admin ? <Switch checked={!u.disabled} label={u.disabled ? "disabled" : "active"} disabled={u.id === me.user}
+                  <Table.Td><Stack gap={4} align="flex-start">{admin ? <Switch checked={!u.disabled} label={u.disabled ? "disabled" : "active"} disabled={u.id === me.user}
                     onChange={(e) => patch(u, { disabled: !e.currentTarget.checked }, e.currentTarget.checked ? "Access restored."
-                      : "Disabled: all their keys stop working, and what they kept in stored responses is deleted.")} />
-                    : <StatusBadge kind={u.disabled ? "off" : "good"}>{u.disabled ? "disabled" : "active"}</StatusBadge>}</Table.Td>
+                      : "Disabled: all their keys and console sessions stop working, and what they kept in stored responses is deleted.")} />
+                    : <StatusBadge kind={u.disabled ? "off" : "good"}>{u.disabled ? "disabled" : "active"}</StatusBadge>}
+                    {!u.disabled && u.id !== me.user && (admin || (u.team === me.team && u.role === "user")) &&
+                      <Button size="compact-xs" variant="subtle" onClick={() => void resetLink(u)}
+                        title="A one-time link that sets their password (a new one, if they have one)">Password link</Button>}</Stack></Table.Td>
                 </Table.Tr>
               ))}
             </Table.Tbody>
           </Table>
         </Table.ScrollContainer>
-        {!res.loading && !rows.length && <Text size="sm" c="dimmed" mt="sm">No people yet. Issue a key on the Keys page, or turn on single sign-on.</Text>}
+        {!res.loading && !rows.length && <Text size="sm" c="dimmed" mt="sm">No people yet. Invite someone above, issue a key on the Keys page, or turn on single sign-on.</Text>}
       </Panel>
     </>
   );

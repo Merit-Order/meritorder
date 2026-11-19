@@ -409,8 +409,10 @@ Built, and tested against mocks (decision 59, [03](03-routing.md#your-own-traffi
 
 - **Self-hosted.** Docker Compose or a Helm chart. Your keys, your network, your Postgres and Redis. The release workflow
   publishes signed multi-arch images when a version is tagged.
-- **Keys, SSO and SCIM.** Virtual API keys; Entra ID, Google Workspace or any OIDC provider, with group-to-team and
-  role mapping; SCIM provisioning; roles for users, team leads, finance and admins.
+- **Accounts, keys, SSO and SCIM.** People sign in to the console as themselves: with a password Merit Order keeps
+  (invited by link, for teams without an identity provider) or with SSO. Virtual API keys for harnesses and services;
+  Entra ID, Google Workspace or any OIDC provider, with group-to-team and role mapping; SCIM provisioning; roles for
+  users, team leads, finance and admins.
 - **Content isn't stored by default.** The ledger and the session table hold metadata: hashes, timestamps, token
   counts, costs. The exceptions are opt-in or explicit: the response cache, the Responses API's stored mode (per team,
   sealed, with a retention the team chooses), and batch files, held sealed until a provider or GPU takes them.

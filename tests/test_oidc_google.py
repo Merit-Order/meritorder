@@ -222,7 +222,7 @@ async def test_google_sign_in_through_the_gateway(google, gateway, client):
     gateway.authn = Authenticator(gateway.cfg, gateway.store)
     r = await client.get("/auth/config")
     assert r.json() == {"oidc": {"issuer": "https://accounts.google.com", "client_id": CLIENT, "scopes": ["openid", "email", "profile"],
-                                 "client_secret": "GOCSPX-public"}}
+                                 "client_secret": "GOCSPX-public"}, "local": {"enabled": True}}
 
     r = await client.post("/auth/exchange", json={"id_token": google_token()})
     assert r.status_code == 200, r.text

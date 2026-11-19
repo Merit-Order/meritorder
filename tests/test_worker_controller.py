@@ -643,7 +643,7 @@ async def test_create_app_from_the_config_file_and_plain_endpoints(tmp_path, mon
         assert (await c.get("/readyz")).json()["status"] == "ok"
         assert (await c.get("/metrics")).status_code == 401
         assert (await c.get("/metrics", headers={"authorization": "Bearer scrape"})).status_code == 200
-        assert (await c.get("/auth/config")).json() == {"oidc": None}
+        assert (await c.get("/auth/config")).json() == {"oidc": None, "local": {"enabled": True}}
         assert (await c.get("/v1/models", headers=auth("mo-wrong"))).status_code == 401
         assert (await c.post("/auth/exchange", json={"id_token": "x"})).status_code >= 400
         gw.cfg.auth.oidc = OIDCConfig(issuer="https://idp.test", client_id="cli")

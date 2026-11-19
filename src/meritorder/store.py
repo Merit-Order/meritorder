@@ -112,6 +112,11 @@ def hash_key(key: str) -> str:
     return hashlib.sha256(key.encode()).hexdigest()
 
 
+def new_secret(prefix: str) -> tuple[str, str]:
+    """(id, secret) for a console session or an invite link: the secret goes to the browser once and is stored as a hash."""
+    return f"{prefix}_{secrets.token_hex(6)}", secrets.token_urlsafe(32)
+
+
 def new_api_key() -> tuple[str, str]:
     """Returns (key_id, secret). The secret is shown once and stored only as a hash."""
     return f"key_{secrets.token_hex(6)}", f"mo-{secrets.token_urlsafe(32)}"
@@ -491,6 +496,83 @@ class MemoryStore(MemoryBatches, MemoryStored):
                 k["revoked_at"] = datetime.now(UTC)
                 return True
         return False
+
+    # ----------------------------------------------------------------- console sign-in (decision 69)
+
+    async def set_password(self, user_id: str, password_hash: str) -> None:
+        self.__dict__.setdefault("passwords", {})[user_id] = password_hash
+
+    async def get_password(self, user_id: str) -> str | None:
+        return self.__dict__.setdefault("passwords", {}).get(user_id)
+
+    async def has_local_admin(self) -> bool:
+        pw = self.__dict__.setdefault("passwords", {})
+        return any(u["role"] == "admin" and not u.get("disabled_at") and u["id"] in pw for u in self.users.values())
+
+    async def create_session(self, user_id: str, method: str, expires_at: datetime, key_hash: str | None = None,
+                             user_agent: str | None = None) -> str:
+        sid, token = new_secret("ses")
+        self.__dict__.setdefault("sessions", {})[hash_key(token)] = {
+            "id": sid, "user_id": user_id, "method": method, "key_hash": key_hash, "user_agent": user_agent,
+            "created_at": datetime.now(UTC), "expires_at": expires_at, "revoked_at": None}
+        return token
+
+    async def find_session(self, token_hash: str) -> dict | None:
+        row = self.__dict__.setdefault("sessions", {}).get(token_hash)
+        return dict(row) if row else None
+
+    async def revoke_session(self, token_hash: str) -> bool:
+        row = self.__dict__.setdefault("sessions", {}).get(token_hash)
+        if row and row["revoked_at"] is None:
+            row["revoked_at"] = datetime.now(UTC)
+            return True
+        return False
+
+    async def revoke_user_sessions(self, user_id: str, keep: str | None = None) -> int:
+        n = 0
+        for h, row in self.__dict__.setdefault("sessions", {}).items():
+            if row["user_id"] == user_id and row["revoked_at"] is None and h != keep:
+                row["revoked_at"] = datetime.now(UTC)
+                n += 1
+        return n
+
+    async def create_invite(self, user_id: str, kind: str, expires_at: datetime, team: str | None = None, role: str | None = None,
+                            created_by: str | None = None) -> tuple[str, str]:
+        iid, token = new_secret("inv")
+        self.__dict__.setdefault("invites", {})[hash_key(token)] = {
+            "id": iid, "user_id": user_id, "kind": kind, "team": team, "role": role, "created_by": created_by,
+            "created_at": datetime.now(UTC), "expires_at": expires_at, "used_at": None, "revoked_at": None}
+        return iid, token
+
+    async def find_invite(self, token_hash: str) -> dict | None:
+        row = self.__dict__.setdefault("invites", {}).get(token_hash)
+        return dict(row) if row else None
+
+    async def use_invite(self, token_hash: str) -> bool:
+        """Marks it used if it still can be: one use, before it expires, unless revoked. True if this call used it."""
+        row = self.__dict__.setdefault("invites", {}).get(token_hash)
+        if not row or row["used_at"] or row["revoked_at"] or row["expires_at"] <= datetime.now(UTC):
+            return False
+        row["used_at"] = datetime.now(UTC)
+        return True
+
+    async def list_invites(self, team: str | None = None) -> list[dict]:
+        now = datetime.now(UTC)
+        rows = [dict(r) for r in self.__dict__.setdefault("invites", {}).values()
+                if not r["used_at"] and not r["revoked_at"] and r["expires_at"] > now and (team is None or r["team"] == team)]
+        return sorted(rows, key=lambda r: r["created_at"])
+
+    async def revoke_invite(self, invite_id: str) -> dict | None:
+        for r in self.__dict__.setdefault("invites", {}).values():
+            if r["id"] == invite_id and r["revoked_at"] is None and r["used_at"] is None:
+                r["revoked_at"] = datetime.now(UTC)
+                return dict(r)
+        return None
+
+    async def revoke_user_invites(self, user_id: str) -> None:
+        for r in self.__dict__.setdefault("invites", {}).values():
+            if r["user_id"] == user_id and r["revoked_at"] is None and r["used_at"] is None:
+                r["revoked_at"] = datetime.now(UTC)
 
     async def record(self, row: dict) -> None:
         self.ledger.append(complete_row(row))
@@ -1179,10 +1261,44 @@ ALTER TABLE route_features ADD COLUMN IF NOT EXISTS predicted jsonb;
 ALTER TABLE route_features ADD COLUMN IF NOT EXISTS context jsonb;
 ALTER TABLE route_features ADD COLUMN IF NOT EXISTS triage_features bytea NOT NULL DEFAULT ''::bytea;
 """
+# Console sign-in (decision 69): local passwords (scrypt hashes), browser sessions and invite links, each secret stored
+# only as a hash. A session either stands for its person (password or SSO sign-in) or for the key it was opened with.
+SCHEMA_V21 = """
+CREATE TABLE IF NOT EXISTS local_credentials (
+    user_id text PRIMARY KEY,
+    password_hash text NOT NULL,
+    updated_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS console_sessions (
+    id text PRIMARY KEY,
+    token_hash text UNIQUE NOT NULL,
+    user_id text NOT NULL,
+    method text NOT NULL,
+    key_hash text,
+    user_agent text,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    expires_at timestamptz NOT NULL,
+    revoked_at timestamptz
+);
+CREATE INDEX IF NOT EXISTS console_sessions_user ON console_sessions (user_id);
+CREATE TABLE IF NOT EXISTS invites (
+    id text PRIMARY KEY,
+    token_hash text UNIQUE NOT NULL,
+    user_id text NOT NULL,
+    kind text NOT NULL,
+    team text,
+    role text,
+    created_by text,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    expires_at timestamptz NOT NULL,
+    used_at timestamptz,
+    revoked_at timestamptz
+);
+"""
 MIGRATIONS = [(1, SCHEMA_V1), (2, SCHEMA_V2), (3, SCHEMA_V3), (4, SCHEMA_V4), (5, SCHEMA_V5), (6, SCHEMA_V6), (7, SCHEMA_V7),
               (8, SCHEMA_V8), (9, SCHEMA_V9), (10, SCHEMA_V10), (11, SCHEMA_V11), (12, SCHEMA_V12), (13, SCHEMA_V13),
               (14, SCHEMA_V14), (15, SCHEMA_V15), (16, SCHEMA_V16), (18, SCHEMA_V18), (19, SCHEMA_V19),
-              (20, SCHEMA_V20)]
+              (20, SCHEMA_V20), (21, SCHEMA_V21)]
 EVAL_RUN_FIELDS = ("status", "progress", "scores", "results", "error", "cost", "started_at", "finished_at", "applied_version")
 
 _SUMS_SQL = ", ".join(f"coalesce(sum({f}), 0) AS {f}" for f in SUM_FIELDS)
@@ -1422,6 +1538,81 @@ class PostgresStore(PostgresBatches, PostgresStored):
         async with self.pool.acquire() as c:
             res = await c.execute("UPDATE api_keys SET revoked_at=now() WHERE id=$1 AND revoked_at IS NULL", key_id)
         return res.endswith("1")
+
+    # ----------------------------------------------------------------- console sign-in (decision 69)
+
+    async def set_password(self, user_id: str, password_hash: str) -> None:
+        async with self.pool.acquire() as c:
+            await c.execute("""INSERT INTO local_credentials (user_id, password_hash) VALUES ($1,$2)
+                               ON CONFLICT (user_id) DO UPDATE SET password_hash=EXCLUDED.password_hash, updated_at=now()""",
+                            user_id, password_hash)
+
+    async def get_password(self, user_id: str) -> str | None:
+        async with self.pool.acquire() as c:
+            return await c.fetchval("SELECT password_hash FROM local_credentials WHERE user_id=$1", user_id)
+
+    async def has_local_admin(self) -> bool:
+        async with self.pool.acquire() as c:
+            return bool(await c.fetchval("""SELECT EXISTS (SELECT 1 FROM users u JOIN local_credentials l ON l.user_id = u.id
+                                            WHERE u.role = 'admin' AND u.disabled_at IS NULL)"""))
+
+    async def create_session(self, user_id, method, expires_at, key_hash=None, user_agent=None) -> str:
+        sid, token = new_secret("ses")
+        async with self.pool.acquire() as c:
+            await c.execute("""INSERT INTO console_sessions (id, token_hash, user_id, method, key_hash, user_agent, expires_at)
+                               VALUES ($1,$2,$3,$4,$5,$6,$7)""", sid, hash_key(token), user_id, method, key_hash, user_agent, expires_at)
+        return token
+
+    async def find_session(self, token_hash: str) -> dict | None:
+        async with self.pool.acquire() as c:
+            row = await c.fetchrow("SELECT * FROM console_sessions WHERE token_hash=$1", token_hash)
+        return dict(row) if row else None
+
+    async def revoke_session(self, token_hash: str) -> bool:
+        async with self.pool.acquire() as c:
+            res = await c.execute("UPDATE console_sessions SET revoked_at=now() WHERE token_hash=$1 AND revoked_at IS NULL", token_hash)
+        return res.endswith("1")
+
+    async def revoke_user_sessions(self, user_id: str, keep: str | None = None) -> int:
+        async with self.pool.acquire() as c:
+            res = await c.execute("""UPDATE console_sessions SET revoked_at=now()
+                                     WHERE user_id=$1 AND revoked_at IS NULL AND token_hash IS DISTINCT FROM $2""", user_id, keep)
+        return int(res.split()[-1])
+
+    async def create_invite(self, user_id, kind, expires_at, team=None, role=None, created_by=None) -> tuple[str, str]:
+        iid, token = new_secret("inv")
+        async with self.pool.acquire() as c:
+            await c.execute("""INSERT INTO invites (id, token_hash, user_id, kind, team, role, created_by, expires_at)
+                               VALUES ($1,$2,$3,$4,$5,$6,$7,$8)""", iid, hash_key(token), user_id, kind, team, role, created_by, expires_at)
+        return iid, token
+
+    async def find_invite(self, token_hash: str) -> dict | None:
+        async with self.pool.acquire() as c:
+            row = await c.fetchrow("SELECT * FROM invites WHERE token_hash=$1", token_hash)
+        return dict(row) if row else None
+
+    async def use_invite(self, token_hash: str) -> bool:
+        async with self.pool.acquire() as c:
+            res = await c.execute("""UPDATE invites SET used_at=now() WHERE token_hash=$1 AND used_at IS NULL
+                                     AND revoked_at IS NULL AND expires_at > now()""", token_hash)
+        return res.endswith("1")
+
+    async def list_invites(self, team: str | None = None) -> list[dict]:
+        sql = ("SELECT id, user_id, kind, team, role, created_by, created_at, expires_at FROM invites "
+               "WHERE used_at IS NULL AND revoked_at IS NULL AND expires_at > now()" + (" AND team = $1" if team else "")
+               + " ORDER BY created_at")
+        async with self.pool.acquire() as c:
+            return [dict(r) for r in await c.fetch(sql, *([team] if team else []))]
+
+    async def revoke_invite(self, invite_id: str) -> dict | None:
+        async with self.pool.acquire() as c:
+            row = await c.fetchrow("""UPDATE invites SET revoked_at=now() WHERE id=$1 AND revoked_at IS NULL AND used_at IS NULL
+                                      RETURNING id, user_id, kind, team, role""", invite_id)
+        return dict(row) if row else None
+
+    async def revoke_user_invites(self, user_id: str) -> None:
+        async with self.pool.acquire() as c:
+            await c.execute("UPDATE invites SET revoked_at=now() WHERE user_id=$1 AND revoked_at IS NULL AND used_at IS NULL", user_id)
 
     # ----------------------------------------------------------------- ledger
 

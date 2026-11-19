@@ -128,12 +128,14 @@ line is used only with its profile on (and, for the compressor and ClickHouse, t
 git clone https://github.com/therick/meritorder && cd meritorder
 cp .env.example .env          # set MERITORDER_DEV_KEY; provider keys are optional (mock backends without them)
 docker compose up -d          # gateway + worker + Postgres + Redis on :8080, UI at /ui/
-docker compose exec gateway meritorder keys create --user you@example.com --role admin
+docker compose exec gateway meritorder accounts create you@example.com --role admin   # your console sign-in
+docker compose exec gateway meritorder keys create --user you@example.com --role admin       # a key for harnesses
 curl localhost:8080/v1/chat/completions -H "authorization: Bearer <that key>" -H "content-type: application/json" \
   -d '{"model": "auto", "messages": [{"role": "user", "content": "hello"}]}'
 ```
 
-Sign in to the console at http://localhost:8080/ui/ with that key (or `MERITORDER_DEV_KEY`). For the harnesses, install
+Sign in to the console at http://localhost:8080/ui/ with your email address and password, and invite others from the
+People page ([06](06-auth-and-spend.md#signing-in-to-the-console)). For the harnesses, install
 the CLI on your laptop (`uv tool install .` in the clone), then `meritorder use-key <key> --gateway http://localhost:8080`
 and `meritorder setup pi` or `setup claude-code`.
 

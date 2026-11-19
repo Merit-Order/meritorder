@@ -23,11 +23,18 @@ export function allow(problems: string[], pattern: RegExp) {
   expect(before - problems.length, `expected a console error matching ${pattern}`).toBeGreaterThan(0);
 }
 
-/** Signed in as `who` without the sign-in form (that's tested on its own). */
+/** Signed in as `who` without the sign-in form (that's tested on its own): the console's own call, which opens a session
+ * tied to the key. The page's requests share the browser's cookies. */
 export async function signInAs(page: Page, who: keyof typeof KEYS) {
-  await page.addInitScript((key) => {
-    try { localStorage.setItem("meritorder.key", key); } catch { /* ignore */ }
-  }, KEYS[who]);
+  const r = await page.request.post("/auth/login", { data: { api_key: KEYS[who] }, headers: { "x-meritorder-console": "1" } });
+  expect(r.ok(), await r.text()).toBeTruthy();
+}
+
+/** The sign-in page's key form (it opens on email and password). */
+export async function signInWithKey(page: Page, key: string) {
+  await page.getByRole("button", { name: "Sign in with an API key instead" }).click();
+  await page.getByLabel("API key").fill(key);
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
 }
 
 export async function open(page: Page, hash: string) {
