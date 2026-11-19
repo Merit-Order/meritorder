@@ -494,6 +494,9 @@ teams:
     # models. Turn it on from Config → Routing → Judged labels, which shows the expected cost first. The cap is required.
     # judged_labels: {enabled: true, sample_rate: 0.01, stronger: auto, stronger_level: 5,
     #                 judges: [claude-opus, gpt-sol, gemini-carbon], max_usd_month: 50}
+    # Request screening (docs/06-auth-and-spend.md#request-screening): hidden Unicode, keys, and risky tool calls in
+    # agents' requests, recorded as ledger tags and metrics. Shadow only: nothing is blocked or changed.
+    # screening: {mode: shadow}
 
 auth:
   static_keys:

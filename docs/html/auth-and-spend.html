@@ -140,7 +140,7 @@ figure { margin: 1.4em 0 1.8em; }
 <header class="hero">
   <div class="eyebrow">Merit Order docs · 06</div>
   <h1>Auth &amp; spend</h1>
-  <div class="lede"><p class="also"><a href="index.html">All docs on one page</a> · <a href="how-it-all-works.html">How it all works</a></p><details class="contents"><summary>On this page</summary><ol><li><a href="#getting-a-key-into-pi-and-claude-code">Getting a key into pi and Claude Code</a></li><li><a href="#signing-in-to-the-console">Signing in to the console</a></li><li><a href="#people-and-teams">People and teams</a></li><li><a href="#signing-in-with-google">Signing in with Google</a></li><li><a href="#stored-responses-who-holds-them-and-who-can-read-them">Stored responses: who holds them and who can read them</a></li><li><a href="#secrets-in-a-saved-configuration">Secrets in a saved configuration</a></li><li><a href="#where-budgets-and-limits-are-set">Where budgets and limits are set</a></li><li><a href="#budgets">Budgets</a></li><li><a href="#limits-that-stop-runaway-spend">Limits that stop runaway spend</a></li><li><a href="#organization-wide-safeguards">Organization-wide safeguards</a></li><li><a href="#what-gets-charged">What gets charged</a></li><li><a href="#the-savings-ledger">The savings ledger</a></li></ol></details></div>
+  <div class="lede"><p class="also"><a href="index.html">All docs on one page</a> · <a href="how-it-all-works.html">How it all works</a></p><details class="contents"><summary>On this page</summary><ol><li><a href="#getting-a-key-into-pi-and-claude-code">Getting a key into pi and Claude Code</a></li><li><a href="#signing-in-to-the-console">Signing in to the console</a></li><li><a href="#request-screening">Request screening</a></li><li><a href="#people-and-teams">People and teams</a></li><li><a href="#signing-in-with-google">Signing in with Google</a></li><li><a href="#stored-responses-who-holds-them-and-who-can-read-them">Stored responses: who holds them and who can read them</a></li><li><a href="#secrets-in-a-saved-configuration">Secrets in a saved configuration</a></li><li><a href="#where-budgets-and-limits-are-set">Where budgets and limits are set</a></li><li><a href="#budgets">Budgets</a></li><li><a href="#limits-that-stop-runaway-spend">Limits that stop runaway spend</a></li><li><a href="#organization-wide-safeguards">Organization-wide safeguards</a></li><li><a href="#what-gets-charged">What gets charged</a></li><li><a href="#the-savings-ledger">The savings ledger</a></li></ol></details></div>
 </header>
 
 <div class="layout">
@@ -438,6 +438,80 @@ the proxy's own APIs (<code>/v1/chat/completions</code>, <code>/v1/messages</cod
 </tr>
 </tbody>
 </table></div>
+<h2 id="request-screening">Request screening</h2>
+<p>Agents read web pages, run commands and edit files on someone's machine, and the gateway sees every tool call they
+make and every result they send back. Request screening reads those and records what a security team would want to
+know. It's per team (<code>screening.mode: shadow</code>, off by default) and, for now, shadow only: <strong>nothing is blocked or
+changed</strong>, so it can run on real traffic to show what it would catch and how often it would be wrong before anything
+acts on it (<a href="decisions.html#71-request-screening-starts-in-shadow-with-fixed-rules-on-what-agents-do-not-a-detector">decision 71</a>).</p>
+<p>Each request is read once: only what's new since the session's last turn, so an agent's tool calls and their results
+are each looked at as they arrive. Fixed rules, no model; it takes well under a millisecond
+(<code>meritorder_screening_seconds</code>).</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Kind</th>
+<th>What it means</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>unicode_tags</code></td>
+<td>Unicode tag characters: invisible to people, read by models ("ASCII smuggling")</td>
+</tr>
+<tr>
+<td><code>unicode_bidi</code>, <code>unicode_invisible</code></td>
+<td>Bidirectional overrides; zero-width characters (not the joiner emoji use)</td>
+</tr>
+<tr>
+<td><code>secret_in_tool_call</code></td>
+<td>A provider-prefixed key (<code>sk-ant-</code>, <code>ghp_</code>, <code>AKIA</code>, private key blocks and others) in a tool call the model made: it may be sending it somewhere</td>
+</tr>
+<tr>
+<td><code>secret_in_prompt</code></td>
+<td>Such a key in text going to the provider: a prompt or a tool result</td>
+</tr>
+<tr>
+<td><code>pipe_to_shell</code></td>
+<td>A download piped into a shell or interpreter (<code>curl … \| sh</code>)</td>
+</tr>
+<tr>
+<td><code>upload</code></td>
+<td>Data sent out: <code>curl -d/-F/-T</code>, <code>wget --post-*</code>, <code>nc host port</code></td>
+</tr>
+<tr>
+<td><code>dns_exfil</code></td>
+<td><code>ping</code>, <code>dig</code>, <code>nslookup</code>… with command substitution: a known way to leak data through DNS</td>
+</tr>
+<tr>
+<td><code>credential_read</code></td>
+<td>Reading <code>.env</code>, SSH keys, <code>~/.aws/credentials</code>, <code>.netrc</code>, <code>.git-credentials</code>, kube or Docker config</td>
+</tr>
+<tr>
+<td><code>config_write</code></td>
+<td>Writing agent, editor, git-hook, CI workflow or shell start-up configuration (<code>.claude/settings*.json</code>, <code>.mcp.json</code>, <code>.cursor/mcp.json</code>, <code>.git/hooks/*</code>, <code>~/.zshrc</code>…)</td>
+</tr>
+<tr>
+<td><code>md_image_url</code></td>
+<td>An image link with a query string in the model's own text: a way to leak data when a client renders it</td>
+</tr>
+<tr>
+<td><code>after_untrusted</code></td>
+<td>One of the risky kinds above after the session read untrusted content: the shape of a prompt injection</td>
+</tr>
+</tbody>
+</table></div>
+<p>Untrusted content is a result from a web fetch or search tool (<code>WebFetch</code>, <code>web_search</code>, browser tools, MCP fetch
+tools). Once a session has read some, its requests carry <code>screen_untrusted: 1</code>.</p>
+<p><strong>Where it shows.</strong> Each request with findings gets a <code>screen</code> ledger tag (the kinds, joined with <code>+</code>, for example
+<code>after_untrusted+credential_read</code>), so Reports → Breakdown → Tag → <code>screen</code> lists them and the Requests view filters
+by <code>tag=screen</code>. <code>meritorder_screening_findings_total</code> counts each kind by team for alerts. Only kinds and counts are
+kept: never the text, the command, the path or the key. A finding about a tool call lands on the request after it,
+which is when the gateway first sees the call. Clients and keys can't set or clear these tags.</p>
+<p><strong>What it doesn't do yet.</strong> Block or redact anything; detect injections in prose (published detectors miss most
+injections against agents and flag up to a third of ordinary tool output, <a href="decisions.html">decision 71</a>);
+read base64 or other encodings; scan responses as they stream. Each is a later step, and blocking will start from what
+shadow mode shows on your traffic.</p>
 <h2 id="people-and-teams">People and teams</h2>
 <div class="table-wrap"><table>
 <thead>

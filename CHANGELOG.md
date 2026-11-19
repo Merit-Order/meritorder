@@ -7,6 +7,10 @@
   one-time link from the People page, or `meritorder accounts create`), with a session in an HttpOnly cookie. API keys
   are for harnesses and services; one typed into the console opens a session tied to it, and the browser no longer
   stores it. Signing out ends the session on the gateway (decision 69). Needs migration 21 (`meritorder migrate`).
+- Request screening, per team, in shadow mode (`screening.mode: shadow`): hidden Unicode, keys in prompts and tool
+  calls, risky tool calls (download piped to a shell, uploads, DNS exfiltration, credential reads, config writes),
+  image links with data, and untrusted web content marking a session; recorded as `screen` tags and
+  `meritorder_screening_findings_total`, nothing blocked (decision 71).
 - Console sign-in hardened after a security review: passwords only for accounts invited by email; a team lead's link
   can't lead to more than the user role; resets revoke `meritorder login` keys; parallel attempts count against the
   limit; link tokens out of URLs; `__Host-` session cookie over HTTPS. Needs migration 22.

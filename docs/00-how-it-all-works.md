@@ -765,6 +765,7 @@ base URL (`<gateway>/v1`) and the key.
 | How requests get a level | Config → Routing → How requests get a level (everyone sees them under Reports → Levels) | `routing.levels` |
 | The learned router: off, shadow or route; how sure it must be; when its model is stale; retraining | Config → Routing → Learned router (its report: Reports → Learned router) | `routing.learned` |
 | Judged labels for the learned router: per team, sample rate, stronger model, judges, monthly cap | Config → Routing → Judged labels | team `judged_labels` |
+| Request screening (shadow): hidden Unicode, keys, risky tool calls | Config → YAML | team `screening.mode` |
 | Pointing Claude Code, Codex CLI or pi at the gateway | not in the console: a CLI command | `meritorder setup claude-code` / `setup codex` / `setup pi` |
 
 The Models page shows every model's live scores, prices and windows, with where each came from, and how

@@ -1564,6 +1564,11 @@ base URL (<code>&lt;gateway&gt;/v1</code>) and the key.</p>
 <td>team <code>judged_labels</code></td>
 </tr>
 <tr>
+<td>Request screening (shadow): hidden Unicode, keys, risky tool calls</td>
+<td>Config → YAML</td>
+<td>team <code>screening.mode</code></td>
+</tr>
+<tr>
 <td>Pointing Claude Code, Codex CLI or pi at the gateway</td>
 <td>not in the console: a CLI command</td>
 <td><code>meritorder setup claude-code</code> / <code>setup codex</code> / <code>setup pi</code></td>
@@ -7702,6 +7707,80 @@ the proxy's own APIs (<code>/v1/chat/completions</code>, <code>/v1/messages</cod
 </tr>
 </tbody>
 </table></div>
+<h3 id="auth-and-spend-request-screening">Request screening</h3>
+<p>Agents read web pages, run commands and edit files on someone's machine, and the gateway sees every tool call they
+make and every result they send back. Request screening reads those and records what a security team would want to
+know. It's per team (<code>screening.mode: shadow</code>, off by default) and, for now, shadow only: <strong>nothing is blocked or
+changed</strong>, so it can run on real traffic to show what it would catch and how often it would be wrong before anything
+acts on it (<a href="#decisions-71-request-screening-starts-in-shadow-with-fixed-rules-on-what-agents-do-not-a-detector">decision 71</a>).</p>
+<p>Each request is read once: only what's new since the session's last turn, so an agent's tool calls and their results
+are each looked at as they arrive. Fixed rules, no model; it takes well under a millisecond
+(<code>meritorder_screening_seconds</code>).</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Kind</th>
+<th>What it means</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>unicode_tags</code></td>
+<td>Unicode tag characters: invisible to people, read by models ("ASCII smuggling")</td>
+</tr>
+<tr>
+<td><code>unicode_bidi</code>, <code>unicode_invisible</code></td>
+<td>Bidirectional overrides; zero-width characters (not the joiner emoji use)</td>
+</tr>
+<tr>
+<td><code>secret_in_tool_call</code></td>
+<td>A provider-prefixed key (<code>sk-ant-</code>, <code>ghp_</code>, <code>AKIA</code>, private key blocks and others) in a tool call the model made: it may be sending it somewhere</td>
+</tr>
+<tr>
+<td><code>secret_in_prompt</code></td>
+<td>Such a key in text going to the provider: a prompt or a tool result</td>
+</tr>
+<tr>
+<td><code>pipe_to_shell</code></td>
+<td>A download piped into a shell or interpreter (<code>curl … \| sh</code>)</td>
+</tr>
+<tr>
+<td><code>upload</code></td>
+<td>Data sent out: <code>curl -d/-F/-T</code>, <code>wget --post-*</code>, <code>nc host port</code></td>
+</tr>
+<tr>
+<td><code>dns_exfil</code></td>
+<td><code>ping</code>, <code>dig</code>, <code>nslookup</code>… with command substitution: a known way to leak data through DNS</td>
+</tr>
+<tr>
+<td><code>credential_read</code></td>
+<td>Reading <code>.env</code>, SSH keys, <code>~/.aws/credentials</code>, <code>.netrc</code>, <code>.git-credentials</code>, kube or Docker config</td>
+</tr>
+<tr>
+<td><code>config_write</code></td>
+<td>Writing agent, editor, git-hook, CI workflow or shell start-up configuration (<code>.claude/settings*.json</code>, <code>.mcp.json</code>, <code>.cursor/mcp.json</code>, <code>.git/hooks/*</code>, <code>~/.zshrc</code>…)</td>
+</tr>
+<tr>
+<td><code>md_image_url</code></td>
+<td>An image link with a query string in the model's own text: a way to leak data when a client renders it</td>
+</tr>
+<tr>
+<td><code>after_untrusted</code></td>
+<td>One of the risky kinds above after the session read untrusted content: the shape of a prompt injection</td>
+</tr>
+</tbody>
+</table></div>
+<p>Untrusted content is a result from a web fetch or search tool (<code>WebFetch</code>, <code>web_search</code>, browser tools, MCP fetch
+tools). Once a session has read some, its requests carry <code>screen_untrusted: 1</code>.</p>
+<p><strong>Where it shows.</strong> Each request with findings gets a <code>screen</code> ledger tag (the kinds, joined with <code>+</code>, for example
+<code>after_untrusted+credential_read</code>), so Reports → Breakdown → Tag → <code>screen</code> lists them and the Requests view filters
+by <code>tag=screen</code>. <code>meritorder_screening_findings_total</code> counts each kind by team for alerts. Only kinds and counts are
+kept: never the text, the command, the path or the key. A finding about a tool call lands on the request after it,
+which is when the gateway first sees the call. Clients and keys can't set or clear these tags.</p>
+<p><strong>What it doesn't do yet.</strong> Block or redact anything; detect injections in prose (published detectors miss most
+injections against agents and flag up to a third of ordinary tool output, <a href="#decisions">decision 71</a>);
+read base64 or other encodings; scan responses as they stream. Each is a later step, and blocking will start from what
+shadow mode shows on your traffic.</p>
 <h3 id="auth-and-spend-people-and-teams">People and teams</h3>
 <div class="table-wrap"><table>
 <thead>
@@ -11803,6 +11882,11 @@ that key's role may see.</p></section><section id="decisions"><header class="sec
 <td>Attribution is tags: Claude Code's agent labels recorded as tags, 32 tags a request, and a capabilities answer for services</td>
 <td>Accepted</td>
 </tr>
+<tr>
+<td>71</td>
+<td>Request screening starts in shadow, with fixed rules on what agents do, not a detector</td>
+<td>Accepted</td>
+</tr>
 </tbody>
 </table></div>
 <p><strong>Still open:</strong> an embedding feature source for the learned router (decision 44). Judged labels are built (decision 52),
@@ -13644,7 +13728,31 @@ say, and Blackstart's facade strips caller metadata anyway. Cost for streams in 
 break strict clients; the ledger lookup works for every format. Making the <code>cc_</code> tags reserved: a client that wants
 other names for them should be able to set them.</p>
 <p><strong>Revisit if:</strong> Blackstart needs route listing or data-policy enforcement from the gateway (then a routes endpoint with
-providers, prices and retention flags), streamed cost is needed inline, or 32 tags isn't enough.</p></section><section id="how-it-decides"><header class="sec-head"><span class="n">10</span><h2>How it decides</h2></header><p>Every decision Merit Order makes, in the order it makes them, with the exact rules and defaults.
+providers, prices and retention flags), streamed cost is needed inline, or 32 tags isn't enough.</p>
+<h3 id="decisions-71-request-screening-starts-in-shadow-with-fixed-rules-on-what-agents-do-not-a-detector">71. Request screening starts in shadow, with fixed rules on what agents do, not a detector</h3>
+<p><strong>Why:</strong> The planned request-security layers (secret scanning, normalization, injection signals, moderation, audit)
+needed an order and a first step. Research on what works against agent attacks (19 Nov 2026) found that prompt-injection
+detectors are weak as gates: the best detector on one benchmark caught 2% of AgentDojo injections at a 1% false-positive
+rate, several flagged about a third of ordinary tool output, and adaptive attacks beat most published defenses more
+than 90% of the time. Character tricks (emoji and Unicode tag smuggling) evaded every guardrail one study tested. What a
+gateway does have is a view of every tool call before the agent's next turn, and real incidents (DNS exfiltration in
+Claude Code, a malicious MCP config write in Cursor, markdown image leaks) have shapes fixed rules can see.</p>
+<p><strong>How:</strong> <code>screening.py</code>, per team (<code>screening.mode</code>: <code>off</code> by default, or <code>shadow</code>), on the messages new since the
+session's last turn, as outcomes.py reads them: hidden Unicode (tag characters, bidi overrides, zero-width), keys with
+known prefixes in tool calls and in prompts, shell rules (download piped to a shell, uploads, DNS lookups with command
+substitution, credential reads, config writes), edits to agent, editor, hook, CI and shell configuration, image links
+with data in the model's text, and untrusted content (web fetch and search results) that marks the session so later
+risky calls also count as <code>after_untrusted</code>. Findings are ledger tags (<code>screen</code>, <code>screen_untrusted</code>, reserved) and
+<code>meritorder_screening_findings_total</code>; only kinds and counts, never content. Shadow first so its false-alarm rate is
+measured on real traffic before anything blocks.</p>
+<p><strong>Not chosen:</strong> A hosted injection detector in the request path: the numbers above, plus latency and sending every
+tool result to another provider; it may come as a sampled, asynchronous audit. A local classifier (Prompt Guard and
+the like): the owner's rule is no local model in the request path. Entropy rules for secrets: agent traffic is full of
+hashes and base64, so they'd mostly be noise. Blocking from day one: a rule that's wrong blocks real work, and nobody
+yet knows how often these are wrong here. Spotlighting or encoding tool results: it would break agents' verbatim edits
+and the prompt cache.</p>
+<p><strong>Revisit if:</strong> shadow data shows a kind is rarely wrong (then block it, holding back the tool call while text still
+streams), a hosted detector shows good numbers on agent traffic, or encodings (base64, hex) start hiding the shapes.</p></section><section id="how-it-decides"><header class="sec-head"><span class="n">10</span><h2>How it decides</h2></header><p>Every decision Merit Order makes, in the order it makes them, with the exact rules and defaults.
 Each rule names the setting that controls it. The code is the source of truth:
 <code>proxy.py</code> (request pipeline), <code>router.py</code> (model and backend choice), <code>classifier.py</code> (levels), <code>learned.py</code> and
 <code>learned_jobs.py</code> (the opt-in learned router), <code>success.py</code> (expected total cost: the success predictor and the cascade),
@@ -15011,6 +15119,11 @@ really full. Meanwhile the controller sees the demand and adds replicas (after
 <td>Exploration</td>
 <td>off; on: 4% of a team's eligible task starts, half a level down and half up; a canary takes 20% of its level's</td>
 <td>team <code>exploration</code></td>
+</tr>
+<tr>
+<td>Request screening</td>
+<td>off; <code>shadow</code>: findings recorded as ledger tags and metrics, nothing blocked</td>
+<td>team <code>screening.mode</code></td>
 </tr>
 <tr>
 <td>Exploring up stops when a budget is</td>

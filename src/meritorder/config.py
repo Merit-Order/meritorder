@@ -716,9 +716,17 @@ class ExplorationConfig(BaseModel):
     canary_share: float = Field(default=0.2, ge=0, le=0.5)
 
 
+class ScreeningConfig(BaseModel):
+    """Request screening (decision 71): hidden Unicode, keys, and risky tool calls in what an agent's requests carry.
+    "shadow" records what it finds (ledger tags, metrics) and changes nothing; "off" doesn't look."""
+
+    mode: Literal["off", "shadow"] = "off"
+
+
 class TeamConfig(BaseModel):
     name: str = ""
     compression: CompressionConfig = CompressionConfig()
+    screening: ScreeningConfig = ScreeningConfig()
     rate_limits: RateLimits = RateLimits()
     response_cache: ResponseCacheConfig = ResponseCacheConfig()
     stored_responses: StoredResponsesConfig = StoredResponsesConfig()  # the Responses API's stored mode (off by default)
