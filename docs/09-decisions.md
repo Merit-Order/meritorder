@@ -75,6 +75,7 @@ What we decided, why, and what would make us revisit it. Newest decisions go at 
 | 69 | People sign in to the console with an account (a password here, or SSO), not a pasted key; keys are for harnesses and services | Accepted |
 | 70 | Attribution is tags: Claude Code's agent labels recorded as tags, 32 tags a request, and a capabilities answer for services | Accepted |
 | 71 | Request screening starts in shadow, with fixed rules on what agents do, not a detector | Accepted |
+| 72 | Named tiers, a route listing, and a caller's data policy | Accepted |
 
 **Still open:** an embedding feature source for the learned router (decision 44). Judged labels are built (decision 52),
 opt-in per team, and tested only against mocks.
@@ -2148,3 +2149,30 @@ and the prompt cache.
 
 **Revisit if:** shadow data shows a kind is rarely wrong (then block it, holding back the tool call while text still
 streams), a hosted detector shows good numbers on agent traffic, or encodings (base64, hex) start hiding the shapes.
+
+## 72. Named tiers, a route listing, and a caller's data policy
+
+**Why:** Blackstart asks for a tier (`frontier`, `standard`, `cheap`, `embed`), never a model, and expects the gateway to
+own what each tier sends to. Its data policy decides which providers may receive which classes of data, and whether
+only zero-retention endpoints may; it needs to see where each tier can send data and to have the gateway keep a request
+to what the policy allows. `GET /v1/capabilities` (decision 70) reported both as missing, so Blackstart would have
+treated every route's provider as unknown.
+
+**How:**
+- `tiers` in the config: a chat tier is `auto` at a fixed level (frontier 5, standard 3, cheap 1 by default), the task
+  from the request unless the tier sets one; a fixed tier or an embedding tier is one model (by default the cheapest
+  priced embedding model). A model's own name wins over a tier's. The ledger keeps the tier's name as the requested model.
+- Each backend has a `provider` (from its address unless set) and the operator's `zero_retention` and `trains_on_data`
+  from their agreement; unset is unknown, never guessed. Your own GPUs are zero-retention by nature.
+- `X-MeritOrder-Allowed-Providers` and `X-MeritOrder-Zero-Retention: required` on a request leave out routes the policy
+  forbids, for chat and embeddings; nothing left is `403 data_policy` with each route's reason.
+- `GET /v1/routes` lists each tier's candidate models, each route's provider, price, data facts (with their source) and
+  whether it's available now, within the caller's team's allowed models and backends.
+
+**Not chosen:** Guessing retention from the provider (it depends on the contract: Anthropic and OpenAI offer zero data
+retention only by agreement). A policy stored in the gateway per team: the caller already has one, and passing it per
+request keeps one source of truth; a team setting can come later. Tiers as model aliases: an alias names one model,
+and a tier's point is that the gateway chooses.
+
+**Revisit if:** callers want policy per team in the gateway, data classes need different providers within one request,
+or providers publish machine-readable retention terms.

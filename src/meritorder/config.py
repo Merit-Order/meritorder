@@ -426,6 +426,12 @@ class BackendConfig(BaseModel):
     # openrouter -> reasoning.effort, none -> never sent. "auto" picks from the format and URL.
     effort_format: Literal["auto", "anthropic", "openai", "openrouter", "none"] = "auto"
     max_tokens_field: str = "max_tokens"
+    # Where requests sent here go, for a caller's data policy (decision 72, GET /v1/routes): the provider's name
+    # (default: from the address, e.g. anthropic, bedrock, azure_openai, vertex), and what your agreement with it says.
+    # None means unknown, and a caller that requires zero retention won't be sent here.
+    provider: str | None = None
+    zero_retention: bool | None = None  # the provider keeps no prompts or outputs (your agreement or its ZDR terms say so)
+    trains_on_data: bool | None = None  # the provider may train on what's sent
     # Where this backend's live prices come from: "openrouter" (OpenRouter's catalog), "litellm" (the price list
     # LiteLLM maintains, for direct provider APIs), or "none" (self-hosted, priced by the GPU hour). "auto" picks
     # from the URL. price_prefix is the provider's prefix in LiteLLM's list (e.g. "vertex_ai/"); None picks it.
@@ -714,6 +720,28 @@ class ExplorationConfig(BaseModel):
     # A canary (a model newly cheapest or newly eligible at a level) takes this share of the level's task starts, and
     # none of the others, until it has routing.benchmark.canary_outcomes recorded task starts there (or canary_days pass).
     canary_share: float = Field(default=0.2, ge=0, le=0.5)
+
+
+class TierConfig(BaseModel):
+    """A named route a caller asks for by name, as a model (decision 72): Blackstart's tiers (frontier, standard, cheap,
+    embed) are route names, and the gateway decides what each sends to. A chat tier is `auto` at a fixed level (the
+    task, coding or general, from the request unless set here); an embedding tier is one model, by default the cheapest
+    priced embedding model."""
+
+    kind: Literal["chat", "embedding"] = "chat"
+    level: int | None = Field(default=None, ge=1, le=5)
+    task: Literal["coding", "general"] | None = None
+    model: str | None = None  # a fixed model instead (chat or embedding)
+
+    @model_validator(mode="after")
+    def _one_way(self):
+        if self.kind == "chat" and (self.level is None) == (self.model is None):
+            raise ValueError("a chat tier has either a level (1 to 5) or a model")
+        return self
+
+
+DEFAULT_TIERS = {"frontier": TierConfig(level=5), "standard": TierConfig(level=3), "cheap": TierConfig(level=1),
+                 "embed": TierConfig(kind="embedding")}
 
 
 class ScreeningConfig(BaseModel):
@@ -1483,6 +1511,7 @@ class Config(BaseModel):
     backends: list[BackendConfig]
     models: list[ModelConfig]
     teams: list[TeamConfig] = Field(default_factory=lambda: [TeamConfig(name="default")])
+    tiers: dict[str, TierConfig] = Field(default_factory=lambda: dict(DEFAULT_TIERS))  # named routes (decision 72)
     baseline_model: str | None = None
     auth: AuthConfig = AuthConfig()
     routing: RoutingConfig = RoutingConfig()
@@ -1538,9 +1567,27 @@ class Config(BaseModel):
                 return t
         return TeamConfig(name=name)
 
+    def tier(self, name: str | None) -> TierConfig | None:
+        """A named route (decision 72), unless a model has that name (a model's own name always wins)."""
+        if not name or name not in self.tiers or any(m.name == name or m.matches(name) for m in self.models):
+            return None
+        return self.tiers[name]
+
+    def tier_model(self, name: str | None) -> ModelConfig | None:
+        """The model a fixed tier (one with a model, or an embedding tier) sends to; None for a level tier."""
+        t = self.tier(name)
+        if t is None or t.level is not None:
+            return None
+        if t.model:
+            return next((m for m in self.models if m.name == t.model or m.matches(t.model)), None)
+        embeds = [m for m in self.models if m.kind == "embedding" and any(r.priced for r in m.routes)]
+        return min(embeds, key=lambda m: min(r.cost_price().input for r in m.routes if r.priced), default=None)
+
     def model(self, name: str | None) -> ModelConfig | None:
         if not name:
             return None
+        if (fixed := self.tier_model(name)) is not None:
+            return fixed
         for m in self.models:
             if m.name == name:
                 return m

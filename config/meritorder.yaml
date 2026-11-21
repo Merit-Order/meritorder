@@ -141,6 +141,8 @@ backends:
 
   # --- OpenAI-compatible family
   azure-openai:
+    # For a caller's data policy (docs/06-auth-and-spend.md#data-policy): set what your agreement says, e.g.
+    # zero_retention: true once you have zero-data-retention terms; unset means unknown. provider: comes from the address.
     format: openai
     base_url: ${AZURE_OPENAI_ENDPOINT}/openai/v1
     auth: {type: api_key, header: api-key, value_env: AZURE_OPENAI_API_KEY}
@@ -259,6 +261,13 @@ backends:
 kubernetes:
   node_types:
     p5.48xlarge: {usd_per_hour: 55.04, gpus: 8}     # an example rate: put your own
+
+# Named tiers a caller can ask for by name (docs/03-routing.md#named-tiers). These are the defaults; uncomment to change.
+# tiers:
+#   frontier: {level: 5}
+#   standard: {level: 3}
+#   cheap: {level: 1}
+#   embed: {kind: embedding}
 
 models:
   # --- frontier

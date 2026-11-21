@@ -405,6 +405,23 @@ team explores says so: <code>…; exploring: one level down from coding:3 (2.0% 
 The ledger keeps it (<code>route_reason</code>), and the console shows it under Reports → Requests and on the
 Dispatch feed. A team routing by expected total cost gets both models' chances and costs, and an escalation what it
 compared (<a href="#expected-total-cost-to-finish-the-task">Expected total cost</a>).</p>
+<h3 id="named-tiers">Named tiers</h3>
+<p>A caller can ask for a tier by name instead of a model: <code>frontier</code>, <code>standard</code>, <code>cheap</code> and <code>embed</code> by default
+(<a href="decisions.html#72-named-tiers-a-route-listing-and-a-callers-data-policy">decision 72</a>). A chat tier is <code>auto</code> at a
+fixed level (frontier 5, standard 3, cheap 1), with the task (coding or general) taken from the request unless the tier
+sets one; an embedding tier is one model, by default the cheapest priced embedding model. The gateway owns the mapping:
+change <code>tiers</code> in the config and every caller follows. A model with the same name as a tier wins. <code>X-Route-Floor</code> still
+overrides a tier's level. The ledger records the tier's name as the requested model.</p>
+<pre><code class="language-yaml">tiers:
+  frontier: {level: 5}
+  standard: {level: 3}
+  cheap: {level: 1}
+  embed: {kind: embedding}            # or {kind: embedding, model: text-embedding-3-small}
+  review: {level: 4, task: coding}    # your own
+  pinned: {model: claude-sonnet}      # a fixed model
+</code></pre>
+<p><code>GET /v1/routes</code> lists each tier's candidate models and where each can send a request: provider, price, and the data
+facts in <a href="auth-and-spend.html#data-policy">06</a>.</p>
 <h2 id="the-cost-function">The cost function</h2>
 <p>For each candidate backend <code>b</code>, over the session's expected remaining turns:</p>
 <pre><code>cost(b) = rebuild(b) + expected_remaining_turns × per_turn(b)

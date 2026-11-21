@@ -162,6 +162,28 @@ The ledger keeps it (`route_reason`), and the console shows it under Reports →
 Dispatch feed. A team routing by expected total cost gets both models' chances and costs, and an escalation what it
 compared ([Expected total cost](#expected-total-cost-to-finish-the-task)).
 
+### Named tiers
+
+A caller can ask for a tier by name instead of a model: `frontier`, `standard`, `cheap` and `embed` by default
+([decision 72](09-decisions.md#72-named-tiers-a-route-listing-and-a-callers-data-policy)). A chat tier is `auto` at a
+fixed level (frontier 5, standard 3, cheap 1), with the task (coding or general) taken from the request unless the tier
+sets one; an embedding tier is one model, by default the cheapest priced embedding model. The gateway owns the mapping:
+change `tiers` in the config and every caller follows. A model with the same name as a tier wins. `X-Route-Floor` still
+overrides a tier's level. The ledger records the tier's name as the requested model.
+
+```yaml
+tiers:
+  frontier: {level: 5}
+  standard: {level: 3}
+  cheap: {level: 1}
+  embed: {kind: embedding}            # or {kind: embedding, model: text-embedding-3-small}
+  review: {level: 4, task: coding}    # your own
+  pinned: {model: claude-sonnet}      # a fixed model
+```
+
+`GET /v1/routes` lists each tier's candidate models and where each can send a request: provider, price, and the data
+facts in [06](06-auth-and-spend.md#data-policy).
+
 ## The cost function
 
 For each candidate backend `b`, over the session's expected remaining turns:

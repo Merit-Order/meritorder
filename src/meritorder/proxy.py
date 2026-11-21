@@ -66,7 +66,7 @@ from .sessions import SESSION_HEADERS, SESSION_TTL, Session, is_task_boundary, p
 from .store import SAVINGS_FIELDS, month_start
 from .tokens import SETTING as TOKENS_SETTING
 from .pauses import SETTING as PAUSES_SETTING
-from . import outcomes, screening
+from . import datapolicy, outcomes, screening
 from .success import SETTING as SUCCESS_SETTING
 from .success import VERSION_SETTING as SUCCESS_VERSION
 from .success import Predictor, SuccessModel, TaskContext, project_hash, repo_hash, track, triage_buckets
@@ -771,7 +771,7 @@ class Gateway:
         team = self.cfg.team(principal.team)
         requested = str(body.get("model") or "")
         model = self.cfg.model(requested)
-        if model is None and requested not in ("", self.cfg.routing.auto_model):
+        if model is None and requested not in ("", self.cfg.routing.auto_model) and self.cfg.tier(requested) is None:
             # As /v1/messages says (router.decide): a count for a model that can't serve the request would mislead.
             return self.reject("anthropic", 404, f"model '{requested}' is not configured", "not_found_error")
         if model is not None and not team.allows_model(model.name):
@@ -828,6 +828,11 @@ class Gateway:
         usable = [r for r in model.routes
                   if r.backend in self.backends and self.backends[r.backend].format == "openai" and hasattr(self.backends[r.backend], "embed")
                   and self.backends[r.backend].healthy(now) and team.allows_backend(r.backend)]
+        if (policy := datapolicy.from_headers(headers)) is not None:  # the caller's data policy (decision 72)
+            why = {r.backend: no for r in usable if (no := policy.refuses(self.backends[r.backend].cfg))}
+            usable = [r for r in usable if r.backend not in why]
+            if why and not usable:
+                return self.reject("openai", 403, datapolicy.refusal(policy, why), "permission_error")
         # An unknown price must never look free: a route with none isn't used (GPUs are charged by their time instead).
         unpriced = [r for r in usable if needs_price(r, self.backends[r.backend].kind)]
         usable = [r for r in usable if r not in unpriced]
