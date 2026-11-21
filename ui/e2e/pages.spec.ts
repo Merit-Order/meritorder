@@ -95,6 +95,7 @@ test("two-factor: turn it on, sign in with a code, and with a recovery code", as
   await p.getByRole("menuitem", { name: "Two-factor sign-in" }).click();
   await p.getByRole("button", { name: "Set up" }).click();
   await expect(p.getByRole("link", { name: "Add to my authenticator app" })).toHaveAttribute("href", /^otpauth:\/\/totp\//);
+  await expect(p.getByRole("img", { name: /QR code to add Merit Order/ })).toBeVisible();
   const secret = (await p.getByRole("dialog").locator("code").innerText()).replace(/\s/g, "");
   await p.getByLabel("Then enter the code it shows").fill(totp(secret));
   await p.getByRole("button", { name: "Turn on" }).click();

@@ -7679,8 +7679,8 @@ six-digit code from an authenticator app (1Password, Apple Passwords, Google Aut
 console and in <code>meritorder login</code> (<a href="#decisions-73-two-factor-sign-in-for-local-accounts-authenticator-codes-and-recovery-codes">decision 73</a>).
 People who sign in with SSO get two-factor from their identity provider instead.</p>
 <ul>
-<li><strong>Turning it on:</strong> the console shows a key and an <code>otpauth://</code> link (opening it on the phone or Mac with the app adds
-  the account); entering the code the app shows turns it on, ends your other sessions, and shows ten recovery codes,
+<li><strong>Turning it on:</strong> the console shows a QR code to scan, an <code>otpauth://</code> link (opening it on the phone or Mac with the
+  app adds the account) and the key to type in; entering the code the app shows turns it on, ends your other sessions, and shows ten recovery codes,
   once. Each recovery code signs you in once in place of a code.</li>
 <li><strong>Codes:</strong> the standard time-based kind (SHA-1, 6 digits, 30 seconds), accepted one step either side for clock drift;
   each code works once. A wrong code counts against the sign-in limit like a wrong password.</li>
@@ -13883,10 +13883,9 @@ on ends the person's other sessions.</p>
 <p><strong>Not chosen:</strong> Passkeys (WebAuthn) first: better against phishing, but they need a relying-party setup tied to the
 gateway's host name and a server library; they can come next. SMS or email codes: Merit Order sends neither, and SMS is
 the weakest second factor. A required <code>MERITORDER_AUTH_KEY</code>: one more secret before anyone can turn two-factor on; the
-password hash already stands between a database copy and a sign-in. A QR code in the console: it needs a library the
-console doesn't have yet; the <code>otpauth://</code> link and the typed key cover phones and Macs meanwhile.</p>
-<p><strong>Revisit if:</strong> people want passkeys, an organization wants two-factor required for everyone with a password, or the QR
-code matters enough to add the library.</p></section><section id="how-it-decides"><header class="sec-head"><span class="n">10</span><h2>How it decides</h2></header><p>Every decision Merit Order makes, in the order it makes them, with the exact rules and defaults.
+password hash already stands between a database copy and a sign-in. The QR code comes from <code>qrcode-generator</code> (MIT, no
+dependencies), drawn as SVG squares so nothing is injected into the page.</p>
+<p><strong>Revisit if:</strong> people want passkeys, or an organization wants two-factor required for everyone with a password.</p></section><section id="how-it-decides"><header class="sec-head"><span class="n">10</span><h2>How it decides</h2></header><p>Every decision Merit Order makes, in the order it makes them, with the exact rules and defaults.
 Each rule names the setting that controls it. The code is the source of truth:
 <code>proxy.py</code> (request pipeline), <code>router.py</code> (model and backend choice), <code>classifier.py</code> (levels), <code>learned.py</code> and
 <code>learned_jobs.py</code> (the opt-in learned router), <code>success.py</code> (expected total cost: the success predictor and the cascade),

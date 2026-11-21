@@ -3,6 +3,7 @@ import { notifications } from "@mantine/notifications";
 import { useState, type ReactNode } from "react";
 import { ApiError, auth } from "../api";
 import { BrandMark, Icon } from "../components/icons";
+import { QrCode } from "../components/QrCode";
 import { SourceFooter } from "../components/SourceFooter";
 import { useData } from "../hooks";
 
@@ -253,9 +254,12 @@ export function TwoFactor({ opened, on, onClose }: { opened: boolean; on: boolea
         ) : setup ? (
           <form onSubmit={enable}>
             <Stack gap="sm">
-              <Text size="sm">Add this account to your authenticator app (1Password, Apple Passwords, Google Authenticator, Authy…): open the
-                link on the device that has the app, or type the key in.</Text>
-              <Anchor href={setup.uri} size="sm">Add to my authenticator app</Anchor>
+              <Text size="sm">Add this account to your authenticator app (1Password, Apple Passwords, Google Authenticator, Authy…): scan the
+                code with your phone, open the link on the device that has the app, or type the key in.</Text>
+              <Group align="center" gap="lg">
+                <QrCode value={setup.uri} label="QR code to add Merit Order to your authenticator app" />
+                <Anchor href={setup.uri} size="sm">Add to my authenticator app</Anchor>
+              </Group>
               <Text size="xs" c="dimmed">Key (time-based, 6 digits, every 30 seconds)</Text>
               <Code fz="sm" style={{ overflowWrap: "anywhere" }}>{setup.secret.replace(/(.{4})/g, "$1 ").trim()}</Code>
               <TextInput label="Then enter the code it shows" value={code} onChange={(e) => setCode(e.currentTarget.value)} autoComplete="one-time-code"

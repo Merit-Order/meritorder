@@ -176,8 +176,8 @@ six-digit code from an authenticator app (1Password, Apple Passwords, Google Aut
 console and in `meritorder login` ([decision 73](09-decisions.md#73-two-factor-sign-in-for-local-accounts-authenticator-codes-and-recovery-codes)).
 People who sign in with SSO get two-factor from their identity provider instead.
 
-- **Turning it on:** the console shows a key and an `otpauth://` link (opening it on the phone or Mac with the app adds
-  the account); entering the code the app shows turns it on, ends your other sessions, and shows ten recovery codes,
+- **Turning it on:** the console shows a QR code to scan, an `otpauth://` link (opening it on the phone or Mac with the
+  app adds the account) and the key to type in; entering the code the app shows turns it on, ends your other sessions, and shows ten recovery codes,
   once. Each recovery code signs you in once in place of a code.
 - **Codes:** the standard time-based kind (SHA-1, 6 digits, 30 seconds), accepted one step either side for clock drift;
   each code works once. A wrong code counts against the sign-in limit like a wrong password.
