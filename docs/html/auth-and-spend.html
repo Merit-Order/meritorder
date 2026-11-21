@@ -379,6 +379,23 @@ same answer as a wrong password. The per-address limit means anyone can lock a k
 that's the trade for stopping guessing. Behind a proxy, the gateway sees every client as the proxy's address unless
 the proxy is trusted (<code>FORWARDED_ALLOW_IPS</code>, <a href="deployment.html">07</a>): then the per-client limit applies to everyone at
 once. Resetting or changing a password also revokes the keys <code>meritorder login</code> got with the old one.</p>
+<h3 id="two-factor-sign-in">Two-factor sign-in</h3>
+<p>People with a password here can turn on two-factor (account menu → Two-factor sign-in): signing in then also takes a
+six-digit code from an authenticator app (1Password, Apple Passwords, Google Authenticator, Authy and others), on the
+console and in <code>meritorder login</code> (<a href="decisions.html#73-two-factor-sign-in-for-local-accounts-authenticator-codes-and-recovery-codes">decision 73</a>).
+People who sign in with SSO get two-factor from their identity provider instead.</p>
+<ul>
+<li><strong>Turning it on:</strong> the console shows a key and an <code>otpauth://</code> link (opening it on the phone or Mac with the app adds
+  the account); entering the code the app shows turns it on, ends your other sessions, and shows ten recovery codes,
+  once. Each recovery code signs you in once in place of a code.</li>
+<li><strong>Codes:</strong> the standard time-based kind (SHA-1, 6 digits, 30 seconds), accepted one step either side for clock drift;
+  each code works once. A wrong code counts against the sign-in limit like a wrong password.</li>
+<li><strong>A forgotten password</strong> doesn't turn it off: a reset link sets a new password, and the code is still asked for.</li>
+<li><strong>A lost device:</strong> a recovery code, or an admin's <strong>Reset two-factor</strong> on the People page, which turns it off and ends
+  the person's sessions. Team leads can't.</li>
+<li><strong>Storage:</strong> the authenticator secret has to be read to check a code, so it's sealed (AES-256-GCM, tied to its person)
+  with <code>MERITORDER_AUTH_KEY</code> when that's set, and stored as it is otherwise; recovery codes are stored as hashes.</li>
+</ul>
 <p><strong>Keys in the console.</strong> "Sign in with an API key instead" still works: the gateway checks the key and opens a
 session tied to it, so the browser never stores the key, and revoking the key ends the session. A console that kept
 a key from an earlier version trades it for a session the next time it opens, and forgets it.</p>

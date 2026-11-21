@@ -469,7 +469,9 @@ class MemoryStore(MemoryBatches, MemoryStored):
                 continue
             keys = [k for k in self.keys.values() if k["user_id"] == u["id"]]
             out.append({**u, "active_keys": sum(1 for k in keys if not k["revoked_at"]),
-                        "last_seen": max((k.get("last_used_at") for k in keys if k.get("last_used_at")), default=None)})
+                        "last_seen": max((k.get("last_used_at") for k in keys if k.get("last_used_at")), default=None),
+                        "has_password": u["id"] in self.__dict__.setdefault("passwords", {}),
+                        "two_factor": bool((self.__dict__.setdefault("totp", {}).get(u["id"]) or {}).get("enabled_at"))})
         return out
 
     async def create_key(self, user_id: str, team: str, role: str, name: str | None = None, tags: dict | None = None,
@@ -508,7 +510,22 @@ class MemoryStore(MemoryBatches, MemoryStored):
 
     async def get_credential(self, user_id: str) -> dict | None:
         h = self.__dict__.setdefault("passwords", {}).get(user_id)
-        return {"password_hash": h, "max_role": self.__dict__.setdefault("password_caps", {}).get(user_id)} if h else None
+        if not h:
+            return None
+        t = self.__dict__.setdefault("totp", {}).get(user_id) or {}
+        return {"password_hash": h, "max_role": self.__dict__.setdefault("password_caps", {}).get(user_id),
+                "totp_secret": t.get("secret"), "totp_enabled_at": t.get("enabled_at"), "recovery_codes": list(t.get("codes") or [])}
+
+    async def set_totp(self, user_id: str, secret: str | None, enabled: bool, recovery_codes: list[str] | None = None) -> None:
+        self.__dict__.setdefault("totp", {})[user_id] = {"secret": secret, "enabled_at": datetime.now(UTC) if enabled else None,
+                                                          "codes": list(recovery_codes or [])}
+
+    async def use_recovery_code(self, user_id: str, code_hash: str) -> bool:
+        t = self.__dict__.setdefault("totp", {}).get(user_id) or {}
+        if code_hash in (t.get("codes") or []):
+            t["codes"].remove(code_hash)
+            return True
+        return False
 
     async def create_session(self, user_id: str, method: str, expires_at: datetime, key_hash: str | None = None,
                              user_agent: str | None = None, max_role: str | None = None) -> str:
@@ -1303,10 +1320,17 @@ ALTER TABLE invites ADD COLUMN IF NOT EXISTS creator_role text;
 ALTER TABLE local_credentials ADD COLUMN IF NOT EXISTS max_role text;
 ALTER TABLE console_sessions ADD COLUMN IF NOT EXISTS max_role text;
 """
+# Two-factor sign-in for local accounts (decision 73): the authenticator's secret (sealed when MERITORDER_AUTH_KEY is
+# set), when it was turned on, and the recovery codes' hashes.
+SCHEMA_V23 = """
+ALTER TABLE local_credentials ADD COLUMN IF NOT EXISTS totp_secret text;
+ALTER TABLE local_credentials ADD COLUMN IF NOT EXISTS totp_enabled_at timestamptz;
+ALTER TABLE local_credentials ADD COLUMN IF NOT EXISTS recovery_codes jsonb NOT NULL DEFAULT '[]';
+"""
 MIGRATIONS = [(1, SCHEMA_V1), (2, SCHEMA_V2), (3, SCHEMA_V3), (4, SCHEMA_V4), (5, SCHEMA_V5), (6, SCHEMA_V6), (7, SCHEMA_V7),
               (8, SCHEMA_V8), (9, SCHEMA_V9), (10, SCHEMA_V10), (11, SCHEMA_V11), (12, SCHEMA_V12), (13, SCHEMA_V13),
               (14, SCHEMA_V14), (15, SCHEMA_V15), (16, SCHEMA_V16), (18, SCHEMA_V18), (19, SCHEMA_V19),
-              (20, SCHEMA_V20), (21, SCHEMA_V21), (22, SCHEMA_V22)]
+              (20, SCHEMA_V20), (21, SCHEMA_V21), (22, SCHEMA_V22), (23, SCHEMA_V23)]
 EVAL_RUN_FIELDS = ("status", "progress", "scores", "results", "error", "cost", "started_at", "finished_at", "applied_version")
 
 _SUMS_SQL = ", ".join(f"coalesce(sum({f}), 0) AS {f}" for f in SUM_FIELDS)
@@ -1501,8 +1525,10 @@ class PostgresStore(PostgresBatches, PostgresStored):
             return (await c.execute("DELETE FROM scim_groups WHERE id=$1", gid)).endswith("1")
 
     async def list_users(self, team: str | None = None) -> list[dict]:
-        sql = """SELECT u.*, count(k.id) FILTER (WHERE k.revoked_at IS NULL) AS active_keys, max(k.last_used_at) AS last_seen
-                 FROM users u LEFT JOIN api_keys k ON k.user_id = u.id""" + (" WHERE u.team = $1" if team else "") + """
+        sql = """SELECT u.*, count(k.id) FILTER (WHERE k.revoked_at IS NULL) AS active_keys, max(k.last_used_at) AS last_seen,
+                        bool_or(l.user_id IS NOT NULL) AS has_password, bool_or(l.totp_enabled_at IS NOT NULL) AS two_factor
+                 FROM users u LEFT JOIN api_keys k ON k.user_id = u.id LEFT JOIN local_credentials l ON l.user_id = u.id""" + (
+                 " WHERE u.team = $1" if team else "") + """
                  GROUP BY u.id ORDER BY u.id"""
         async with self.pool.acquire() as c:
             rows = await c.fetch(sql, *([team] if team else []))
@@ -1557,8 +1583,21 @@ class PostgresStore(PostgresBatches, PostgresStored):
 
     async def get_credential(self, user_id: str) -> dict | None:
         async with self.pool.acquire() as c:
-            row = await c.fetchrow("SELECT password_hash, max_role FROM local_credentials WHERE user_id=$1", user_id)
+            row = await c.fetchrow("""SELECT password_hash, max_role, totp_secret, totp_enabled_at, recovery_codes
+                                      FROM local_credentials WHERE user_id=$1""", user_id)
         return dict(row) if row else None
+
+    async def set_totp(self, user_id: str, secret: str | None, enabled: bool, recovery_codes: list[str] | None = None) -> None:
+        async with self.pool.acquire() as c:
+            await c.execute("""UPDATE local_credentials SET totp_secret=$2, totp_enabled_at=CASE WHEN $3 THEN now() END,
+                               recovery_codes=$4, updated_at=now() WHERE user_id=$1""", user_id, secret, enabled, list(recovery_codes or []))
+
+    async def use_recovery_code(self, user_id: str, code_hash: str) -> bool:
+        """Removes the code if it's there: true once per code, even with two sign-ins at the same moment."""
+        async with self.pool.acquire() as c:
+            res = await c.execute("""UPDATE local_credentials SET recovery_codes = recovery_codes - $2::text
+                                     WHERE user_id=$1 AND recovery_codes ? $2::text""", user_id, code_hash)
+        return res.endswith("1")
 
     async def get_password(self, user_id: str) -> str | None:
         async with self.pool.acquire() as c:

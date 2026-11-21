@@ -169,6 +169,16 @@ export function People({ api, me }: { api: Api; me: Me }) {
   const [made, setMade] = useState<Invite | null>(null);
   const [links, setLinks] = useState(0);  // bumped when a link is made or withdrawn
   const madeLink = (i: Invite) => { if (i.token) setMade(i); setLinks((n) => n + 1); };
+  const resetTwoFactor = async (u: Person) => {
+    if (!window.confirm(`Turn off two-factor for ${u.display_name ?? u.email ?? u.id}? Their sessions end, and they sign in with their password alone until they turn it on again.`)) return;
+    try {
+      await api.resetTwoFactor(u.id);
+      notifications.show({ color: "green", title: u.email ?? u.id, message: "Two-factor turned off; their sessions ended." });
+      setTick((n) => n + 1);
+    } catch (e) {
+      notifications.show({ color: "red", title: "Not changed", message: e instanceof Error ? e.message : String(e) });
+    }
+  };
   const resetLink = async (u: Person) => {
     try {
       madeLink(await api.resetLink(u.id));
@@ -250,7 +260,11 @@ export function People({ api, me }: { api: Api; me: Me }) {
                     : <StatusBadge kind={u.disabled ? "off" : "good"}>{u.disabled ? "disabled" : "active"}</StatusBadge>}
                     {!u.disabled && u.id !== me.user && (admin || (u.team === me.team && u.role === "user")) &&
                       <Button size="compact-xs" variant="subtle" onClick={() => void resetLink(u)}
-                        title="A one-time link that sets their password (a new one, if they have one)">Password link</Button>}</Stack></Table.Td>
+                        title="A one-time link that sets their password (a new one, if they have one)">Password link</Button>}
+                    {u.two_factor && <Group gap={4}><Badge size="xs" variant="light" color="mo">two-factor</Badge>
+                      {admin && u.id !== me.user && <Button size="compact-xs" variant="subtle" color="red" onClick={() => void resetTwoFactor(u)}
+                        title="For someone who lost their authenticator and recovery codes: they sign in with their password alone until they turn it on again">
+                        Reset two-factor</Button>}</Group>}</Stack></Table.Td>
                 </Table.Tr>
               ))}
             </Table.Tbody>

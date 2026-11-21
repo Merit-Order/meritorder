@@ -8,6 +8,10 @@ the console still accepts one, but exchanges it for a session instead of keeping
 * POST /auth/login                       email and password, or an API key: opens a session (HttpOnly cookie)
 * POST /auth/logout                      ends this session
 * POST /auth/password                    change your own password; your other sessions end
+* POST /auth/two-factor/setup            start turning on two-factor: a new authenticator secret (QR link)
+* POST /auth/two-factor/enable           confirm with a code: two-factor on, ten recovery codes shown once
+* POST /auth/two-factor/disable          turn it off (your password)
+* POST /v1/admin/users/{user_id}/two-factor/reset   an admin turns it off for someone who lost their device
 * GET  /auth/sso/start                   to the organization's sign-in page (OIDC authorization code with PKCE)
 * GET  /auth/sso/callback                back from it: a session, then the console
 * POST /auth/exchange (email, password)  a short-lived key for `meritorder login` on a gateway with local accounts
@@ -47,6 +51,7 @@ from pydantic import BaseModel, Field
 from .auth import (ROLE_RANK, SECURE_SESSION_COOKIE, SESSION_COOKIE, AuthError, Principal, check_same_origin, lower_role,
                    secure_request, session_cookie_name, session_token, user_id_of)
 from .config import Role
+from . import twofactor
 from .store import hash_key
 
 log = logging.getLogger("meritorder.accounts")
@@ -178,6 +183,15 @@ class Login(BaseModel):
     email: str | None = None
     password: str | None = Field(default=None, max_length=MAX_PASSWORD)
     api_key: str | None = None
+    code: str | None = Field(default=None, max_length=40)  # an authenticator or recovery code, with two-factor on
+
+
+class TwoFactorCode(BaseModel):
+    code: str = Field(max_length=40)
+
+
+class PasswordOnly(BaseModel):
+    password: str = Field(max_length=MAX_PASSWORD)
 
 
 class InviteToken(BaseModel):
@@ -271,7 +285,7 @@ def build_router(gateway) -> APIRouter:
             return {"user": p.user_id, "team": p.team, "role": p.role, "method": "key"}
         if not (body.email or "").strip() or not body.password:
             raise HTTPException(400, "enter your email address and password")
-        user, cap = await password_sign_in(gateway, request, body.email or "", body.password)
+        user, cap = await password_sign_in(gateway, request, body.email or "", body.password, body.code)
         await open_session(gateway, request, response, user["id"], "password", max_role=cap)
         return {"user": user["id"], "team": user["team"], "role": user["role"], "method": "password"}
 
@@ -303,6 +317,66 @@ def build_router(gateway) -> APIRouter:
         await revoke_password_keys(gateway, p.user_id)
         gateway.authn.forget_user(p.user_id)
         return {"changed": True, "other_sessions_ended": ended}
+
+    # ------------------------------------------------------------------ two-factor (decision 73)
+
+    async def own_credential(request: Request) -> tuple[Principal, dict]:
+        require_local()
+        p = await principal(request)
+        cred = await gateway.store.get_credential(p.user_id)
+        if cred is None:
+            raise HTTPException(400, "two-factor is for accounts with a password here; SSO accounts use your identity provider's")
+        return p, cred
+
+    @router.post("/auth/two-factor/setup")
+    async def two_factor_setup(request: Request):
+        same_origin(request)
+        p, cred = await own_credential(request)
+        if cred.get("totp_enabled_at"):
+            raise HTTPException(409, "two-factor is already on; turn it off first to set up another device")
+        secret = twofactor.new_secret()
+        await gateway.store.set_totp(p.user_id, twofactor.seal(secret, p.user_id, gateway.store.kind == "memory"), enabled=False)
+        user = await gateway.store.get_user(p.user_id) or {}
+        return {"secret": secret, "uri": twofactor.uri(secret, user.get("email") or p.user_id)}
+
+    @router.post("/auth/two-factor/enable")
+    async def two_factor_enable(request: Request, body: TwoFactorCode):
+        same_origin(request)
+        p, cred = await own_credential(request)
+        if cred.get("totp_enabled_at") or not cred.get("totp_secret"):
+            raise HTTPException(409, "start with setup" if not cred.get("totp_secret") else "two-factor is already on")
+        secret = twofactor.unseal(cred["totp_secret"], p.user_id, gateway.store.kind == "memory")
+        if twofactor.matching_step(secret, body.code) is None:
+            raise HTTPException(422, "that code isn't right; check your device's time and try the newest code")
+        codes = twofactor.new_recovery_codes()
+        await gateway.store.set_totp(p.user_id, cred["totp_secret"], enabled=True, recovery_codes=[twofactor.hash_recovery(c) for c in codes])
+        token = session_token(request)
+        await gateway.store.revoke_user_sessions(p.user_id, keep=hash_key(token) if token else None)  # opened without it
+        gateway.authn.forget_user(p.user_id)
+        log.info("%s turned on two-factor sign-in", p.user_id)
+        return {"enabled": True, "recovery_codes": codes,
+                "note": "Shown once. Keep them somewhere safe: each signs you in once if you lose your device."}
+
+    @router.post("/auth/two-factor/disable")
+    async def two_factor_disable(request: Request, body: PasswordOnly):
+        same_origin(request)
+        p, cred = await own_credential(request)
+        if not await verify_password(body.password, cred["password_hash"]):
+            raise HTTPException(401, "your password is wrong")
+        await gateway.store.set_totp(p.user_id, None, enabled=False)
+        log.info("%s turned off two-factor sign-in", p.user_id)
+        return {"enabled": False}
+
+    @router.post("/v1/admin/users/{user_id}/two-factor/reset")
+    async def two_factor_reset(request: Request, user_id: str):
+        p = await principal(request, "admin")
+        if await gateway.store.get_credential(user_id) is None:
+            raise HTTPException(404, "no one with a password here by that id")
+        await gateway.store.set_totp(user_id, None, enabled=False)
+        await gateway.store.revoke_user_sessions(user_id)
+        gateway.authn.forget_user(user_id)
+        log.info("%s turned off two-factor sign-in for %s", p.user_id, user_id)
+        return {"reset": True, "note": "They sign in with their password alone now, and can turn two-factor on again."}
 
     # ------------------------------------------------------------------ SSO in the browser
 
@@ -528,8 +602,9 @@ def build_router(gateway) -> APIRouter:
 
 async def sign_in_status(gateway, p: Principal) -> dict:
     """For /v1/reports/me: how this person signed in, and whether they have a password here."""
-    return {"method": p.session or ("key" if p.key_id else None),
-            "has_password": await gateway.store.get_password(p.user_id) is not None}
+    cred = await gateway.store.get_credential(p.user_id)
+    return {"method": p.session or ("key" if p.key_id else None), "has_password": cred is not None,
+            "two_factor": bool(cred and cred.get("totp_enabled_at"))}
 
 
 async def revoke_password_keys(gateway, user_id: str) -> None:
@@ -540,7 +615,27 @@ async def revoke_password_keys(gateway, user_id: str) -> None:
             gateway.authn.forget(k["id"])
 
 
-async def password_sign_in(gateway, request: Request, email: str, password: str) -> tuple[dict, str | None]:
+TWO_FACTOR_HEADER = "x-meritorder-two-factor"  # "required" on the 401 that asks for a code
+
+
+async def second_factor_ok(gateway, user_id: str, cred: dict, code: str) -> bool:
+    """An authenticator code (each 30-second step's once per person) or an unused recovery code."""
+    if twofactor.looks_like_recovery(code):
+        return await gateway.store.use_recovery_code(user_id, twofactor.hash_recovery(code))
+    try:
+        secret = twofactor.unseal(cred["totp_secret"], user_id, gateway.store.kind == "memory")
+    except Exception as e:  # noqa: BLE001 (a key that changed: they need an admin's reset or a recovery code)
+        log.warning("couldn't open %s's authenticator secret: %s", user_id, e)
+        return False
+    step = twofactor.matching_step(secret, code)
+    if step is None:
+        return False
+    mine = secrets.token_hex(8)
+    held = await gateway.state.set_json_once({f"totp-used:{user_id}:{step}": mine}, ttl=120)
+    return held.get(f"totp-used:{user_id}:{step}") == mine  # a code seen once already is refused
+
+
+async def password_sign_in(gateway, request: Request, email: str, password: str, code: str | None = None) -> tuple[dict, str | None]:
     """An email address and password, checked: the person's record and the password's role cap (or None). Each attempt is
     counted before the password is checked, so attempts sent at once can't all slip under the limit; a right password
     takes its own attempt back off."""
@@ -564,13 +659,20 @@ async def password_sign_in(gateway, request: Request, email: str, password: str)
     if cap and ROLE_RANK.get(user["role"], 0) > ROLE_RANK.get(cap, 0):
         raise HTTPException(403, "your role has changed since a team lead's link set this password; ask an admin for a new "
                                  "password link")
+    if cred.get("totp_enabled_at"):
+        if not (code or "").strip():
+            raise HTTPException(401, "enter the code from your authenticator app", headers={TWO_FACTOR_HEADER: "required"})
+        if not await second_factor_ok(gateway, user["id"], cred, code):
+            await gateway.state.rate_hit(f"login:{email}", 900)  # a wrong code counts like a wrong password
+            await gateway.state.rate_hit(f"login-ip:{ip}", 60)
+            raise HTTPException(401, "that code isn't right (or was already used)", headers={TWO_FACTOR_HEADER: "required"})
     return user, cap
 
 
-async def password_key(gateway, request: Request, email: str, password: str) -> dict:
+async def password_key(gateway, request: Request, email: str, password: str, code: str | None = None) -> dict:
     """`meritorder login` on a gateway with local accounts: the password signs in, and the person gets a short-lived key
     (``auth.oidc.key_ttl_days``, or 30 days) for their harnesses, as with SSO's device login."""
-    user, cap = await password_sign_in(gateway, request, email, password)
+    user, cap = await password_sign_in(gateway, request, email, password, code)
     role = lower_role(user["role"], cap) if cap else user["role"]
     days = gateway.cfg.auth.oidc.key_ttl_days if gateway.cfg.auth.oidc else 30
     expires = datetime.now(UTC) + timedelta(days=days)

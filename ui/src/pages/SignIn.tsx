@@ -1,7 +1,7 @@
 import { Alert, Anchor, Button, Code, Divider, Group, Modal, Paper, PasswordInput, Stack, Text, TextInput, Title } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import { useState, type ReactNode } from "react";
-import { auth } from "../api";
+import { ApiError, auth } from "../api";
 import { BrandMark, Icon } from "../components/icons";
 import { SourceFooter } from "../components/SourceFooter";
 import { useData } from "../hooks";
@@ -42,6 +42,8 @@ export function SignIn({ onSignedIn, notice }: { onSignedIn: () => void; notice?
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [key, setKey] = useState("");
+  const [code, setCode] = useState("");
+  const [needCode, setNeedCode] = useState(false);  // the gateway asked for an authenticator code (two-factor)
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const useKey = withKey || (!local && !sso);
@@ -50,11 +52,16 @@ export function SignIn({ onSignedIn, notice }: { onSignedIn: () => void; notice?
     setBusy(true);
     setError(null);
     try {
-      await auth.login(useKey ? { api_key: key.trim() } : { email: email.trim(), password });
+      await auth.login(useKey ? { api_key: key.trim() } : { email: email.trim(), password, ...(needCode ? { code: code.trim() } : {}) });
       setPassword("");
       setKey("");
+      setCode("");
       onSignedIn();
     } catch (err) {
+      if (err instanceof ApiError && err.needsCode && !needCode) {
+        setNeedCode(true);  // the password was right: now the code
+        return;
+      }
       setError(errorText(err));
     } finally {
       setBusy(false);
@@ -80,11 +87,15 @@ export function SignIn({ onSignedIn, notice }: { onSignedIn: () => void; notice?
               styles={{ input: { fontFamily: "var(--mantine-font-family-monospace)" } }} data-autofocus />
           ) : (
             <>
-              <TextInput label="Email address" type="email" value={email} onChange={(e) => setEmail(e.currentTarget.value)} autoComplete="username" required />
-              <PasswordInput label="Password" value={password} onChange={(e) => setPassword(e.currentTarget.value)} autoComplete="current-password" required />
+              <TextInput label="Email address" type="email" value={email} onChange={(e) => setEmail(e.currentTarget.value)} autoComplete="username" required
+                readOnly={needCode} />
+              <PasswordInput label="Password" value={password} onChange={(e) => setPassword(e.currentTarget.value)} autoComplete="current-password" required
+                readOnly={needCode} />
+              {needCode && <TextInput label="Code from your authenticator app" description="Or one of your recovery codes" value={code}
+                onChange={(e) => setCode(e.currentTarget.value)} autoComplete="one-time-code" inputMode="text" required data-autofocus autoFocus />}
             </>
           )}
-          <Button type="submit" fullWidth loading={busy} disabled={useKey ? !key.trim() : !email.trim() || !password}>Sign in</Button>
+          <Button type="submit" fullWidth loading={busy} disabled={useKey ? !key.trim() : !email.trim() || !password || (needCode && !code.trim())}>Sign in</Button>
         </Stack>
       </form>
       {(error || notice) && <Alert color="red" icon={<Icon name="bad" size={16} />}>{error ?? notice}</Alert>}
@@ -191,6 +202,77 @@ export function ChangePassword({ opened, onClose }: { opened: boolean; onClose: 
             <Button type="submit" loading={busy} disabled={!current || !next || again !== next}>Change password</Button></Group>
         </Stack>
       </form>
+    </Modal>
+  );
+}
+
+/** Two-factor sign-in for your own password account (decision 73): set it up with an authenticator app, keep the
+ * recovery codes, or turn it off. */
+export function TwoFactor({ opened, on, onClose }: { opened: boolean; on: boolean; onClose: (changed: boolean) => void }) {
+  const [setup, setSetup] = useState<{ secret: string; uri: string } | null>(null);
+  const [code, setCode] = useState("");
+  const [codes, setCodes] = useState<string[] | null>(null);
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const close = (changed = false) => { setSetup(null); setCode(""); setCodes(null); setPassword(""); setError(null); onClose(changed); };
+  const run = async (f: () => Promise<void>) => {
+    setBusy(true);
+    setError(null);
+    try { await f(); } catch (err) { setError(errorText(err)); } finally { setBusy(false); }
+  };
+  const start = () => run(async () => setSetup(await auth.twoFactorSetup()));
+  const enable = (e: React.FormEvent) => { e.preventDefault(); void run(async () => setCodes((await auth.twoFactorEnable(code.trim())).recovery_codes)); };
+  const disable = (e: React.FormEvent) => {
+    e.preventDefault();
+    void run(async () => {
+      await auth.twoFactorDisable(password);
+      notifications.show({ color: "green", title: "Two-factor is off", message: "You sign in with your password alone now." });
+      close(true);
+    });
+  };
+  return (
+    <Modal opened={opened} onClose={() => close(!!codes)} title="Two-factor sign-in" size="lg">
+      <Stack gap="sm">
+        {codes ? (
+          <>
+            <Text size="sm">Two-factor is on. Your other sessions were signed out. These recovery codes each sign you in once if you lose your
+              device. Keep them somewhere safe, such as your password manager; they aren't shown again.</Text>
+            <Code block fz="sm">{codes.join("\n")}</Code>
+            <Group justify="flex-end"><Button onClick={() => close(true)}>Done</Button></Group>
+          </>
+        ) : on ? (
+          <form onSubmit={disable}>
+            <Stack gap="sm">
+              <Text size="sm">Two-factor is on: signing in asks for a code from your authenticator app. To turn it off, enter your password.</Text>
+              <PasswordInput label="Password" value={password} onChange={(e) => setPassword(e.currentTarget.value)} autoComplete="current-password" required data-autofocus />
+              <Group justify="flex-end"><Button variant="default" onClick={() => close()}>Cancel</Button>
+                <Button type="submit" color="red" loading={busy} disabled={!password}>Turn off two-factor</Button></Group>
+            </Stack>
+          </form>
+        ) : setup ? (
+          <form onSubmit={enable}>
+            <Stack gap="sm">
+              <Text size="sm">Add this account to your authenticator app (1Password, Apple Passwords, Google Authenticator, Authy…): open the
+                link on the device that has the app, or type the key in.</Text>
+              <Anchor href={setup.uri} size="sm">Add to my authenticator app</Anchor>
+              <Text size="xs" c="dimmed">Key (time-based, 6 digits, every 30 seconds)</Text>
+              <Code fz="sm" style={{ overflowWrap: "anywhere" }}>{setup.secret.replace(/(.{4})/g, "$1 ").trim()}</Code>
+              <TextInput label="Then enter the code it shows" value={code} onChange={(e) => setCode(e.currentTarget.value)} autoComplete="one-time-code"
+                inputMode="numeric" required autoFocus />
+              <Group justify="flex-end"><Button variant="default" onClick={() => close()}>Cancel</Button>
+                <Button type="submit" loading={busy} disabled={code.replace(/\D/g, "").length !== 6}>Turn on</Button></Group>
+            </Stack>
+          </form>
+        ) : (
+          <>
+            <Text size="sm">With two-factor on, signing in takes your password and a code from an authenticator app on your phone or computer,
+              so a password alone isn't enough.</Text>
+            <Group justify="flex-end"><Button variant="default" onClick={() => close()}>Cancel</Button><Button loading={busy} onClick={() => void start()}>Set up</Button></Group>
+          </>
+        )}
+        {error && <Alert color="red" icon={<Icon name="bad" size={16} />}>{error}</Alert>}
+      </Stack>
     </Modal>
   );
 }

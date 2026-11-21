@@ -1,4 +1,18 @@
+import { createHmac } from "node:crypto";
 import { allow, expect, expectLoaded, KEYS, open, signInAs, signInWithKey, test } from "./fixtures";
+
+/** The authenticator app's code for a base32 secret (RFC 6238: SHA-1, 6 digits, 30 seconds). */
+function totp(secret: string, at = Date.now()): string {
+  const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+  let bits = "";
+  for (const ch of secret.replace(/\s/g, "").toUpperCase()) bits += alphabet.indexOf(ch).toString(2).padStart(5, "0");
+  const key = Buffer.from((bits.match(/.{8}/g) ?? []).map((b) => parseInt(b, 2)));
+  const counter = Buffer.alloc(8);
+  counter.writeBigUInt64BE(BigInt(Math.floor(at / 30000)));
+  const h = createHmac("sha1", key).update(counter).digest();
+  const o = h[h.length - 1] & 15;
+  return String((h.readUInt32BE(o) & 0x7fffffff) % 1_000_000).padStart(6, "0");
+}
 
 // Every page an admin can open renders its heading, loads its data, and logs no errors.
 const ADMIN_PAGES: [string, string, RegExp | string][] = [
@@ -66,6 +80,39 @@ test("a session that ends while the page is open goes back to sign-in, and signi
   await signInWithKey(page, KEYS.admin);
   await expect(page.getByText("People", { exact: true }).first()).toBeVisible();
   expect(page.url()).toContain("#people");
+});
+
+test("two-factor: turn it on, sign in with a code, and with a recovery code", async ({ page, browser }) => {
+  await signInAs(page, "admin");
+  const inv = await (await page.request.post("/v1/admin/invites", { data: { email: "tf@example.com" }, headers: { "x-meritorder-console": "1" } })).json();
+  const ctx = await browser.newContext();
+  const p = await ctx.newPage();
+  await p.goto(`/ui/#invite=${inv.token}`);
+  await p.getByLabel(/^Password/).fill("a long enough passphrase");
+  await p.getByLabel("Again").fill("a long enough passphrase");
+  await p.getByRole("button", { name: "Create account and sign in" }).click();
+  await p.getByRole("button", { name: "tf@example.com" }).click();
+  await p.getByRole("menuitem", { name: "Two-factor sign-in" }).click();
+  await p.getByRole("button", { name: "Set up" }).click();
+  await expect(p.getByRole("link", { name: "Add to my authenticator app" })).toHaveAttribute("href", /^otpauth:\/\/totp\//);
+  const secret = (await p.getByRole("dialog").locator("code").innerText()).replace(/\s/g, "");
+  await p.getByLabel("Then enter the code it shows").fill(totp(secret));
+  await p.getByRole("button", { name: "Turn on" }).click();
+  const codes = (await p.getByRole("dialog").locator("pre").innerText()).trim().split("\n");
+  expect(codes).toHaveLength(10);
+  await p.getByRole("button", { name: "Done" }).click();
+  await p.getByRole("button", { name: "tf@example.com" }).click();
+  await p.getByRole("menuitem", { name: "Sign out" }).click();
+  // Password first, then the code it asks for.
+  await p.getByLabel("Email address").fill("tf@example.com");
+  await p.locator("input[autocomplete=current-password]").fill("a long enough passphrase");
+  await p.getByRole("button", { name: "Sign in", exact: true }).click();
+  const code = p.getByLabel("Code from your authenticator app");
+  await expect(code).toBeVisible();
+  await code.fill(codes[0]);  // a recovery code works too
+  await p.getByRole("button", { name: "Sign in", exact: true }).click();
+  await expect(p.getByRole("button", { name: "tf@example.com" })).toBeVisible();
+  await ctx.close();
 });
 
 test("a console that kept a key before sessions trades it for one and forgets it", async ({ page }) => {

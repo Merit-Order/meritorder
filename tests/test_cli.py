@@ -372,11 +372,14 @@ def test_login_with_a_password_on_a_gateway_with_local_accounts(monkeypatch, cap
         sent.append(json.loads(request.content))
         if sent[-1]["password"] != "right one":
             return httpx.Response(401, json={"detail": "wrong email address or password"})
+        if sent[-1].get("code") != "123456":  # two-factor on: the CLI asks for the code and sends it again
+            return httpx.Response(401, json={"detail": "enter the code from your authenticator app"},
+                                  headers={"x-meritorder-two-factor": "required"})
         return httpx.Response(200, json={"api_key": "mo-pw", "user": "pat@example.com", "team": "default", "expires_at": "2026-12-19T00:00:00Z"})
 
     real = httpx.Client
     monkeypatch.setattr(cli.httpx, "Client", lambda **kw: real(transport=httpx.MockTransport(handler), **kw))
-    monkeypatch.setattr("builtins.input", lambda prompt="": "pat@example.com")
+    monkeypatch.setattr("builtins.input", lambda prompt="": "123456" if "Code" in prompt else "pat@example.com")
     monkeypatch.setattr("getpass.getpass", lambda prompt="": "nope")
     extra = ["--password"] if oidc else []
     with pytest.raises(SystemExit, match="login failed: wrong email address or password"):
@@ -385,7 +388,7 @@ def test_login_with_a_password_on_a_gateway_with_local_accounts(monkeypatch, cap
     cli.main(["login", "--gateway", "http://gw.test", "--email", "pat@example.com", *extra])
     assert "Logged in as pat@example.com (team default)" in capsys.readouterr().out
     assert harness.KEY_FILE.read_text().strip() == "mo-pw"
-    assert sent[-1] == {"email": "pat@example.com", "password": "right one"}
+    assert sent[-1] == {"email": "pat@example.com", "password": "right one", "code": "123456"}
 
 
 def install_idp(monkeypatch, poll, oidc=True, expires_in=60, exchange_status=200):
