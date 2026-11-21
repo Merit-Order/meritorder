@@ -143,7 +143,8 @@ and over HTTPS (directly or through a proxy that sets `X-Forwarded-Proto`) `__Ho
 no other subdomain can set, so a sibling site can't sign your browser in to an account of its choosing. The gateway keeps only its hash.
 It lasts `auth.session_hours` (12 by default). Like a key, it acts as the person's record as it is now, at most a
 minute old, so moving, demoting or disabling someone applies to their console sessions too. Signing out ends the
-session on the gateway, not only in that browser. Changing your password (account menu → Change password) ends your
+session on the gateway, not only in that browser. When a session ends while the console is open, its next call takes it back to the
+sign-in page, which says why; signing in again returns to the page you were on. Changing your password (account menu → Change password) ends your
 other sessions; a reset link ends all of them.
 
 **Invite and reset links** work once, for `auth.local.invite_hours` (72 by default). Each person has at most one open
