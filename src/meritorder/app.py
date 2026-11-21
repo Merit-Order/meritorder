@@ -6,6 +6,7 @@ import asyncio
 import hmac
 import logging
 import os
+import time
 from pathlib import Path
 from contextlib import asynccontextmanager
 
@@ -22,6 +23,7 @@ from .proxy import Gateway
 from .responses_compact import ResponsesTools
 from .responses_ws import ResponsesSocket
 from .accounts import build_router as build_accounts_router
+from . import datapolicy
 from .accounts import password_key
 from .proxy import MAX_TAGS
 from .admin import build_router as build_admin_router
@@ -214,6 +216,52 @@ def create_app(cfg: Config | None = None, gateway: Gateway | None = None) -> Fas
                   "quality": m.quality, "type": m.kind, "self_hostable": bool(m.hf_id)} for m in usable]
         return {"object": "list", "data": data}
 
+    @app.get("/v1/routes")
+    async def routes(request: Request):
+        """The named routes (tiers) a caller can ask for by name, and where each can send a request now: candidate models,
+        each route's provider, price, and data facts (zero retention, training, where they come from). Blackstart's
+        route listing (decision 72): its data policy checks these before sending. Scoped to the caller's team's allowed
+        models and backends."""
+        try:
+            p = await gw.authn.authenticate({k.lower(): v for k, v in request.headers.items()})
+        except AuthError as e:
+            raise HTTPException(e.status, e.message)
+        cfg = gw.cfg
+        team = cfg.team(p.team)
+        now = time.time()
+
+        def route_row(r) -> dict | None:
+            b = gw.backends.get(r.backend)
+            if b is None or not team.allows_backend(r.backend):
+                return None
+            price = r.price
+            return {"backend": r.backend, "model": r.model, **datapolicy.facts(b.cfg),
+                    "price_per_mtok": None if price is None else {"input": price.input, "output": price.output,
+                                                                  "cache_read": price.cache_read if price.cache_read is not None else round(price.input * 0.1, 6)},
+                    "available": bool(b.available and b.healthy(now))}
+
+        def model_row(m) -> dict:
+            return {"model": m.name, "kind": m.kind, "quality": m.quality, "routes": [x for r in m.routes if (x := route_row(r))]}
+
+        out = {}
+        for name, t in cfg.tiers.items():
+            if cfg.tier(name) is None:
+                continue  # a model has this name: the model wins
+            row: dict = {"kind": t.kind, "level": t.level, "task": t.task}
+            if t.level is not None:
+                tasks = [t.task] if t.task else ["coding", "general"]
+                row["candidates"] = {task: [model_row(m) for m in cfg.models if m.kind == "chat" and team.allows_model(m.name)
+                                            and m.q(task) >= t.level and m.routes] for task in tasks}
+                row["note"] = (f"auto at level {t.level}: the cheapest candidate that can serve the request, after the team's "
+                               "rules and the caller's data policy; the task (coding or general) comes from the request"
+                               if not t.task else f"auto at {t.task}:{t.level}")
+            else:
+                m = cfg.tier_model(name)
+                row["candidates"] = {"any": [model_row(m)] if m is not None and team.allows_model(m.name) else []}
+            out[name] = row
+        return {"routes": out, "auto_model": cfg.routing.auto_model,
+                "policy_headers": {"allowed_providers": datapolicy.PROVIDERS_HEADER, "zero_retention": datapolicy.ZERO_RETENTION_HEADER}}
+
     @app.get("/v1/capabilities")
     async def capabilities(request: Request):
         """What this gateway offers a service built on it (Blackstart's capability handshake, decision 70), and how to use
@@ -236,8 +284,9 @@ def create_app(cfg: Config | None = None, gateway: Gateway | None = None) -> Fas
                 "cache_affinity": {"header": "x-session-id"},
                 "embedding_route": bool(embeddings),
                 "embedding_models": embeddings,
-                "route_listing": False,  # /v1/models lists models and quality; not providers, prices or retention yet
-                "data_policy_enforcement": False,
+                "route_listing": {"path": "/v1/routes", "tiers": sorted(n for n in gw.cfg.tiers if gw.cfg.tier(n) is not None)},
+                "data_policy_enforcement": {"allowed_providers_header": datapolicy.PROVIDERS_HEADER,
+                                            "zero_retention_header": datapolicy.ZERO_RETENTION_HEADER, "refusal": "403 data_policy"},
                 "health": "/readyz",
             },
         }

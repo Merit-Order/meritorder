@@ -191,6 +191,33 @@ the proxy's own APIs (`/v1/chat/completions`, `/v1/messages`, …) never accept 
 | `auth.oidc.browser_client_secret_env` | | The environment variable holding that client's secret (`MERITORDER_OIDC_BROWSER_CLIENT_SECRET` in the shipped config) |
 | `auth.oidc.redirect_uri` | the browser's address + `/auth/sso/callback` | Set it if a proxy hides the gateway's public address |
 
+## Data policy
+
+Each backend says who receives what's sent to it and what your agreement with that provider says, so a caller can keep
+some data away from some providers ([decision 72](09-decisions.md#72-named-tiers-a-route-listing-and-a-callers-data-policy)).
+
+| Backend setting | |
+|---|---|
+| `provider` | Who receives the data. Default: from the address (`anthropic`, `bedrock`, `azure_openai`, `foundry`, `vertex`, `gemini`, `openai`, `openrouter`, `mistral`, `deepseek`, `xai`, `moonshot`, `zai`, `minimax`); your own GPUs are `self_hosted`; anything else is the backend's name |
+| `zero_retention` | `true` if the provider keeps no prompts or outputs under your agreement (for example Anthropic's or OpenAI's zero-data-retention terms, if you have them); `false` if it keeps them; unset is unknown |
+| `trains_on_data` | Whether the provider may train on what's sent; unset is unknown |
+
+Merit Order never guesses these: retention depends on your contract, not on the provider's name. Your own GPUs keep
+nothing and train on nothing.
+
+A request can carry the caller's policy:
+
+```
+X-MeritOrder-Allowed-Providers: anthropic, bedrock
+X-MeritOrder-Zero-Retention: required
+```
+
+Routes to other providers, or (with zero retention required) to providers not stated as zero-retention, are left out
+of the choice, as a team's `allowed_backends` would be. If nothing is left, the request is refused with `403` and a
+message starting `data_policy:` that names each route's reason. Embeddings follow the same rules. `GET /v1/routes`
+shows each tier's candidates with their provider, price and these facts (with `source`: `config`, `self_hosted` or
+`unknown`), so a caller can check its policy before sending; `GET /v1/capabilities` says both are offered.
+
 ## Request screening
 
 Agents read web pages, run commands and edit files on someone's machine, and the gateway sees every tool call they

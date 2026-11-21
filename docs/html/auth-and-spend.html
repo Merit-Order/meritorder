@@ -140,7 +140,7 @@ figure { margin: 1.4em 0 1.8em; }
 <header class="hero">
   <div class="eyebrow">Merit Order docs · 06</div>
   <h1>Auth &amp; spend</h1>
-  <div class="lede"><p class="also"><a href="index.html">All docs on one page</a> · <a href="how-it-all-works.html">How it all works</a></p><details class="contents"><summary>On this page</summary><ol><li><a href="#getting-a-key-into-pi-and-claude-code">Getting a key into pi and Claude Code</a></li><li><a href="#signing-in-to-the-console">Signing in to the console</a></li><li><a href="#request-screening">Request screening</a></li><li><a href="#people-and-teams">People and teams</a></li><li><a href="#signing-in-with-google">Signing in with Google</a></li><li><a href="#stored-responses-who-holds-them-and-who-can-read-them">Stored responses: who holds them and who can read them</a></li><li><a href="#secrets-in-a-saved-configuration">Secrets in a saved configuration</a></li><li><a href="#where-budgets-and-limits-are-set">Where budgets and limits are set</a></li><li><a href="#budgets">Budgets</a></li><li><a href="#limits-that-stop-runaway-spend">Limits that stop runaway spend</a></li><li><a href="#organization-wide-safeguards">Organization-wide safeguards</a></li><li><a href="#what-gets-charged">What gets charged</a></li><li><a href="#the-savings-ledger">The savings ledger</a></li></ol></details></div>
+  <div class="lede"><p class="also"><a href="index.html">All docs on one page</a> · <a href="how-it-all-works.html">How it all works</a></p><details class="contents"><summary>On this page</summary><ol><li><a href="#getting-a-key-into-pi-and-claude-code">Getting a key into pi and Claude Code</a></li><li><a href="#signing-in-to-the-console">Signing in to the console</a></li><li><a href="#data-policy">Data policy</a></li><li><a href="#request-screening">Request screening</a></li><li><a href="#people-and-teams">People and teams</a></li><li><a href="#signing-in-with-google">Signing in with Google</a></li><li><a href="#stored-responses-who-holds-them-and-who-can-read-them">Stored responses: who holds them and who can read them</a></li><li><a href="#secrets-in-a-saved-configuration">Secrets in a saved configuration</a></li><li><a href="#where-budgets-and-limits-are-set">Where budgets and limits are set</a></li><li><a href="#budgets">Budgets</a></li><li><a href="#limits-that-stop-runaway-spend">Limits that stop runaway spend</a></li><li><a href="#organization-wide-safeguards">Organization-wide safeguards</a></li><li><a href="#what-gets-charged">What gets charged</a></li><li><a href="#the-savings-ledger">The savings ledger</a></li></ol></details></div>
 </header>
 
 <div class="layout">
@@ -357,7 +357,8 @@ and over HTTPS (directly or through a proxy that sets <code>X-Forwarded-Proto</c
 no other subdomain can set, so a sibling site can't sign your browser in to an account of its choosing. The gateway keeps only its hash.
 It lasts <code>auth.session_hours</code> (12 by default). Like a key, it acts as the person's record as it is now, at most a
 minute old, so moving, demoting or disabling someone applies to their console sessions too. Signing out ends the
-session on the gateway, not only in that browser. Changing your password (account menu → Change password) ends your
+session on the gateway, not only in that browser. When a session ends while the console is open, its next call takes it back to the
+sign-in page, which says why; signing in again returns to the page you were on. Changing your password (account menu → Change password) ends your
 other sessions; a reset link ends all of them.</p>
 <p><strong>Invite and reset links</strong> work once, for <code>auth.local.invite_hours</code> (72 by default). Each person has at most one open
 link; making a new one withdraws the old, and so does changing their team, role or access. Merit Order doesn't send
@@ -438,6 +439,42 @@ the proxy's own APIs (<code>/v1/chat/completions</code>, <code>/v1/messages</cod
 </tr>
 </tbody>
 </table></div>
+<h2 id="data-policy">Data policy</h2>
+<p>Each backend says who receives what's sent to it and what your agreement with that provider says, so a caller can keep
+some data away from some providers (<a href="decisions.html#72-named-tiers-a-route-listing-and-a-callers-data-policy">decision 72</a>).</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Backend setting</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>provider</code></td>
+<td>Who receives the data. Default: from the address (<code>anthropic</code>, <code>bedrock</code>, <code>azure_openai</code>, <code>foundry</code>, <code>vertex</code>, <code>gemini</code>, <code>openai</code>, <code>openrouter</code>, <code>mistral</code>, <code>deepseek</code>, <code>xai</code>, <code>moonshot</code>, <code>zai</code>, <code>minimax</code>); your own GPUs are <code>self_hosted</code>; anything else is the backend's name</td>
+</tr>
+<tr>
+<td><code>zero_retention</code></td>
+<td><code>true</code> if the provider keeps no prompts or outputs under your agreement (for example Anthropic's or OpenAI's zero-data-retention terms, if you have them); <code>false</code> if it keeps them; unset is unknown</td>
+</tr>
+<tr>
+<td><code>trains_on_data</code></td>
+<td>Whether the provider may train on what's sent; unset is unknown</td>
+</tr>
+</tbody>
+</table></div>
+<p>Merit Order never guesses these: retention depends on your contract, not on the provider's name. Your own GPUs keep
+nothing and train on nothing.</p>
+<p>A request can carry the caller's policy:</p>
+<pre><code>X-MeritOrder-Allowed-Providers: anthropic, bedrock
+X-MeritOrder-Zero-Retention: required
+</code></pre>
+<p>Routes to other providers, or (with zero retention required) to providers not stated as zero-retention, are left out
+of the choice, as a team's <code>allowed_backends</code> would be. If nothing is left, the request is refused with <code>403</code> and a
+message starting <code>data_policy:</code> that names each route's reason. Embeddings follow the same rules. <code>GET /v1/routes</code>
+shows each tier's candidates with their provider, price and these facts (with <code>source</code>: <code>config</code>, <code>self_hosted</code> or
+<code>unknown</code>), so a caller can check its policy before sending; <code>GET /v1/capabilities</code> says both are offered.</p>
 <h2 id="request-screening">Request screening</h2>
 <p>Agents read web pages, run commands and edit files on someone's machine, and the gateway sees every tool call they
 make and every result they send back. Request screening reads those and records what a security team would want to

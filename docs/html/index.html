@@ -3192,6 +3192,23 @@ team explores says so: <code>…; exploring: one level down from coding:3 (2.0% 
 The ledger keeps it (<code>route_reason</code>), and the console shows it under Reports → Requests and on the
 Dispatch feed. A team routing by expected total cost gets both models' chances and costs, and an escalation what it
 compared (<a href="#routing-expected-total-cost-to-finish-the-task">Expected total cost</a>).</p>
+<h4 id="routing-named-tiers">Named tiers</h4>
+<p>A caller can ask for a tier by name instead of a model: <code>frontier</code>, <code>standard</code>, <code>cheap</code> and <code>embed</code> by default
+(<a href="#decisions-72-named-tiers-a-route-listing-and-a-callers-data-policy">decision 72</a>). A chat tier is <code>auto</code> at a
+fixed level (frontier 5, standard 3, cheap 1), with the task (coding or general) taken from the request unless the tier
+sets one; an embedding tier is one model, by default the cheapest priced embedding model. The gateway owns the mapping:
+change <code>tiers</code> in the config and every caller follows. A model with the same name as a tier wins. <code>X-Route-Floor</code> still
+overrides a tier's level. The ledger records the tier's name as the requested model.</p>
+<pre><code class="language-yaml">tiers:
+  frontier: {level: 5}
+  standard: {level: 3}
+  cheap: {level: 1}
+  embed: {kind: embedding}            # or {kind: embedding, model: text-embedding-3-small}
+  review: {level: 4, task: coding}    # your own
+  pinned: {model: claude-sonnet}      # a fixed model
+</code></pre>
+<p><code>GET /v1/routes</code> lists each tier's candidate models and where each can send a request: provider, price, and the data
+facts in <a href="#auth-and-spend-data-policy">06</a>.</p>
 <h3 id="routing-the-cost-function">The cost function</h3>
 <p>For each candidate backend <code>b</code>, over the session's expected remaining turns:</p>
 <pre><code>cost(b) = rebuild(b) + expected_remaining_turns × per_turn(b)
@@ -7634,7 +7651,8 @@ and over HTTPS (directly or through a proxy that sets <code>X-Forwarded-Proto</c
 no other subdomain can set, so a sibling site can't sign your browser in to an account of its choosing. The gateway keeps only its hash.
 It lasts <code>auth.session_hours</code> (12 by default). Like a key, it acts as the person's record as it is now, at most a
 minute old, so moving, demoting or disabling someone applies to their console sessions too. Signing out ends the
-session on the gateway, not only in that browser. Changing your password (account menu → Change password) ends your
+session on the gateway, not only in that browser. When a session ends while the console is open, its next call takes it back to the
+sign-in page, which says why; signing in again returns to the page you were on. Changing your password (account menu → Change password) ends your
 other sessions; a reset link ends all of them.</p>
 <p><strong>Invite and reset links</strong> work once, for <code>auth.local.invite_hours</code> (72 by default). Each person has at most one open
 link; making a new one withdraws the old, and so does changing their team, role or access. Merit Order doesn't send
@@ -7715,6 +7733,42 @@ the proxy's own APIs (<code>/v1/chat/completions</code>, <code>/v1/messages</cod
 </tr>
 </tbody>
 </table></div>
+<h3 id="auth-and-spend-data-policy">Data policy</h3>
+<p>Each backend says who receives what's sent to it and what your agreement with that provider says, so a caller can keep
+some data away from some providers (<a href="#decisions-72-named-tiers-a-route-listing-and-a-callers-data-policy">decision 72</a>).</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Backend setting</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>provider</code></td>
+<td>Who receives the data. Default: from the address (<code>anthropic</code>, <code>bedrock</code>, <code>azure_openai</code>, <code>foundry</code>, <code>vertex</code>, <code>gemini</code>, <code>openai</code>, <code>openrouter</code>, <code>mistral</code>, <code>deepseek</code>, <code>xai</code>, <code>moonshot</code>, <code>zai</code>, <code>minimax</code>); your own GPUs are <code>self_hosted</code>; anything else is the backend's name</td>
+</tr>
+<tr>
+<td><code>zero_retention</code></td>
+<td><code>true</code> if the provider keeps no prompts or outputs under your agreement (for example Anthropic's or OpenAI's zero-data-retention terms, if you have them); <code>false</code> if it keeps them; unset is unknown</td>
+</tr>
+<tr>
+<td><code>trains_on_data</code></td>
+<td>Whether the provider may train on what's sent; unset is unknown</td>
+</tr>
+</tbody>
+</table></div>
+<p>Merit Order never guesses these: retention depends on your contract, not on the provider's name. Your own GPUs keep
+nothing and train on nothing.</p>
+<p>A request can carry the caller's policy:</p>
+<pre><code>X-MeritOrder-Allowed-Providers: anthropic, bedrock
+X-MeritOrder-Zero-Retention: required
+</code></pre>
+<p>Routes to other providers, or (with zero retention required) to providers not stated as zero-retention, are left out
+of the choice, as a team's <code>allowed_backends</code> would be. If nothing is left, the request is refused with <code>403</code> and a
+message starting <code>data_policy:</code> that names each route's reason. Embeddings follow the same rules. <code>GET /v1/routes</code>
+shows each tier's candidates with their provider, price and these facts (with <code>source</code>: <code>config</code>, <code>self_hosted</code> or
+<code>unknown</code>), so a caller can check its policy before sending; <code>GET /v1/capabilities</code> says both are offered.</p>
 <h3 id="auth-and-spend-request-screening">Request screening</h3>
 <p>Agents read web pages, run commands and edit files on someone's machine, and the gateway sees every tool call they
 make and every result they send back. Request screening reads those and records what a security team would want to
@@ -11895,6 +11949,11 @@ that key's role may see.</p></section><section id="decisions"><header class="sec
 <td>Request screening starts in shadow, with fixed rules on what agents do, not a detector</td>
 <td>Accepted</td>
 </tr>
+<tr>
+<td>72</td>
+<td>Named tiers, a route listing, and a caller's data policy</td>
+<td>Accepted</td>
+</tr>
 </tbody>
 </table></div>
 <p><strong>Still open:</strong> an embedding feature source for the learned router (decision 44). Judged labels are built (decision 52),
@@ -13760,7 +13819,29 @@ hashes and base64, so they'd mostly be noise. Blocking from day one: a rule that
 yet knows how often these are wrong here. Spotlighting or encoding tool results: it would break agents' verbatim edits
 and the prompt cache.</p>
 <p><strong>Revisit if:</strong> shadow data shows a kind is rarely wrong (then block it, holding back the tool call while text still
-streams), a hosted detector shows good numbers on agent traffic, or encodings (base64, hex) start hiding the shapes.</p></section><section id="how-it-decides"><header class="sec-head"><span class="n">10</span><h2>How it decides</h2></header><p>Every decision Merit Order makes, in the order it makes them, with the exact rules and defaults.
+streams), a hosted detector shows good numbers on agent traffic, or encodings (base64, hex) start hiding the shapes.</p>
+<h3 id="decisions-72-named-tiers-a-route-listing-and-a-callers-data-policy">72. Named tiers, a route listing, and a caller's data policy</h3>
+<p><strong>Why:</strong> Blackstart asks for a tier (<code>frontier</code>, <code>standard</code>, <code>cheap</code>, <code>embed</code>), never a model, and expects the gateway to
+own what each tier sends to. Its data policy decides which providers may receive which classes of data, and whether
+only zero-retention endpoints may; it needs to see where each tier can send data and to have the gateway keep a request
+to what the policy allows. <code>GET /v1/capabilities</code> (decision 70) reported both as missing, so Blackstart would have
+treated every route's provider as unknown.</p>
+<p><strong>How:</strong>
+- <code>tiers</code> in the config: a chat tier is <code>auto</code> at a fixed level (frontier 5, standard 3, cheap 1 by default), the task
+  from the request unless the tier sets one; a fixed tier or an embedding tier is one model (by default the cheapest
+  priced embedding model). A model's own name wins over a tier's. The ledger keeps the tier's name as the requested model.
+- Each backend has a <code>provider</code> (from its address unless set) and the operator's <code>zero_retention</code> and <code>trains_on_data</code>
+  from their agreement; unset is unknown, never guessed. Your own GPUs are zero-retention by nature.
+- <code>X-MeritOrder-Allowed-Providers</code> and <code>X-MeritOrder-Zero-Retention: required</code> on a request leave out routes the policy
+  forbids, for chat and embeddings; nothing left is <code>403 data_policy</code> with each route's reason.
+- <code>GET /v1/routes</code> lists each tier's candidate models, each route's provider, price, data facts (with their source) and
+  whether it's available now, within the caller's team's allowed models and backends.</p>
+<p><strong>Not chosen:</strong> Guessing retention from the provider (it depends on the contract: Anthropic and OpenAI offer zero data
+retention only by agreement). A policy stored in the gateway per team: the caller already has one, and passing it per
+request keeps one source of truth; a team setting can come later. Tiers as model aliases: an alias names one model,
+and a tier's point is that the gateway chooses.</p>
+<p><strong>Revisit if:</strong> callers want policy per team in the gateway, data classes need different providers within one request,
+or providers publish machine-readable retention terms.</p></section><section id="how-it-decides"><header class="sec-head"><span class="n">10</span><h2>How it decides</h2></header><p>Every decision Merit Order makes, in the order it makes them, with the exact rules and defaults.
 Each rule names the setting that controls it. The code is the source of truth:
 <code>proxy.py</code> (request pipeline), <code>router.py</code> (model and backend choice), <code>classifier.py</code> (levels), <code>learned.py</code> and
 <code>learned_jobs.py</code> (the opt-in learned router), <code>success.py</code> (expected total cost: the success predictor and the cascade),

@@ -41,6 +41,7 @@ from dataclasses import dataclass, field
 from .affinity import Replica, Warmth, share_on
 from .backends import Backend, describe
 from .cache_shaping import HOUR, needs_cache_marker
+from . import datapolicy
 from .classifier import Floor, classify, parse_floor
 from .config import PRIORITIES, UNPRICED, Config, ModelConfig, Price, Route, TeamConfig, needs_price
 from .learned import LearnedCall, LearnedRouter, features
@@ -804,7 +805,9 @@ class Router:
         instead of classifying it; ``probe``: count no speed check and log nothing (pricing the other side);
         ``escalations``: how many escalations the task has left, for expected_cost's plan (default: the cascade's maximum)."""
         r = self.cfg.routing
-        auto = requested == r.auto_model or requested == ""
+        tier = self.cfg.tier(requested)
+        tier = tier if tier is not None and tier.level is not None else None  # a fixed tier is a named model (cfg.model)
+        auto = requested == r.auto_model or requested == "" or tier is not None
         floor: Floor | None = None
         priority = self.priority(team, headers)
         est = Estimate.of(prompt_tokens)
@@ -851,6 +854,9 @@ class Router:
                     floor = kept_floor
                 else:
                     floor, learned = self.level(body, headers, est.tokens, client)
+                    if tier is not None and not parse_floor(headers.get("x-route-floor", "")):
+                        # A named tier (decision 72): its level, the task from the request unless the tier sets one.
+                        floor = Floor(tier.task or floor.task, tier.level, f"tier '{requested}'", explicit=True)
                     if explore and not probe and not batch:
                         given = floor
                         floor, explored, canary = self._explore(floor, team, headers, session, now, explore_up)
@@ -936,10 +942,15 @@ class Router:
         growth = max(est.tokens - session.prefix_tokens, 0) if session and session.prefix_tokens else None
         saturated: list[Candidate] = []
         cooling: list[Candidate] = []  # the model is over capacity on this backend: a last resort
+        policy = datapolicy.from_headers(headers)  # the caller's data policy (decision 72)
+        policy_why: dict[str, str] = {}
         for m in models:
             for route in m.routes:
                 backend = self.backends.get(route.backend)
                 if backend is None or not backend.available or not backend.healthy(now) or not team.allows_backend(route.backend):
+                    continue
+                if policy is not None and (no := policy.refuses(backend.cfg)):
+                    policy_why[route.backend] = no
                     continue
                 if batch:
                     if backend.batch_api is None or (not route.priced and (auto or needs_price(route, backend.kind))):
@@ -1010,6 +1021,9 @@ class Router:
             if not any(c.queued for c in again.candidates):
                 again.reason = f"session model {session.model} is saturated; re-routed: {again.reason}"
                 return again
+        if not cands and not saturated and not cooling and policy_why:
+            # Nothing left once the caller's data policy is applied: say so, rather than that nothing is available.
+            raise RoutingError(403, datapolicy.refusal(policy, policy_why), "permission_error")
         if not cands and saturated:
             saturated.sort(key=lambda c: (c.cost, -c.quality))
             names = ", ".join(dict.fromkeys(c.backend.name for c in saturated))
