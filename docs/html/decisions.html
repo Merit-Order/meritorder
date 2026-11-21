@@ -2427,10 +2427,9 @@ on ends the person's other sessions.</p>
 <p><strong>Not chosen:</strong> Passkeys (WebAuthn) first: better against phishing, but they need a relying-party setup tied to the
 gateway's host name and a server library; they can come next. SMS or email codes: Merit Order sends neither, and SMS is
 the weakest second factor. A required <code>MERITORDER_AUTH_KEY</code>: one more secret before anyone can turn two-factor on; the
-password hash already stands between a database copy and a sign-in. A QR code in the console: it needs a library the
-console doesn't have yet; the <code>otpauth://</code> link and the typed key cover phones and Macs meanwhile.</p>
-<p><strong>Revisit if:</strong> people want passkeys, an organization wants two-factor required for everyone with a password, or the QR
-code matters enough to add the library.</p></section>
+password hash already stands between a database copy and a sign-in. The QR code comes from <code>qrcode-generator</code> (MIT, no
+dependencies), drawn as SVG squares so nothing is injected into the page.</p>
+<p><strong>Revisit if:</strong> people want passkeys, or an organization wants two-factor required for everyone with a password.</p></section>
   </main>
 </div>
 
