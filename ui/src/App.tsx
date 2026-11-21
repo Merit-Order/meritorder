@@ -1,7 +1,7 @@
 import { AppShell, Burger, Button, Group, Menu, NavLink, ScrollArea, Text, UnstyledButton, useMantineColorScheme } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Api, ApiError, auth } from "./api";
+import { Api, ApiError, auth, SESSION_ENDED } from "./api";
 import { useData } from "./hooks";
 import { Keys, MyUsage, Teams } from "./pages/Admin";
 import { AcceptInvite, ChangePassword, SignIn } from "./pages/SignIn";
@@ -109,6 +109,13 @@ export default function App() {
     close();
   }, [close]);
   const signedIn = () => setEpoch((n) => n + 1);
+  // A call that finds the session ended asks the gateway again (GET /auth/session), which shows the sign-in page with the
+  // reason. The page in the address bar is kept, so signing in again returns to it.
+  useEffect(() => {
+    const ended = () => setEpoch((n) => n + 1);
+    window.addEventListener(SESSION_ENDED, ended);
+    return () => window.removeEventListener(SESSION_ENDED, ended);
+  }, []);
   const signOut = async () => {
     try { await auth.logout(); } catch { /* the cookie is cleared or already gone; show sign-in either way */ }
     signedIn();

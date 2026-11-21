@@ -7,6 +7,8 @@
   one-time link from the People page, or `meritorder accounts create`), with a session in an HttpOnly cookie. API keys
   are for harnesses and services; one typed into the console opens a session tied to it, and the browser no longer
   stores it. Signing out ends the session on the gateway (decision 69). Needs migration 21 (`meritorder migrate`).
+- When a console session ends (expired, signed out elsewhere, disabled), the console goes back to its sign-in page and
+  says why, instead of showing errors on every panel; signing in again returns to the same page.
 - The console shows people by name or email address everywhere (header, reports, requests, keys, batches, GPUs,
   dispatch), never an identity provider's GUID; `GET /v1/reports/people` gives the names a viewer may see.
 - Request screening, per team, in shadow mode (`screening.mode: shadow`): hidden Unicode, keys in prompts and tool

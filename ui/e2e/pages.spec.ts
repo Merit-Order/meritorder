@@ -51,6 +51,23 @@ test("sign in with a key, see who you are, sign out", async ({ page, problems })
   await expect(page.getByLabel("Email address")).toBeVisible();
 });
 
+test("a session that ends while the page is open goes back to sign-in, and signing in returns to the page", async ({ page, problems }) => {
+  await signInAs(page, "admin");
+  await open(page, "keys");
+  await expect(page.getByText("API keys", { exact: true }).first()).toBeVisible();
+  // End the session on the gateway (as an expiry would) but keep the browser's cookie.
+  const cookie = (await page.context().cookies()).find((c) => c.name === "mo_session")!;
+  await page.request.post("/auth/logout", { headers: { "x-meritorder-console": "1" } });
+  await page.context().addCookies([cookie]);
+  await page.getByRole("button", { name: "People" }).first().click(); // the next call finds the session gone
+  await expect(page.getByText("your console session has ended; sign in again")).toBeVisible();
+  await expect(page.getByText("Couldn't load this")).toHaveCount(0);
+  allow(problems, /status of 401/);
+  await signInWithKey(page, KEYS.admin);
+  await expect(page.getByText("People", { exact: true }).first()).toBeVisible();
+  expect(page.url()).toContain("#people");
+});
+
 test("a console that kept a key before sessions trades it for one and forgets it", async ({ page }) => {
   await page.addInitScript((key) => {
     if (!sessionStorage.getItem("seeded")) { localStorage.setItem("meritorder.key", key); sessionStorage.setItem("seeded", "1"); }

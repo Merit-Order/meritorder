@@ -625,6 +625,8 @@ export class ApiError extends Error {
 /** The header the console sends on every call (auth.CSRF_HEADER): with the session cookie, a change needs it, and no
  * other site's form or link can send it. */
 export const CONSOLE_HEADER = "x-meritorder-console";
+/** Dispatched on window when a console call finds the session ended (App listens and shows the sign-in page). */
+export const SESSION_ENDED = "meritorder:session-ended";
 
 async function call(path: string, init: RequestInit = {}, key: string | null = null): Promise<Response> {
   const headers: Record<string, string> = { [CONSOLE_HEADER]: "1" };
@@ -639,6 +641,9 @@ async function call(path: string, init: RequestInit = {}, key: string | null = n
     } catch {
       /* not JSON */
     }
+    // A 401 on a session call (not sign-in itself, nor a key the demo sends): the session has ended (expired, signed out
+    // elsewhere, disabled). The console goes back to its sign-in page instead of showing the error on every panel.
+    if (resp.status === 401 && !key && !path.startsWith("/auth/")) window.dispatchEvent(new Event(SESSION_ENDED));
     throw new ApiError(resp.status, message);
   }
   return resp;
