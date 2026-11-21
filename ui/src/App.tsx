@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Api, ApiError, auth, SESSION_ENDED } from "./api";
 import { useData } from "./hooks";
 import { Keys, MyUsage, Teams } from "./pages/Admin";
-import { AcceptInvite, ChangePassword, SignIn } from "./pages/SignIn";
+import { AcceptInvite, ChangePassword, SignIn, TwoFactor } from "./pages/SignIn";
 import { ConfigPage } from "./pages/config/ConfigPage";
 import { People } from "./pages/People";
 import { Dispatch } from "./pages/Dispatch";
@@ -91,6 +91,7 @@ export default function App() {
   const [page, setPage] = useState(() => location.hash.slice(1));
   const [opened, { toggle, close }] = useDisclosure(false);
   const [changing, password] = useDisclosure(false);
+  const [twoFactor, twoFactorPanel] = useDisclosure(false);
 
   useEffect(() => {
     if (!migrating) return;
@@ -158,6 +159,8 @@ export default function App() {
                 <Menu.Label>{me.data.email && me.data.email !== shown ? `${me.data.email} · ` : ""}{me.data.team} · {role.replace("_", " ")}</Menu.Label>
                 <Menu.Item onClick={() => go("me")}>My usage</Menu.Item>
                 {me.data.sign_in?.has_password && me.data.sign_in.method === "password" && <Menu.Item onClick={password.open}>Change password</Menu.Item>}
+                {me.data.sign_in?.has_password && me.data.sign_in.method === "password" &&
+                  <Menu.Item onClick={twoFactorPanel.open}>Two-factor sign-in{me.data.sign_in.two_factor ? " (on)" : ""}</Menu.Item>}
                 {!__DEMO__ && <Menu.Item color="red" onClick={() => void signOut()}>Sign out</Menu.Item>}
               </Menu.Dropdown>
             </Menu>
@@ -183,6 +186,7 @@ export default function App() {
         <SourceFooter />
       </AppShell.Main>
       <ChangePassword opened={changing} onClose={password.close} />
+      <TwoFactor opened={twoFactor} on={!!me.data.sign_in?.two_factor} onClose={(changed) => { twoFactorPanel.close(); if (changed) me.reload(); }} />
     </AppShell>
     </PeopleContext.Provider>
   );

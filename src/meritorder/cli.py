@@ -691,6 +691,9 @@ def _password_login(c: httpx.Client, gateway: str, args) -> None:
     email = getattr(args, "email", None) or input("Email address: ").strip()
     password = getpass.getpass("Password: ")
     resp = c.post(f"{gateway}/auth/exchange", json={"email": email, "password": password})
+    if resp.status_code == 401 and resp.headers.get("x-meritorder-two-factor") == "required":  # two-factor is on
+        code = input("Code from your authenticator app (or a recovery code): ").strip()
+        resp = c.post(f"{gateway}/auth/exchange", json={"email": email, "password": password, "code": code})
     if resp.status_code != 200:
         try:
             detail = resp.json().get("detail")

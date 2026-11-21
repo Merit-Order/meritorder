@@ -76,6 +76,7 @@ What we decided, why, and what would make us revisit it. Newest decisions go at 
 | 70 | Attribution is tags: Claude Code's agent labels recorded as tags, 32 tags a request, and a capabilities answer for services | Accepted |
 | 71 | Request screening starts in shadow, with fixed rules on what agents do, not a detector | Accepted |
 | 72 | Named tiers, a route listing, and a caller's data policy | Accepted |
+| 73 | Two-factor sign-in for local accounts: authenticator codes and recovery codes | Accepted |
 
 **Still open:** an embedding feature source for the learned router (decision 44). Judged labels are built (decision 52),
 opt-in per team, and tested only against mocks.
@@ -2176,3 +2177,26 @@ and a tier's point is that the gateway chooses.
 
 **Revisit if:** callers want policy per team in the gateway, data classes need different providers within one request,
 or providers publish machine-readable retention terms.
+
+## 73. Two-factor sign-in for local accounts: authenticator codes and recovery codes
+
+**Why:** Decision 69 left two-factor for later: an organization with SSO gets it from its identity provider, but a small
+team on local accounts had only passwords.
+
+**How:** Authenticator-app codes (TOTP, RFC 6238: SHA-1, 6 digits, 30 seconds, one step of drift either side), turned on
+by each person from the account menu, confirmed with a first code, and asked for at every password sign-in, in the
+console and in `meritorder login`. Each step's code works once (a two-minute Redis key). Ten one-time recovery codes,
+stored as hashes, are shown when it's turned on. A reset link keeps two-factor on, so holding a link isn't enough to
+take an account over; a lost device means a recovery code or an admin's reset. The secret is sealed with
+`MERITORDER_AUTH_KEY` (AES-256-GCM, sealing.py, with the person's id as associated data) when it's set, and stored as
+it is otherwise: then whoever can read the database still needs the person's password, which is hashed. Turning it
+on ends the person's other sessions.
+
+**Not chosen:** Passkeys (WebAuthn) first: better against phishing, but they need a relying-party setup tied to the
+gateway's host name and a server library; they can come next. SMS or email codes: Merit Order sends neither, and SMS is
+the weakest second factor. A required `MERITORDER_AUTH_KEY`: one more secret before anyone can turn two-factor on; the
+password hash already stands between a database copy and a sign-in. A QR code in the console: it needs a library the
+console doesn't have yet; the `otpauth://` link and the typed key cover phones and Macs meanwhile.
+
+**Revisit if:** people want passkeys, an organization wants two-factor required for everyone with a password, or the QR
+code matters enough to add the library.

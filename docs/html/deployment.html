@@ -1066,6 +1066,11 @@ the YAML file on disk. The operator widens them with three variables on the gate
 <td>Seals uploaded batch files while they wait to be submitted, and batch work held for GPUs (<a href="request-flow.html#what-the-gateway-holds-and-for-how-long">02</a>). Any long random string (<code>openssl rand -base64 32</code>). Without it, a gateway on Postgres refuses uploads and sends no batch work to GPUs. To rotate it, move the old value to <code>MERITORDER_BATCH_KEY_PREVIOUS</code>: what it sealed is read for <code>batches.key_grace_days</code> (the retention period plus two days), then the old key can go. Changing it without that makes waiting uploads unreadable</td>
 </tr>
 <tr>
+<td><code>MERITORDER_AUTH_KEY</code> (optional)</td>
+<td>Environment, the same on every gateway</td>
+<td>Seals the authenticator secrets of people with two-factor sign-in (<a href="auth-and-spend.html#two-factor-sign-in">06</a>). Any long random string. Without it they're stored as they are; passwords stay hashed, so the database alone still doesn't sign anyone in. Changing it leaves existing two-factor users needing a recovery code or an admin's reset</td>
+</tr>
+<tr>
 <td><code>MERITORDER_RESPONSES_KEY</code>, <code>MERITORDER_RESPONSES_OLD_KEYS</code></td>
 <td>Environment or a mounted file (<code>response_store.key_file</code>), the same on every gateway and the worker</td>
 <td>Seals what teams in the Responses API's stored mode keep (<a href="caching-and-sessions.html#stateful-apis">04</a>). Any long random string. Without it, a gateway on Postgres refuses requests that would be stored (503). To rotate, move the old key to <code>MERITORDER_RESPONSES_OLD_KEYS</code> (comma-separated) and set the new one; the worker seals everything again, and Config → Teams says when the old key is no longer needed. Dropping a key that still seals something makes that unreadable</td>

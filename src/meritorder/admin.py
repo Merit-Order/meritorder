@@ -248,6 +248,7 @@ def build_router(gateway) -> APIRouter:
                         "managed": u.get("managed", "idp"), "disabled": bool(u.get("disabled_at")),
                         "budget_usd_month": u.get("budget_usd_month"), "default_budget_usd_month": _default_limit(u["id"], u["team"]),
                         "active_keys": int(u.get("active_keys") or 0),
+                        "has_password": bool(u.get("has_password")), "two_factor": bool(u.get("two_factor")),
                         "last_seen": u["last_seen"].isoformat() if u.get("last_seen") else None,
                         "spend_month": s.get("actual_cost", 0.0), "requests_month": s.get("requests", 0),
                         "google": _google_view(readings.get(u["id"]), every=p.role == "admin") if groups else None})

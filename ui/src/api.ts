@@ -194,7 +194,7 @@ export type Me = {
 };
 
 /** "password" or "sso": a console session; "key": a session opened with an API key, or a key in the header. */
-export type SignInStatus = { method: "password" | "sso" | "key" | null; has_password: boolean };
+export type SignInStatus = { method: "password" | "sso" | "key" | null; has_password: boolean; two_factor?: boolean };
 export type AuthConfig = { oidc: { issuer: string; client_id: string } | null; local?: { enabled: boolean };
   /** The console's SSO button: who people sign in with, and where it starts. Null when browser sign-in isn't set up. */
   sso?: { provider: "google" | "entra" | "oidc"; start: string } | null };
@@ -483,6 +483,8 @@ export type ConfigSource = { source: "file" | "database"; version: number | null
 export type Validation = { ok: boolean; error?: string; summary?: ConfigSummary; document?: Doc; yaml?: string };
 export type Person = { id: string; email: string | null; display_name: string | null; team: string; role: string; managed: "idp" | "local";
   disabled: boolean; active_keys: number; last_seen: string | null; spend_month: number; requests_month: number;
+  /** Signs in with a password kept here; has two-factor on (decision 73). */
+  has_password?: boolean; two_factor?: boolean;
   /** This person's own monthly limit; null means default_budget_usd_month applies (null there too: no per-person limit). */
   budget_usd_month: number | null; default_budget_usd_month: number | null;
   /** Their last Google Groups reading, when the gateway reads Google Groups (null: not signed in with Google since). */
@@ -617,6 +619,8 @@ export const CAUSES = [
 ] as const;
 
 export class ApiError extends Error {
+  /** The gateway wants an authenticator code too (two-factor sign-in, decision 73). */
+  needsCode = false;
   constructor(public status: number, message: string) {
     super(message);
   }
@@ -644,7 +648,9 @@ async function call(path: string, init: RequestInit = {}, key: string | null = n
     // A 401 on a session call (not sign-in itself, nor a key the demo sends): the session has ended (expired, signed out
     // elsewhere, disabled). The console goes back to its sign-in page instead of showing the error on every panel.
     if (resp.status === 401 && !key && !path.startsWith("/auth/")) window.dispatchEvent(new Event(SESSION_ENDED));
-    throw new ApiError(resp.status, message);
+    const err = new ApiError(resp.status, message);
+    err.needsCode = resp.headers.get("x-meritorder-two-factor") === "required";
+    throw err;
   }
   return resp;
 }
@@ -656,13 +662,16 @@ const post = async <T>(path: string, body: unknown = {}): Promise<T> =>
 export const auth = {
   config: async () => (await call("/auth/config")).json() as Promise<AuthConfig>,
   session: async () => (await call("/auth/session")).json() as Promise<{ signed_in: boolean; reason?: string | null }>,
-  login: (body: { email: string; password: string } | { api_key: string }) => post<{ user: string; role: string }>("/auth/login", body),
+  login: (body: { email: string; password: string; code?: string } | { api_key: string }) => post<{ user: string; role: string }>("/auth/login", body),
   logout: () => post<{ signed_out: boolean }>("/auth/logout"),
   // The token goes in the body, never the URL, so no access log or proxy records it.
   invite: (token: string) => post<InviteInfo>("/auth/invite/info", { token }),
   acceptInvite: (token: string, body: { password: string; name?: string }) =>
     post<{ user: string; role: string }>("/auth/invite/accept", { token, ...body }),
   changePassword: (current: string, next: string) => post<{ changed: boolean; other_sessions_ended: number }>("/auth/password", { current, new: next }),
+  twoFactorSetup: () => post<{ secret: string; uri: string }>("/auth/two-factor/setup"),
+  twoFactorEnable: (code: string) => post<{ enabled: boolean; recovery_codes: string[] }>("/auth/two-factor/enable", { code }),
+  twoFactorDisable: (password: string) => post<{ enabled: boolean }>("/auth/two-factor/disable", { password }),
 };
 
 export class Api {
@@ -857,6 +866,10 @@ export class Api {
 
   async withdrawInvite(id: string) {
     return (await this.request(`/v1/admin/invites/${encodeURIComponent(id)}`, { method: "DELETE" })).json();
+  }
+
+  async resetTwoFactor(user: string) {
+    return (await this.request(`/v1/admin/users/${encodeURIComponent(user)}/two-factor/reset`, { method: "POST", body: "{}" })).json();
   }
 
   async resetLink(user: string) {

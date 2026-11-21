@@ -7673,6 +7673,23 @@ same answer as a wrong password. The per-address limit means anyone can lock a k
 that's the trade for stopping guessing. Behind a proxy, the gateway sees every client as the proxy's address unless
 the proxy is trusted (<code>FORWARDED_ALLOW_IPS</code>, <a href="#deployment">07</a>): then the per-client limit applies to everyone at
 once. Resetting or changing a password also revokes the keys <code>meritorder login</code> got with the old one.</p>
+<h4 id="auth-and-spend-two-factor-sign-in">Two-factor sign-in</h4>
+<p>People with a password here can turn on two-factor (account menu → Two-factor sign-in): signing in then also takes a
+six-digit code from an authenticator app (1Password, Apple Passwords, Google Authenticator, Authy and others), on the
+console and in <code>meritorder login</code> (<a href="#decisions-73-two-factor-sign-in-for-local-accounts-authenticator-codes-and-recovery-codes">decision 73</a>).
+People who sign in with SSO get two-factor from their identity provider instead.</p>
+<ul>
+<li><strong>Turning it on:</strong> the console shows a key and an <code>otpauth://</code> link (opening it on the phone or Mac with the app adds
+  the account); entering the code the app shows turns it on, ends your other sessions, and shows ten recovery codes,
+  once. Each recovery code signs you in once in place of a code.</li>
+<li><strong>Codes:</strong> the standard time-based kind (SHA-1, 6 digits, 30 seconds), accepted one step either side for clock drift;
+  each code works once. A wrong code counts against the sign-in limit like a wrong password.</li>
+<li><strong>A forgotten password</strong> doesn't turn it off: a reset link sets a new password, and the code is still asked for.</li>
+<li><strong>A lost device:</strong> a recovery code, or an admin's <strong>Reset two-factor</strong> on the People page, which turns it off and ends
+  the person's sessions. Team leads can't.</li>
+<li><strong>Storage:</strong> the authenticator secret has to be read to check a code, so it's sealed (AES-256-GCM, tied to its person)
+  with <code>MERITORDER_AUTH_KEY</code> when that's set, and stored as it is otherwise; recovery codes are stored as hashes.</li>
+</ul>
 <p><strong>Keys in the console.</strong> "Sign in with an API key instead" still works: the gateway checks the key and opens a
 session tied to it, so the browser never stores the key, and revoking the key ends the session. A console that kept
 a key from an earlier version trades it for a session the next time it opens, and forgets it.</p>
@@ -9481,6 +9498,11 @@ the YAML file on disk. The operator widens them with three variables on the gate
 <td><code>MERITORDER_BATCH_KEY</code></td>
 <td>Environment (the same on every gateway and the worker)</td>
 <td>Seals uploaded batch files while they wait to be submitted, and batch work held for GPUs (<a href="#request-flow-what-the-gateway-holds-and-for-how-long">02</a>). Any long random string (<code>openssl rand -base64 32</code>). Without it, a gateway on Postgres refuses uploads and sends no batch work to GPUs. To rotate it, move the old value to <code>MERITORDER_BATCH_KEY_PREVIOUS</code>: what it sealed is read for <code>batches.key_grace_days</code> (the retention period plus two days), then the old key can go. Changing it without that makes waiting uploads unreadable</td>
+</tr>
+<tr>
+<td><code>MERITORDER_AUTH_KEY</code> (optional)</td>
+<td>Environment, the same on every gateway</td>
+<td>Seals the authenticator secrets of people with two-factor sign-in (<a href="#auth-and-spend-two-factor-sign-in">06</a>). Any long random string. Without it they're stored as they are; passwords stay hashed, so the database alone still doesn't sign anyone in. Changing it leaves existing two-factor users needing a recovery code or an admin's reset</td>
 </tr>
 <tr>
 <td><code>MERITORDER_RESPONSES_KEY</code>, <code>MERITORDER_RESPONSES_OLD_KEYS</code></td>
@@ -11954,6 +11976,11 @@ that key's role may see.</p></section><section id="decisions"><header class="sec
 <td>Named tiers, a route listing, and a caller's data policy</td>
 <td>Accepted</td>
 </tr>
+<tr>
+<td>73</td>
+<td>Two-factor sign-in for local accounts: authenticator codes and recovery codes</td>
+<td>Accepted</td>
+</tr>
 </tbody>
 </table></div>
 <p><strong>Still open:</strong> an embedding feature source for the learned router (decision 44). Judged labels are built (decision 52),
@@ -13841,7 +13868,25 @@ retention only by agreement). A policy stored in the gateway per team: the calle
 request keeps one source of truth; a team setting can come later. Tiers as model aliases: an alias names one model,
 and a tier's point is that the gateway chooses.</p>
 <p><strong>Revisit if:</strong> callers want policy per team in the gateway, data classes need different providers within one request,
-or providers publish machine-readable retention terms.</p></section><section id="how-it-decides"><header class="sec-head"><span class="n">10</span><h2>How it decides</h2></header><p>Every decision Merit Order makes, in the order it makes them, with the exact rules and defaults.
+or providers publish machine-readable retention terms.</p>
+<h3 id="decisions-73-two-factor-sign-in-for-local-accounts-authenticator-codes-and-recovery-codes">73. Two-factor sign-in for local accounts: authenticator codes and recovery codes</h3>
+<p><strong>Why:</strong> Decision 69 left two-factor for later: an organization with SSO gets it from its identity provider, but a small
+team on local accounts had only passwords.</p>
+<p><strong>How:</strong> Authenticator-app codes (TOTP, RFC 6238: SHA-1, 6 digits, 30 seconds, one step of drift either side), turned on
+by each person from the account menu, confirmed with a first code, and asked for at every password sign-in, in the
+console and in <code>meritorder login</code>. Each step's code works once (a two-minute Redis key). Ten one-time recovery codes,
+stored as hashes, are shown when it's turned on. A reset link keeps two-factor on, so holding a link isn't enough to
+take an account over; a lost device means a recovery code or an admin's reset. The secret is sealed with
+<code>MERITORDER_AUTH_KEY</code> (AES-256-GCM, sealing.py, with the person's id as associated data) when it's set, and stored as
+it is otherwise: then whoever can read the database still needs the person's password, which is hashed. Turning it
+on ends the person's other sessions.</p>
+<p><strong>Not chosen:</strong> Passkeys (WebAuthn) first: better against phishing, but they need a relying-party setup tied to the
+gateway's host name and a server library; they can come next. SMS or email codes: Merit Order sends neither, and SMS is
+the weakest second factor. A required <code>MERITORDER_AUTH_KEY</code>: one more secret before anyone can turn two-factor on; the
+password hash already stands between a database copy and a sign-in. A QR code in the console: it needs a library the
+console doesn't have yet; the <code>otpauth://</code> link and the typed key cover phones and Macs meanwhile.</p>
+<p><strong>Revisit if:</strong> people want passkeys, an organization wants two-factor required for everyone with a password, or the QR
+code matters enough to add the library.</p></section><section id="how-it-decides"><header class="sec-head"><span class="n">10</span><h2>How it decides</h2></header><p>Every decision Merit Order makes, in the order it makes them, with the exact rules and defaults.
 Each rule names the setting that controls it. The code is the source of truth:
 <code>proxy.py</code> (request pipeline), <code>router.py</code> (model and backend choice), <code>classifier.py</code> (levels), <code>learned.py</code> and
 <code>learned_jobs.py</code> (the opt-in learned router), <code>success.py</code> (expected total cost: the success predictor and the cascade),

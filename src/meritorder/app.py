@@ -339,7 +339,8 @@ def create_app(cfg: Config | None = None, gateway: Gateway | None = None) -> Fas
         if not isinstance(body, dict):
             raise HTTPException(400, "request body must be a JSON object with an id_token")
         if "password" in body:  # `meritorder login` on a gateway with local accounts
-            return await password_key(gw, request, str(body.get("email") or ""), str(body.get("password") or ""))
+            return await password_key(gw, request, str(body.get("email") or ""), str(body.get("password") or ""),
+                                      str(body.get("code") or "") or None)
         try:
             return await gw.authn.exchange(str(body.get("id_token") or ""))
         except AuthError as e:

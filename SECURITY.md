@@ -39,6 +39,8 @@ the same license, along with new images.
   stores no prompt or response content unless you turn it on: the response cache,
   stored responses for the Responses API (sealed with `MERITORDER_RESPONSES_KEY`), and
   batch uploads held until they're submitted (sealed with `MERITORDER_BATCH_KEY`).
+  Console passwords are scrypt hashes; sessions, invite links and recovery codes are
+  stored as SHA-256 hashes; two-factor secrets are sealed with `MERITORDER_AUTH_KEY`.
 - **Secrets** never reach the database: provider keys come from the environment or
   mounted files, a stored configuration with a literal key is refused, and so is one
   that references a secret-looking variable outside the fields meant for secrets.

@@ -169,6 +169,24 @@ that's the trade for stopping guessing. Behind a proxy, the gateway sees every c
 the proxy is trusted (`FORWARDED_ALLOW_IPS`, [07](07-deployment.md)): then the per-client limit applies to everyone at
 once. Resetting or changing a password also revokes the keys `meritorder login` got with the old one.
 
+### Two-factor sign-in
+
+People with a password here can turn on two-factor (account menu → Two-factor sign-in): signing in then also takes a
+six-digit code from an authenticator app (1Password, Apple Passwords, Google Authenticator, Authy and others), on the
+console and in `meritorder login` ([decision 73](09-decisions.md#73-two-factor-sign-in-for-local-accounts-authenticator-codes-and-recovery-codes)).
+People who sign in with SSO get two-factor from their identity provider instead.
+
+- **Turning it on:** the console shows a key and an `otpauth://` link (opening it on the phone or Mac with the app adds
+  the account); entering the code the app shows turns it on, ends your other sessions, and shows ten recovery codes,
+  once. Each recovery code signs you in once in place of a code.
+- **Codes:** the standard time-based kind (SHA-1, 6 digits, 30 seconds), accepted one step either side for clock drift;
+  each code works once. A wrong code counts against the sign-in limit like a wrong password.
+- **A forgotten password** doesn't turn it off: a reset link sets a new password, and the code is still asked for.
+- **A lost device:** a recovery code, or an admin's **Reset two-factor** on the People page, which turns it off and ends
+  the person's sessions. Team leads can't.
+- **Storage:** the authenticator secret has to be read to check a code, so it's sealed (AES-256-GCM, tied to its person)
+  with `MERITORDER_AUTH_KEY` when that's set, and stored as it is otherwise; recovery codes are stored as hashes.
+
 **Keys in the console.** "Sign in with an API key instead" still works: the gateway checks the key and opens a
 session tied to it, so the browser never stores the key, and revoking the key ends the session. A console that kept
 a key from an earlier version trades it for a session the next time it opens, and forgets it.
